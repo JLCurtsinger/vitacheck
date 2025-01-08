@@ -1,11 +1,11 @@
-import Hero from "@/components/Hero";
+import Results from "@/components/Results";
 import Footer from "@/components/Footer";
 
-export default function Index() {
+export default function ResultsPage() {
   return (
     <div className="min-h-screen flex flex-col">
-      <main>
-        <Hero />
+      <main className="flex-1">
+        <Results />
       </main>
       <Footer />
     </div>
