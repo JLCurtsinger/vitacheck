@@ -1,21 +1,16 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, CheckCircle, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle, XCircle, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
-
-type Severity = "safe" | "minor" | "severe";
-
-interface Interaction {
-  medications: [string, string];
-  severity: Severity;
-  description: string;
-}
+import { checkInteractions, InteractionResult } from "@/lib/api";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function Results() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [interactions, setInteractions] = useState<Interaction[]>([]);
+  const [interactions, setInteractions] = useState<InteractionResult[]>([]);
 
   const medications = location.state?.medications || [];
 
@@ -25,39 +20,36 @@ export default function Results() {
       return;
     }
 
-    // Simulate API call
-    setTimeout(() => {
-      // Mock data - in real app, this would come from the API
-      const mockInteractions: Interaction[] = [
-        {
-          medications: [medications[0], medications[1] || ""],
-          severity: "safe",
-          description: "No known interactions between these medications.",
-        },
-        {
-          medications: [medications[1] || "", medications[2] || ""],
-          severity: "minor",
-          description: "Minor interaction possible. Monitor for side effects.",
-        },
-      ];
+    const fetchInteractions = async () => {
+      try {
+        const results = await checkInteractions(medications);
+        setInteractions(results);
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to check interactions. Please try again later."
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      setInteractions(mockInteractions);
-      setLoading(false);
-    }, 1500);
-  }, [medications, navigate]);
+    fetchInteractions();
+  }, [medications, navigate, toast]);
 
-  const getSeverityColor = (severity: Severity) => {
+  const getSeverityColor = (severity: "safe" | "minor" | "severe") => {
     switch (severity) {
       case "safe":
-        return "text-success";
+        return "text-green-500";
       case "minor":
-        return "text-warning";
+        return "text-yellow-500";
       case "severe":
-        return "text-danger";
+        return "text-red-500";
     }
   };
 
-  const getSeverityIcon = (severity: Severity) => {
+  const getSeverityIcon = (severity: "safe" | "minor" | "severe") => {
     const className = "h-6 w-6";
     switch (severity) {
       case "safe":
@@ -72,20 +64,24 @@ export default function Results() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="animate-pulse text-xl">Analyzing interactions...</div>
+        <div className="animate-pulse text-xl bg-gradient-to-r from-blue-600 to-purple-600 text-transparent bg-clip-text">
+          Analyzing interactions...
+        </div>
       </div>
     );
   }
 
   return (
     <div className="max-w-3xl mx-auto p-6">
-      <h2 className="text-2xl font-bold mb-6">Interaction Results</h2>
+      <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 text-transparent bg-clip-text">
+        Interaction Results
+      </h2>
       
-      <div className="mb-6">
+      <div className="mb-6 bg-white rounded-xl shadow-lg p-6">
         <h3 className="text-lg font-semibold mb-2">Medications Checked:</h3>
         <ul className="list-disc list-inside space-y-1">
           {medications.map((med: string, index: number) => (
-            <li key={index}>{med}</li>
+            <li key={index} className="text-gray-700">{med}</li>
           ))}
         </ul>
       </div>
@@ -94,24 +90,34 @@ export default function Results() {
         {interactions.map((interaction, index) => (
           <div
             key={index}
-            className="border rounded-lg p-4 shadow-sm"
+            className="bg-white rounded-xl shadow-lg p-6 transition-transform hover:scale-[1.02]"
           >
             <div className="flex items-center gap-2 mb-2">
               <span className={getSeverityColor(interaction.severity)}>
                 {getSeverityIcon(interaction.severity)}
               </span>
-              <h4 className="font-semibold">
+              <h4 className="font-semibold text-lg">
                 {interaction.medications[0]} + {interaction.medications[1]}
               </h4>
             </div>
-            <p className="text-gray-600">{interaction.description}</p>
+            <p className="text-gray-600 mb-4">{interaction.description}</p>
+            {interaction.evidence && (
+              <a
+                href={interaction.evidence}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors"
+              >
+                Learn More <ExternalLink className="h-4 w-4" />
+              </a>
+            )}
           </div>
         ))}
       </div>
 
       <Button
         onClick={() => navigate("/check")}
-        className="mt-8"
+        className="mt-8 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all hover:scale-[1.02]"
       >
         Check Different Medications
       </Button>
