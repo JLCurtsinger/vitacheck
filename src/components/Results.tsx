@@ -1,9 +1,9 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, CheckCircle, XCircle, ExternalLink } from "lucide-react";
+import { AlertCircle, CheckCircle, XCircle, ExternalLink, AlertTriangle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { checkInteractions, InteractionResult } from "@/lib/api";
-import { useToast } from "@/components/ui/use-toast";
+import { checkInteractions, InteractionResult } from "@/lib/api-utils";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Results() {
   const location = useLocation();
@@ -55,9 +55,20 @@ export default function Results() {
       case "safe":
         return <CheckCircle className={className} />;
       case "minor":
-        return <AlertCircle className={className} />;
+        return <AlertTriangle className={className} />;
       case "severe":
         return <XCircle className={className} />;
+    }
+  };
+
+  const getSeverityText = (severity: "safe" | "minor" | "severe") => {
+    switch (severity) {
+      case "safe":
+        return "Safe to take together";
+      case "minor":
+        return "Minor interaction possible";
+      case "severe":
+        return "Severe interaction risk";
     }
   };
 
@@ -65,7 +76,7 @@ export default function Results() {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="animate-pulse text-xl bg-gradient-to-r from-blue-600 to-purple-600 text-transparent bg-clip-text">
-          Analyzing interactions...
+          Analyzing interactions across multiple databases...
         </div>
       </div>
     );
@@ -100,7 +111,19 @@ export default function Results() {
                 {interaction.medications[0]} + {interaction.medications[1]}
               </h4>
             </div>
-            <p className="text-gray-600 mb-4">{interaction.description}</p>
+            
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-500 mb-1">
+                Severity: <span className={getSeverityColor(interaction.severity)}>
+                  {getSeverityText(interaction.severity)}
+                </span>
+              </p>
+              <p className="text-sm font-medium text-gray-500 mb-2">
+                Sources: {interaction.sources.join(", ")}
+              </p>
+              <p className="text-gray-600">{interaction.description}</p>
+            </div>
+
             {interaction.evidence && (
               <a
                 href={interaction.evidence}
@@ -110,6 +133,17 @@ export default function Results() {
               >
                 Learn More <ExternalLink className="h-4 w-4" />
               </a>
+            )}
+            
+            {interaction.severity !== "safe" && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm font-medium text-gray-700">
+                  Recommendation: {interaction.severity === "severe" 
+                    ? "Consult your healthcare provider before combining these medications."
+                    : "Monitor for potential side effects and consult your healthcare provider if concerned."
+                  }
+                </p>
+              </div>
             )}
           </div>
         ))}
