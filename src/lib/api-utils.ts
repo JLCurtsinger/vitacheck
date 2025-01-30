@@ -1,5 +1,4 @@
 // API utility functions for medication interactions
-import { supabase } from "@/integrations/supabase/client";
 
 interface RxNormResponse {
   idGroup?: {
@@ -67,12 +66,17 @@ export async function getDrugInteractions(rxCUI: string) {
 
 export async function getSupplementInteractions(medication: string) {
   try {
-    // Use Supabase Edge Function instead of direct API call
-    const { data, error } = await supabase.functions.invoke('get-interactions', {
-      body: { medication }
+    const url = `https://supp.ai/api/agent/search?q=${encodeURIComponent(medication)}`;
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
     });
-    
-    if (error) throw error;
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
     return data.interactions || [];
   } catch (error) {
     console.error('Error fetching supplement interactions:', error);
