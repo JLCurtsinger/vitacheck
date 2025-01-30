@@ -1,4 +1,5 @@
 // API utility functions for medication interactions
+import { supabase } from "@/integrations/supabase/client";
 
 interface RxNormResponse {
   idGroup?: {
@@ -37,6 +38,9 @@ export async function getRxCUI(medication: string): Promise<string | null> {
   try {
     const url = `https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(medication)}`;
     const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     const data: RxNormResponse = await response.json();
     return data.idGroup?.rxnormId?.[0] || null;
   } catch (error) {
@@ -47,8 +51,12 @@ export async function getRxCUI(medication: string): Promise<string | null> {
 
 export async function getDrugInteractions(rxCUI: string) {
   try {
-    const url = `https://rxnav.nlm.nih.gov/REST/interaction/list.json?rxcuis=${rxCUI}`;
+    // Updated URL format for interactions
+    const url = `https://rxnav.nlm.nih.gov/REST/interaction/interaction.json?rxcui=${rxCUI}`;
     const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     const data: RxNormInteractionResponse = await response.json();
     return data.fullInteractionTypeGroup || [];
   } catch (error) {
@@ -59,9 +67,12 @@ export async function getDrugInteractions(rxCUI: string) {
 
 export async function getSupplementInteractions(medication: string) {
   try {
-    const url = `https://supp.ai/api/agent/search?q=${encodeURIComponent(medication)}`;
-    const response = await fetch(url);
-    const data: SuppAiResponse = await response.json();
+    // Use Supabase Edge Function instead of direct API call
+    const { data, error } = await supabase.functions.invoke('get-interactions', {
+      body: { medication }
+    });
+    
+    if (error) throw error;
     return data.interactions || [];
   } catch (error) {
     console.error('Error fetching supplement interactions:', error);
@@ -73,6 +84,9 @@ export async function getFDAWarnings(medication: string) {
   try {
     const url = `https://api.fda.gov/drug/label.json?search=openfda.brand_name:${encodeURIComponent(medication)}`;
     const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     const data: FDAResponse = await response.json();
     return data.results?.[0]?.drug_interactions || [];
   } catch (error) {
