@@ -33,6 +33,52 @@ interface FDAResponse {
   }>;
 }
 
+export interface MedicationLookupResult {
+  found: boolean;
+  source?: 'RxNorm' | 'SUPP.AI' | 'FDA';
+  id?: string;
+  warnings?: string[];
+}
+
+export async function lookupMedication(medication: string): Promise<MedicationLookupResult> {
+  // Try RxNorm first
+  try {
+    const rxCUI = await getRxCUI(medication);
+    if (rxCUI) {
+      return { found: true, source: 'RxNorm', id: rxCUI };
+    }
+  } catch (error) {
+    console.error('RxNorm lookup failed:', error);
+  }
+
+  // Try SUPP.AI next
+  try {
+    const suppAiResult = await getSupplementInteractions(medication);
+    if (suppAiResult && suppAiResult.length > 0) {
+      return { found: true, source: 'SUPP.AI' };
+    }
+  } catch (error) {
+    console.error('SUPP.AI lookup failed:', error);
+  }
+
+  // Try FDA as last resort
+  try {
+    const fdaResult = await getFDAWarnings(medication);
+    if (fdaResult.results && fdaResult.results.length > 0) {
+      return {
+        found: true,
+        source: 'FDA',
+        warnings: fdaResult.results[0].drug_interactions || []
+      };
+    }
+  } catch (error) {
+    console.error('FDA lookup failed:', error);
+  }
+
+  // If all lookups fail
+  return { found: false };
+}
+
 export async function getRxCUI(medication: string): Promise<string | null> {
   try {
     const url = `https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(medication)}`;
@@ -101,7 +147,7 @@ export async function getFDAWarnings(medication: string) {
 
 export interface InteractionResult {
   medications: [string, string];
-  severity: "safe" | "minor" | "severe";
+  severity: "safe" | "minor" | "severe" | "unknown";
   description: string;
   evidence?: string;
   sources: string[];
@@ -110,6 +156,12 @@ export interface InteractionResult {
 export async function checkInteractions(medications: string[]): Promise<InteractionResult[]> {
   const results: InteractionResult[] = [];
   const processedPairs = new Set<string>();
+  const medicationStatuses = new Map<string, MedicationLookupResult>();
+
+  // First, lookup all medications
+  for (const med of medications) {
+    medicationStatuses.set(med, await lookupMedication(med));
+  }
 
   for (let i = 0; i < medications.length; i++) {
     for (let j = i + 1; j < medications.length; j++) {
@@ -120,18 +172,27 @@ export async function checkInteractions(medications: string[]): Promise<Interact
       if (processedPairs.has(pairKey)) continue;
       processedPairs.add(pairKey);
 
+      const med1Status = medicationStatuses.get(med1)!;
+      const med2Status = medicationStatuses.get(med2)!;
+
+      // If either medication is not found, return unknown status
+      if (!med1Status.found || !med2Status.found) {
+        results.push({
+          medications: [med1, med2],
+          severity: "unknown",
+          description: `One or more medications not found in available databases. Please consult a healthcare provider.`,
+          sources: ["No data available"]
+        });
+        continue;
+      }
+
       const interactionSources: string[] = [];
-      let maxSeverity: "safe" | "minor" | "severe" = "safe";
+      let maxSeverity: "safe" | "minor" | "severe" | "unknown" = "safe";
       let description = "";
 
-      // Check RxNorm
-      const [rxcui1, rxcui2] = await Promise.all([
-        getRxCUI(med1),
-        getRxCUI(med2)
-      ]);
-
-      if (rxcui1 && rxcui2) {
-        const rxnormInteractions = await getDrugInteractions(rxcui1);
+      // Check interactions based on available sources
+      if (med1Status.source === 'RxNorm' && med2Status.source === 'RxNorm') {
+        const rxnormInteractions = await getDrugInteractions(med1Status.id!);
         if (rxnormInteractions.length > 0) {
           interactionSources.push("RxNorm");
           maxSeverity = "minor";
@@ -153,19 +214,17 @@ export async function checkInteractions(medications: string[]): Promise<Interact
         description = description || suppAiInteraction.label;
       }
 
-      // Check FDA
-      const fdaWarnings = await getFDAWarnings(med1);
-      const hasFDAWarning = fdaWarnings.some(
-        warning => warning.toLowerCase().includes(med2.toLowerCase())
-      );
-
-      if (hasFDAWarning) {
+      // Check FDA warnings if available
+      if (med1Status.warnings?.length || med2Status.warnings?.length) {
         interactionSources.push("FDA");
-        maxSeverity = "severe";
-        description = description || fdaWarnings[0];
+        const relevantWarnings = [...(med1Status.warnings || []), ...(med2Status.warnings || [])];
+        if (relevantWarnings.length > 0) {
+          maxSeverity = "severe";
+          description = description || relevantWarnings[0];
+        }
       }
 
-      // If no interactions found
+      // If no interactions found but medications exist in databases
       if (interactionSources.length === 0) {
         results.push({
           medications: [med1, med2],

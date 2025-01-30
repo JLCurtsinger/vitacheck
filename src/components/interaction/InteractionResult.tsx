@@ -19,10 +19,15 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
       
       <div className="mb-4">
         <p className="text-sm font-medium text-gray-500 mb-1">
-          Severity: <span className={`text-${interaction.severity === 'safe' ? 'green' : interaction.severity === 'minor' ? 'yellow' : 'red'}-500`}>
+          Severity: <span className={`text-${
+            interaction.severity === 'safe' ? 'green' : 
+            interaction.severity === 'minor' ? 'yellow' : 
+            interaction.severity === 'severe' ? 'red' : 
+            'gray'}-500`}>
             {interaction.severity === 'safe' ? 'Safe to take together' : 
              interaction.severity === 'minor' ? 'Minor interaction possible' : 
-             'Severe interaction risk'}
+             interaction.severity === 'severe' ? 'Severe interaction risk' :
+             'Interaction status unknown'}
           </span>
         </p>
         <SourceAttribution sources={interaction.sources} />
@@ -40,13 +45,21 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
         </a>
       )}
       
-      {interaction.severity !== "safe" && (
+      {interaction.severity !== "safe" && interaction.severity !== "unknown" && (
         <div className="mt-4 p-4 bg-gray-50 rounded-lg">
           <p className="text-sm font-medium text-gray-700">
             Recommendation: {interaction.severity === "severe" 
               ? "Consult your healthcare provider before combining these medications."
               : "Monitor for potential side effects and consult your healthcare provider if concerned."
             }
+          </p>
+        </div>
+      )}
+
+      {interaction.severity === "unknown" && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <p className="text-sm font-medium text-gray-700">
+            Recommendation: One or more medications were not found in our databases. Please consult your healthcare provider for guidance.
           </p>
         </div>
       )}
