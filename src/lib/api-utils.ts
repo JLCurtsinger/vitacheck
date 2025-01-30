@@ -64,7 +64,7 @@ export async function lookupMedication(medication: string): Promise<MedicationLo
   // Try FDA as last resort
   try {
     const fdaResult = await getFDAWarnings(medication);
-    if (fdaResult.results && fdaResult.results.length > 0) {
+    if (fdaResult && fdaResult.results && fdaResult.results.length > 0) {
       return {
         found: true,
         source: 'FDA',
@@ -96,7 +96,6 @@ export async function getRxCUI(medication: string): Promise<string | null> {
 
 export async function getDrugInteractions(rxCUI: string) {
   try {
-    // Updated URL format for interactions
     const url = `https://rxnav.nlm.nih.gov/REST/interaction/interaction.json?rxcui=${rxCUI}`;
     const response = await fetch(url);
     if (!response.ok) {
@@ -122,7 +121,7 @@ export async function getSupplementInteractions(medication: string) {
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    const data = await response.json();
+    const data: SuppAiResponse = await response.json();
     return data.interactions || [];
   } catch (error) {
     console.error('Error fetching supplement interactions:', error);
@@ -130,7 +129,7 @@ export async function getSupplementInteractions(medication: string) {
   }
 }
 
-export async function getFDAWarnings(medication: string) {
+export async function getFDAWarnings(medication: string): Promise<FDAResponse> {
   try {
     const url = `https://api.fda.gov/drug/label.json?search=openfda.brand_name:${encodeURIComponent(medication)}`;
     const response = await fetch(url);
@@ -138,10 +137,10 @@ export async function getFDAWarnings(medication: string) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data: FDAResponse = await response.json();
-    return data.results?.[0]?.drug_interactions || [];
+    return data;
   } catch (error) {
     console.error('Error fetching FDA warnings:', error);
-    return [];
+    return { results: [] };
   }
 }
 
