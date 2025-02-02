@@ -1,7 +1,7 @@
 import { getRxCUI, getDrugInteractions } from './rxnorm';
 import { getSupplementInteractions } from './suppai';
 import { getFDAWarnings } from './fda';
-import { MedicationLookupResult, InteractionResult } from './types';
+import { MedicationLookupResult, InteractionResult, InteractionSource } from './types';
 
 export async function lookupMedication(medication: string): Promise<MedicationLookupResult> {
   // Try RxNorm first
@@ -70,12 +70,16 @@ export async function checkInteractions(medications: string[]): Promise<Interact
           medications: [med1, med2],
           severity: "unknown",
           description: `One or more medications not found in available databases. Please consult a healthcare provider.`,
-          sources: ["No data available"]
+          sources: [{
+            name: "No data available",
+            severity: "unknown",
+            description: "Medication not found in databases"
+          }]
         });
         continue;
       }
 
-      const interactionSources: string[] = [];
+      const interactionSources: InteractionSource[] = [];
       let maxSeverity: "safe" | "minor" | "severe" | "unknown" = "safe";
       let description = "";
 
@@ -83,7 +87,11 @@ export async function checkInteractions(medications: string[]): Promise<Interact
       if (med1Status.source === 'RxNorm' && med2Status.source === 'RxNorm') {
         const rxnormInteractions = await getDrugInteractions(med1Status.id!);
         if (rxnormInteractions.length > 0) {
-          interactionSources.push("RxNorm");
+          interactionSources.push({
+            name: "RxNorm",
+            severity: "minor",
+            description: rxnormInteractions[0]?.fullInteractionType?.[0]?.interactionPair?.[0]?.description || ""
+          });
           maxSeverity = "minor";
           description = rxnormInteractions[0]?.fullInteractionType?.[0]?.interactionPair?.[0]?.description || "";
         }
@@ -96,8 +104,13 @@ export async function checkInteractions(medications: string[]): Promise<Interact
       );
 
       if (suppAiInteraction) {
-        interactionSources.push("SUPP.AI");
-        if (suppAiInteraction.evidence_count > 5) {
+        const severity = suppAiInteraction.evidence_count > 5 ? "severe" : "minor";
+        interactionSources.push({
+          name: "SUPP.AI",
+          severity,
+          description: suppAiInteraction.label
+        });
+        if (severity === "severe") {
           maxSeverity = "severe";
         }
         description = description || suppAiInteraction.label;
@@ -105,9 +118,13 @@ export async function checkInteractions(medications: string[]): Promise<Interact
 
       // Check FDA warnings if available
       if (med1Status.warnings?.length || med2Status.warnings?.length) {
-        interactionSources.push("FDA");
         const relevantWarnings = [...(med1Status.warnings || []), ...(med2Status.warnings || [])];
         if (relevantWarnings.length > 0) {
+          interactionSources.push({
+            name: "FDA",
+            severity: "severe",
+            description: relevantWarnings[0]
+          });
           maxSeverity = "severe";
           description = description || relevantWarnings[0];
         }
@@ -119,7 +136,11 @@ export async function checkInteractions(medications: string[]): Promise<Interact
           medications: [med1, med2],
           severity: "safe",
           description: "No known interactions detected, but consult a healthcare professional for advice.",
-          sources: ["No interactions found in available databases"]
+          sources: [{
+            name: "No interactions found in available databases",
+            severity: "safe",
+            description: "No known interactions detected"
+          }]
         });
         continue;
       }
