@@ -1,7 +1,8 @@
-import { getDrugInteractions } from '../rxnorm';
-import { getSupplementInteractions } from '../suppai';
-import { MedicationLookupResult, InteractionResult, InteractionSource } from '../types';
+import { MedicationLookupResult, InteractionResult } from '../types';
 import { lookupMedication } from './medication-lookup';
+import { checkRxNormInteractions } from './interactions/rxnorm-interactions';
+import { checkSuppAiInteractions } from './interactions/suppai-interactions';
+import { checkFDAInteractions } from './interactions/fda-interactions';
 
 export async function checkInteractions(medications: string[]): Promise<InteractionResult[]> {
   const results: InteractionResult[] = [];
@@ -40,55 +41,45 @@ export async function checkInteractions(medications: string[]): Promise<Interact
         continue;
       }
 
-      const interactionSources: InteractionSource[] = [];
+      let interactionSources = [];
       let maxSeverity: "safe" | "minor" | "severe" | "unknown" = "safe";
       let description = "";
 
-      // Check interactions based on available sources
+      // Check RxNorm interactions
       if (med1Status.source === 'RxNorm' && med2Status.source === 'RxNorm') {
-        const rxnormInteractions = await getDrugInteractions(med1Status.id!);
-        if (rxnormInteractions.length > 0) {
-          interactionSources.push({
-            name: "RxNorm",
-            severity: "minor",
-            description: rxnormInteractions[0]?.fullInteractionType?.[0]?.interactionPair?.[0]?.description || ""
-          });
-          maxSeverity = "minor";
-          description = rxnormInteractions[0]?.fullInteractionType?.[0]?.interactionPair?.[0]?.description || "";
+        const rxnormResult = await checkRxNormInteractions(
+          med1Status.id!,
+          med2Status.id!,
+          med1,
+          med2
+        );
+        interactionSources.push(...rxnormResult.sources);
+        if (rxnormResult.severity !== "safe") {
+          maxSeverity = rxnormResult.severity;
+          description = rxnormResult.description;
         }
       }
 
-      // Check SUPP.AI
-      const suppAiResults = await getSupplementInteractions(med1);
-      const suppAiInteraction = suppAiResults.find(
-        int => int.drug1.toLowerCase() === med2.toLowerCase() || int.drug2.toLowerCase() === med2.toLowerCase()
+      // Check SUPP.AI interactions
+      const suppAiResult = await checkSuppAiInteractions(med1, med2);
+      if (suppAiResult) {
+        interactionSources.push(...suppAiResult.sources);
+        if (suppAiResult.severity === "severe" || 
+            (suppAiResult.severity === "minor" && maxSeverity === "safe")) {
+          maxSeverity = suppAiResult.severity;
+          description = suppAiResult.description;
+        }
+      }
+
+      // Check FDA warnings
+      const fdaResult = checkFDAInteractions(
+        med1Status.warnings || [],
+        med2Status.warnings || []
       );
-
-      if (suppAiInteraction) {
-        const severity = suppAiInteraction.evidence_count > 5 ? "severe" : "minor";
-        interactionSources.push({
-          name: "SUPP.AI",
-          severity,
-          description: suppAiInteraction.label
-        });
-        if (severity === "severe") {
-          maxSeverity = "severe";
-        }
-        description = description || suppAiInteraction.label;
-      }
-
-      // Check FDA warnings if available
-      if (med1Status.warnings?.length || med2Status.warnings?.length) {
-        const relevantWarnings = [...(med1Status.warnings || []), ...(med2Status.warnings || [])];
-        if (relevantWarnings.length > 0) {
-          interactionSources.push({
-            name: "FDA",
-            severity: "severe",
-            description: relevantWarnings[0]
-          });
-          maxSeverity = "severe";
-          description = description || relevantWarnings[0];
-        }
+      if (fdaResult) {
+        interactionSources.push(...fdaResult.sources);
+        maxSeverity = "severe";
+        description = fdaResult.description;
       }
 
       // If no interactions found but medications exist in databases
