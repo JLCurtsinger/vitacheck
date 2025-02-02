@@ -1,4 +1,4 @@
-import { InteractionResult, MedicationLookupResult } from '../types';
+import { InteractionResult, MedicationLookupResult, InteractionSource } from '../types';
 import { checkRxNormInteractions } from '../services/interactions/rxnorm-interactions';
 import { checkSuppAiInteractions } from '../services/interactions/suppai-interactions';
 import { checkFDAInteractions } from '../services/interactions/fda-interactions';
@@ -36,7 +36,7 @@ export async function processMedicationPair(
   if (highRiskCheck.isHighRisk) {
     return {
       medications: [med1, med2],
-      severity: highRiskCheck.severity || "severe",
+      severity: "severe",
       description: highRiskCheck.description || "High risk combination detected",
       sources: [{
         name: "VitaCheck Safety Database",
@@ -55,7 +55,7 @@ export async function processMedicationPair(
     checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || [])
   ]);
 
-  const sources = [];
+  const sources: InteractionSource[] = [];
   let maxSeverity: "safe" | "minor" | "severe" | "unknown" = "unknown";
   let description = "Insufficient data available - Please consult your healthcare provider.";
 
