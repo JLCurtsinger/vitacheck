@@ -2,16 +2,39 @@ import { ExternalLink } from "lucide-react";
 import { SeverityIndicator } from "./SeverityIndicator";
 import { SourceAttribution } from "./SourceAttribution";
 import { InteractionResult as InteractionResultType } from "@/lib/api-utils";
+import { Tooltip } from "@/components/ui/tooltip";
 
 interface InteractionResultProps {
   interaction: InteractionResultType;
 }
 
+/**
+ * InteractionResult Component
+ * Displays detailed interaction information between medications/supplements.
+ * Prioritizes the highest severity level when multiple sources are available.
+ */
 export function InteractionResult({ interaction }: InteractionResultProps) {
+  // Determine final severity based on highest reported severity
+  const determineSeverity = (interaction: InteractionResultType) => {
+    if (interaction.sources.some(source => source.severity === "severe")) {
+      return "severe";
+    }
+    if (interaction.sources.some(source => source.severity === "minor")) {
+      return "minor";
+    }
+    return "safe";
+  };
+
+  const finalSeverity = determineSeverity(interaction);
+
   return (
     <div className="bg-white rounded-xl shadow-lg p-6 transition-transform hover:scale-[1.02]">
       <div className="flex items-center gap-2 mb-2">
-        <SeverityIndicator severity={interaction.severity} />
+        <Tooltip content={`Severity level determined from ${interaction.sources.length} source(s)`}>
+          <div>
+            <SeverityIndicator severity={finalSeverity} />
+          </div>
+        </Tooltip>
         <h4 className="font-semibold text-lg">
           {interaction.medications[0]} + {interaction.medications[1]}
         </h4>
@@ -20,14 +43,12 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
       <div className="mb-4">
         <p className="text-sm font-medium text-gray-500 mb-1">
           Severity: <span className={`text-${
-            interaction.severity === 'safe' ? 'green' : 
-            interaction.severity === 'minor' ? 'yellow' : 
-            interaction.severity === 'severe' ? 'red' : 
-            'gray'}-500`}>
-            {interaction.severity === 'safe' ? 'Safe to take together' : 
-             interaction.severity === 'minor' ? 'Minor interaction possible' : 
-             interaction.severity === 'severe' ? 'Severe interaction risk' :
-             'Interaction status unknown'}
+            finalSeverity === 'safe' ? 'green' : 
+            finalSeverity === 'minor' ? 'yellow' : 
+            'red'}-500`}>
+            {finalSeverity === 'safe' ? 'Safe to take together' : 
+             finalSeverity === 'minor' ? 'Minor interaction possible' : 
+             'Severe interaction risk'}
           </span>
         </p>
         <SourceAttribution sources={interaction.sources} />
@@ -45,21 +66,13 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
         </a>
       )}
       
-      {interaction.severity !== "safe" && interaction.severity !== "unknown" && (
+      {finalSeverity !== "safe" && (
         <div className="mt-4 p-4 bg-gray-50 rounded-lg">
           <p className="text-sm font-medium text-gray-700">
-            Recommendation: {interaction.severity === "severe" 
+            Recommendation: {finalSeverity === "severe" 
               ? "Consult your healthcare provider before combining these medications."
               : "Monitor for potential side effects and consult your healthcare provider if concerned."
             }
-          </p>
-        </div>
-      )}
-
-      {interaction.severity === "unknown" && (
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-          <p className="text-sm font-medium text-gray-700">
-            Recommendation: One or more medications were not found in our databases. Please consult your healthcare provider for guidance.
           </p>
         </div>
       )}

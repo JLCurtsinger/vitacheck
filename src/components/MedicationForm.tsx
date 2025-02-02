@@ -3,10 +3,45 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, X, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
+/**
+ * MedicationForm Component
+ * Handles user input for medications and supplements, including validation and submission.
+ */
 export default function MedicationForm() {
   const [medications, setMedications] = useState<string[]>([""]);
   const navigate = useNavigate();
+  const { toast } = useToast();
+
+  // Input validation patterns
+  const INVALID_CHARS_REGEX = /[<>{}]/;
+  const MIN_LENGTH = 2;
+
+  /**
+   * Validates a single medication input
+   * @param value - The medication name to validate
+   * @returns Object containing validation result and error message
+   */
+  const validateMedication = (value: string) => {
+    const trimmed = value.trim();
+    
+    if (trimmed.length < MIN_LENGTH) {
+      return {
+        isValid: false,
+        error: "Medication name must be at least 2 characters"
+      };
+    }
+    
+    if (INVALID_CHARS_REGEX.test(trimmed)) {
+      return {
+        isValid: false,
+        error: "Invalid characters detected"
+      };
+    }
+    
+    return { isValid: true, error: null };
+  };
 
   const addMedication = () => {
     setMedications([...medications, ""]);
@@ -25,10 +60,35 @@ export default function MedicationForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const validMedications = medications.filter(med => med.trim() !== "");
-    if (validMedications.length > 0) {
-      navigate("/results", { state: { medications: validMedications } });
+    
+    // Filter and validate medications
+    const validMedications = medications
+      .map(med => med.trim())
+      .filter(med => med !== "");
+      
+    if (validMedications.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Please enter at least one medication or supplement"
+      });
+      return;
     }
+    
+    // Validate each medication
+    for (const med of validMedications) {
+      const { isValid, error } = validateMedication(med);
+      if (!isValid) {
+        toast({
+          variant: "destructive",
+          title: "Invalid Input",
+          description: `${med}: ${error}`
+        });
+        return;
+      }
+    }
+    
+    navigate("/results", { state: { medications: validMedications } });
   };
 
   const clearAll = () => {
