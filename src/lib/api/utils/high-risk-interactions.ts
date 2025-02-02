@@ -1,41 +1,41 @@
 interface HighRiskCombination {
   meds: string[];
-  interactsWith: string[];
-  warning: string;
+  interactsWith: string;
+  severity: "safe" | "minor" | "severe" | "unknown";
   description: string;
 }
 
-export const HIGH_RISK_COMBINATIONS: HighRiskCombination[] = [
+const HIGH_RISK_COMBINATIONS: HighRiskCombination[] = [
   {
-    meds: ["xanax", "alprazolam", "benzodiazepine", "valium", "diazepam", "ativan", "lorazepam", "klonopin", "clonazepam"],
-    interactsWith: ["alcohol", "beer", "wine", "liquor"],
-    warning: "severe",
-    description: "DANGER: Never combine benzodiazepines with alcohol. This combination can cause dangerous sedation, respiratory depression, and potentially fatal complications."
+    meds: ["xanax", "alprazolam", "benzodiazepine"],
+    interactsWith: "alcohol",
+    severity: "severe",
+    description: "DANGER: Can cause dangerous sedation and respiratory depression. DO NOT combine."
   },
   {
-    meds: ["oxycodone", "hydrocodone", "morphine", "fentanyl", "codeine", "tramadol", "vicodin", "percocet"],
-    interactsWith: ["alcohol", "beer", "wine", "liquor"],
-    warning: "severe",
-    description: "DANGER: Never combine opioids with alcohol. This combination can cause life-threatening respiratory depression and overdose."
+    meds: ["lithium"],
+    interactsWith: "ibuprofen",
+    severity: "severe",
+    description: "WARNING: May increase lithium levels, causing toxicity. Avoid combination."
   }
 ];
 
-export function checkHighRiskCombination(med1: string, med2: string): { isHighRisk: boolean; warning?: string; description?: string } {
+export function checkHighRiskCombination(med1: string, med2: string): {
+  isHighRisk: boolean;
+  severity?: "safe" | "minor" | "severe" | "unknown";
+  description?: string;
+} {
   const med1Lower = med1.toLowerCase();
   const med2Lower = med2.toLowerCase();
 
   for (const combo of HIGH_RISK_COMBINATIONS) {
-    const isFirstMedInHighRiskList = combo.meds.some(m => med1Lower.includes(m));
-    const isSecondMedInInteractsList = combo.interactsWith.some(m => med2Lower.includes(m));
-    
-    const isSecondMedInHighRiskList = combo.meds.some(m => med2Lower.includes(m));
-    const isFirstMedInInteractsList = combo.interactsWith.some(m => med1Lower.includes(m));
-
-    if ((isFirstMedInHighRiskList && isSecondMedInInteractsList) || 
-        (isSecondMedInHighRiskList && isFirstMedInInteractsList)) {
+    if (
+      (combo.meds.includes(med1Lower) && med2Lower === combo.interactsWith) ||
+      (combo.meds.includes(med2Lower) && med1Lower === combo.interactsWith)
+    ) {
       return {
         isHighRisk: true,
-        warning: combo.warning,
+        severity: combo.severity,
         description: combo.description
       };
     }

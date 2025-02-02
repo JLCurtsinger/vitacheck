@@ -36,8 +36,8 @@ export async function processMedicationPair(
   if (highRiskCheck.isHighRisk) {
     return {
       medications: [med1, med2],
-      severity: "severe",
-      description: highRiskCheck.description!,
+      severity: highRiskCheck.severity || "severe",
+      description: highRiskCheck.description || "High risk combination detected",
       sources: [{
         name: "VitaCheck Safety Database",
         severity: "severe",
@@ -46,61 +46,63 @@ export async function processMedicationPair(
     };
   }
 
-  let interactionSources = [];
+  // Always query all APIs regardless of previous results
+  const [rxnormResult, suppaiResult, fdaResult] = await Promise.all([
+    med1Status.source === 'RxNorm' && med2Status.source === 'RxNorm'
+      ? checkRxNormInteractions(med1Status.id!, med2Status.id!, med1, med2)
+      : Promise.resolve(null),
+    checkSuppAiInteractions(med1, med2),
+    checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || [])
+  ]);
+
+  const sources = [];
   let maxSeverity: "safe" | "minor" | "severe" | "unknown" = "unknown";
-  let description = "Insufficient data available - Please consult your healthcare provider before combining these medications.";
+  let description = "Insufficient data available - Please consult your healthcare provider.";
 
-  // Check RxNorm interactions if both medications are found
-  if (med1Status.source === 'RxNorm' && med2Status.source === 'RxNorm') {
-    const rxnormResult = await checkRxNormInteractions(
-      med1Status.id!,
-      med2Status.id!,
-      med1,
-      med2
-    );
-    interactionSources.push(...rxnormResult.sources);
-    if (rxnormResult.severity !== "safe") {
-      maxSeverity = rxnormResult.severity;
-      description = rxnormResult.description;
-    }
+  // Collect all sources and determine max severity
+  if (rxnormResult) {
+    sources.push(...rxnormResult.sources);
+    if (rxnormResult.severity === "severe") maxSeverity = "severe";
+    else if (rxnormResult.severity === "minor" && maxSeverity !== "severe") maxSeverity = "minor";
+    description = rxnormResult.description;
   }
 
-  // Check SUPP.AI interactions
-  const suppAiResult = await checkSuppAiInteractions(med1, med2);
-  if (suppAiResult) {
-    interactionSources.push(...suppAiResult.sources);
-    if (suppAiResult.severity === "severe" || 
-        (suppAiResult.severity === "minor" && maxSeverity === "unknown")) {
-      maxSeverity = suppAiResult.severity;
-      description = suppAiResult.description;
-    }
+  if (suppaiResult) {
+    sources.push(...suppaiResult.sources);
+    if (suppaiResult.severity === "severe") maxSeverity = "severe";
+    else if (suppaiResult.severity === "minor" && maxSeverity !== "severe") maxSeverity = "minor";
+    if (maxSeverity === "severe") description = suppaiResult.description;
   }
 
-  // Check FDA warnings
-  const fdaResult = checkFDAInteractions(
-    med1Status.warnings || [],
-    med2Status.warnings || []
-  );
   if (fdaResult) {
-    interactionSources.push(...fdaResult.sources);
-    if (fdaResult.severity === "severe" || 
-        (fdaResult.severity === "minor" && maxSeverity === "unknown")) {
-      maxSeverity = fdaResult.severity;
-      description = fdaResult.description;
+    sources.push(...fdaResult.sources);
+    if (fdaResult.severity === "severe") maxSeverity = "severe";
+    else if (fdaResult.severity === "minor" && maxSeverity !== "severe") maxSeverity = "minor";
+    if (maxSeverity === "severe") description = fdaResult.description;
+  }
+
+  // Check for discrepancies between sources
+  if (sources.length > 1) {
+    const severities = new Set(sources.map(s => s.severity));
+    if (severities.size > 1) {
+      description = `Discrepancy detected: Different sources report varying levels of risk. Consult your healthcare provider.`;
+      // Always err on the side of caution when sources disagree
+      if (severities.has("severe")) maxSeverity = "severe";
+      else if (severities.has("minor")) maxSeverity = "minor";
     }
   }
 
-  // Only mark as safe if we have data from at least one source and no warnings
-  if (interactionSources.length > 0 && maxSeverity === "unknown") {
+  // Only mark as safe if we have data from at least one source and all agree it's safe
+  if (sources.length > 0 && sources.every(s => s.severity === "safe")) {
     maxSeverity = "safe";
-    description = "No known interactions detected in available databases, but always consult your healthcare provider before combining medications.";
+    description = "No known interactions detected in available databases, but always consult your healthcare provider.";
   }
 
   return {
     medications: [med1, med2],
     severity: maxSeverity,
     description,
-    sources: interactionSources.length > 0 ? interactionSources : [{
+    sources: sources.length > 0 ? sources : [{
       name: "No Data Available",
       severity: "unknown",
       description: "Interaction status unknown - Please consult your healthcare provider"

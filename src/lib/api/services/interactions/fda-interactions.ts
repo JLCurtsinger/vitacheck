@@ -11,14 +11,20 @@ export function checkFDAInteractions(
   const relevantWarnings = [...med1Warnings, ...med2Warnings];
   
   if (relevantWarnings.length > 0) {
+    // Look for severe warning keywords
+    const severeKeywords = ['severe', 'danger', 'fatal', 'death', 'avoid', 'do not'];
+    const hasSevereWarning = relevantWarnings.some(warning => 
+      severeKeywords.some(keyword => warning.toLowerCase().includes(keyword))
+    );
+
     return {
       sources: [{
         name: "FDA",
-        severity: "severe",
+        severity: hasSevereWarning ? "severe" : "minor",
         description: relevantWarnings[0]
       }],
       description: relevantWarnings[0],
-      severity: "severe"
+      severity: hasSevereWarning ? "severe" : "minor"
     };
   }
 
