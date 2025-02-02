@@ -12,17 +12,34 @@ interface InteractionResultProps {
  * InteractionResult Component
  * Displays detailed interaction information between medications/supplements.
  * Prioritizes the highest severity level when multiple sources are available.
+ * If any source indicates an unknown or severe interaction, we err on the side
+ * of caution and elevate the severity level accordingly.
  */
 export function InteractionResult({ interaction }: InteractionResultProps) {
   // Determine final severity based on highest reported severity
-  const determineSeverity = (interaction: InteractionResultType): "safe" | "minor" | "severe" => {
-    if (interaction.severity === "severe") {
+  const determineSeverity = (interaction: InteractionResultType): "safe" | "minor" | "severe" | "unknown" => {
+    // If any source indicates severe, prioritize that
+    if (interaction.sources.some(source => source.severity === "severe")) {
       return "severe";
     }
-    if (interaction.severity === "minor") {
+    
+    // If any source indicates unknown, mark as unknown to err on side of caution
+    if (interaction.sources.some(source => source.severity === "unknown")) {
+      return "unknown";
+    }
+    
+    // If any source indicates minor, prioritize that over safe
+    if (interaction.sources.some(source => source.severity === "minor")) {
       return "minor";
     }
-    return "safe";
+    
+    // Only if all sources indicate safe, return safe
+    if (interaction.sources.every(source => source.severity === "safe")) {
+      return "safe";
+    }
+    
+    // Default to unknown if we can't determine severity
+    return "unknown";
   };
 
   const finalSeverity = determineSeverity(interaction);
@@ -37,6 +54,11 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
             </TooltipTrigger>
             <TooltipContent>
               <p>Severity level determined from {interaction.sources.length} source(s)</p>
+              {interaction.sources.map((source, index) => (
+                <p key={index} className="text-sm">
+                  {source.name}: {source.severity}
+                </p>
+              ))}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -50,13 +72,15 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
           Severity: <span className={`text-${
             finalSeverity === 'safe' ? 'green' : 
             finalSeverity === 'minor' ? 'yellow' : 
-            'red'}-500`}>
+            finalSeverity === 'severe' ? 'red' : 
+            'gray'}-500`}>
             {finalSeverity === 'safe' ? 'Safe to take together' : 
              finalSeverity === 'minor' ? 'Minor interaction possible' : 
-             'Severe interaction risk'}
+             finalSeverity === 'severe' ? 'Severe interaction risk' :
+             'Interaction status unknown'}
           </span>
         </p>
-        <SourceAttribution sources={interaction.sources} />
+        <SourceAttribution sources={interaction.sources.map(s => s.name)} />
         <p className="text-gray-600">{interaction.description}</p>
       </div>
 
@@ -74,9 +98,11 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
       {finalSeverity !== "safe" && (
         <div className="mt-4 p-4 bg-gray-50 rounded-lg">
           <p className="text-sm font-medium text-gray-700">
-            Recommendation: {finalSeverity === "severe" 
-              ? "Consult your healthcare provider before combining these medications."
-              : "Monitor for potential side effects and consult your healthcare provider if concerned."
+            {finalSeverity === "unknown" 
+              ? "Insufficient data available. Please consult your healthcare provider before combining these medications."
+              : finalSeverity === "severe" 
+                ? "Consult your healthcare provider before combining these medications."
+                : "Monitor for potential side effects and consult your healthcare provider if concerned."
             }
           </p>
         </div>

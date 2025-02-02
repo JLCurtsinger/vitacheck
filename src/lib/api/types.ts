@@ -5,10 +5,16 @@ export interface MedicationLookupResult {
   warnings?: string[];
 }
 
+export interface InteractionSource {
+  name: string;
+  severity: "safe" | "minor" | "severe" | "unknown";
+  description?: string;
+}
+
 export interface InteractionResult {
   medications: [string, string];
   severity: "safe" | "minor" | "severe" | "unknown";
   description: string;
   evidence?: string;
-  sources: string[];
+  sources: InteractionSource[];
 }
