@@ -2,7 +2,7 @@ import { ExternalLink } from "lucide-react";
 import { SeverityIndicator } from "./SeverityIndicator";
 import { SourceAttribution } from "./SourceAttribution";
 import { InteractionResult as InteractionResultType } from "@/lib/api-utils";
-import { Tooltip } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface InteractionResultProps {
   interaction: InteractionResultType;
@@ -15,11 +15,11 @@ interface InteractionResultProps {
  */
 export function InteractionResult({ interaction }: InteractionResultProps) {
   // Determine final severity based on highest reported severity
-  const determineSeverity = (interaction: InteractionResultType) => {
-    if (interaction.sources.some(source => source.severity === "severe")) {
+  const determineSeverity = (interaction: InteractionResultType): "safe" | "minor" | "severe" => {
+    if (interaction.severity === "severe") {
       return "severe";
     }
-    if (interaction.sources.some(source => source.severity === "minor")) {
+    if (interaction.severity === "minor") {
       return "minor";
     }
     return "safe";
@@ -30,11 +30,16 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
   return (
     <div className="bg-white rounded-xl shadow-lg p-6 transition-transform hover:scale-[1.02]">
       <div className="flex items-center gap-2 mb-2">
-        <Tooltip content={`Severity level determined from ${interaction.sources.length} source(s)`}>
-          <div>
-            <SeverityIndicator severity={finalSeverity} />
-          </div>
-        </Tooltip>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger>
+              <SeverityIndicator severity={finalSeverity} />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Severity level determined from {interaction.sources.length} source(s)</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <h4 className="font-semibold text-lg">
           {interaction.medications[0]} + {interaction.medications[1]}
         </h4>
