@@ -2,6 +2,7 @@ import { InteractionResult, MedicationLookupResult } from '../types';
 import { checkRxNormInteractions } from '../services/interactions/rxnorm-interactions';
 import { checkSuppAiInteractions } from '../services/interactions/suppai-interactions';
 import { checkFDAInteractions } from '../services/interactions/fda-interactions';
+import { checkHighRiskCombination } from './high-risk-interactions';
 
 export function generateMedicationPairs(medications: string[]): Array<[string, string]> {
   const pairs: Array<[string, string]> = [];
@@ -30,11 +31,26 @@ export async function processMedicationPair(
   const med1Status = medicationStatuses.get(med1)!;
   const med2Status = medicationStatuses.get(med2)!;
   
-  let interactionSources = [];
-  let maxSeverity: "safe" | "minor" | "severe" | "unknown" = "safe";
-  let description = "";
+  // First check for known high-risk combinations
+  const highRiskCheck = checkHighRiskCombination(med1, med2);
+  if (highRiskCheck.isHighRisk) {
+    return {
+      medications: [med1, med2],
+      severity: "severe",
+      description: highRiskCheck.description!,
+      sources: [{
+        name: "VitaCheck Safety Database",
+        severity: "severe",
+        description: highRiskCheck.description
+      }]
+    };
+  }
 
-  // Check RxNorm interactions
+  let interactionSources = [];
+  let maxSeverity: "safe" | "minor" | "severe" | "unknown" = "unknown";
+  let description = "Insufficient data available - Please consult your healthcare provider before combining these medications.";
+
+  // Check RxNorm interactions if both medications are found
   if (med1Status.source === 'RxNorm' && med2Status.source === 'RxNorm') {
     const rxnormResult = await checkRxNormInteractions(
       med1Status.id!,
@@ -54,7 +70,7 @@ export async function processMedicationPair(
   if (suppAiResult) {
     interactionSources.push(...suppAiResult.sources);
     if (suppAiResult.severity === "severe" || 
-        (suppAiResult.severity === "minor" && maxSeverity === "safe")) {
+        (suppAiResult.severity === "minor" && maxSeverity === "unknown")) {
       maxSeverity = suppAiResult.severity;
       description = suppAiResult.description;
     }
@@ -67,14 +83,27 @@ export async function processMedicationPair(
   );
   if (fdaResult) {
     interactionSources.push(...fdaResult.sources);
-    maxSeverity = "severe";
-    description = fdaResult.description;
+    if (fdaResult.severity === "severe" || 
+        (fdaResult.severity === "minor" && maxSeverity === "unknown")) {
+      maxSeverity = fdaResult.severity;
+      description = fdaResult.description;
+    }
+  }
+
+  // Only mark as safe if we have data from at least one source and no warnings
+  if (interactionSources.length > 0 && maxSeverity === "unknown") {
+    maxSeverity = "safe";
+    description = "No known interactions detected in available databases, but always consult your healthcare provider before combining medications.";
   }
 
   return {
     medications: [med1, med2],
     severity: maxSeverity,
-    description: description || "No known interactions detected, but consult a healthcare professional for advice.",
-    sources: interactionSources
+    description,
+    sources: interactionSources.length > 0 ? interactionSources : [{
+      name: "No Data Available",
+      severity: "unknown",
+      description: "Interaction status unknown - Please consult your healthcare provider"
+    }]
   };
 }

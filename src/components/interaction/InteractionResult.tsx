@@ -3,18 +3,13 @@ import { SeverityIndicator } from "./SeverityIndicator";
 import { SourceAttribution } from "./SourceAttribution";
 import { InteractionResult as InteractionResultType } from "@/lib/api-utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 
 interface InteractionResultProps {
   interaction: InteractionResultType;
 }
 
-/**
- * InteractionResult Component
- * Displays detailed interaction information between medications/supplements.
- * Prioritizes the highest severity level when multiple sources are available.
- * If any source indicates an unknown or severe interaction, we err on the side
- * of caution and elevate the severity level accordingly.
- */
 export function InteractionResult({ interaction }: InteractionResultProps) {
   // Determine final severity based on highest reported severity
   const determineSeverity = (interaction: InteractionResultType): "safe" | "minor" | "severe" | "unknown" => {
@@ -33,8 +28,9 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
       return "minor";
     }
     
-    // Only if all sources indicate safe, return safe
-    if (interaction.sources.every(source => source.severity === "safe")) {
+    // Only if all sources indicate safe and we have at least one source, return safe
+    if (interaction.sources.length > 0 && 
+        interaction.sources.every(source => source.severity === "safe")) {
       return "safe";
     }
     
@@ -81,7 +77,20 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
           </span>
         </p>
         <SourceAttribution sources={interaction.sources.map(s => s.name)} />
-        <p className="text-gray-600">{interaction.description}</p>
+        
+        {finalSeverity === "severe" && (
+          <Alert variant="destructive" className="mt-2 mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Warning</AlertTitle>
+            <AlertDescription>
+              {interaction.description}
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {finalSeverity !== "severe" && (
+          <p className="text-gray-600">{interaction.description}</p>
+        )}
       </div>
 
       {interaction.evidence && (
@@ -101,7 +110,7 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
             {finalSeverity === "unknown" 
               ? "Insufficient data available. Please consult your healthcare provider before combining these medications."
               : finalSeverity === "severe" 
-                ? "Consult your healthcare provider before combining these medications."
+                ? "DO NOT combine these medications without explicit approval from your healthcare provider."
                 : "Monitor for potential side effects and consult your healthcare provider if concerned."
             }
           </p>
