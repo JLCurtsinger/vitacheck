@@ -62,23 +62,36 @@ export async function processMedicationPair(
   // Collect all sources and determine max severity
   if (rxnormResult) {
     sources.push(...rxnormResult.sources);
-    if (rxnormResult.severity === "severe") maxSeverity = "severe";
-    else if (rxnormResult.severity === "minor" && maxSeverity !== "severe") maxSeverity = "minor";
+    if (rxnormResult.severity === "severe") {
+      maxSeverity = "severe";
+    } else if (rxnormResult.severity === "minor" && maxSeverity !== "severe") {
+      maxSeverity = "minor";
+    }
     description = rxnormResult.description;
   }
 
   if (suppaiResult) {
     sources.push(...suppaiResult.sources);
-    if (suppaiResult.severity === "severe") maxSeverity = "severe";
-    else if (suppaiResult.severity === "minor" && maxSeverity !== "severe") maxSeverity = "minor";
-    if (maxSeverity === "severe") description = suppaiResult.description;
+    if (suppaiResult.severity === "severe") {
+      maxSeverity = "severe";
+    } else if (suppaiResult.severity === "minor" && maxSeverity !== "severe") {
+      maxSeverity = "minor";
+    }
+    if (maxSeverity === "severe") {
+      description = suppaiResult.description;
+    }
   }
 
   if (fdaResult) {
     sources.push(...fdaResult.sources);
-    if (fdaResult.severity === "severe") maxSeverity = "severe";
-    else if (fdaResult.severity === "minor" && maxSeverity !== "severe") maxSeverity = "minor";
-    if (maxSeverity === "severe") description = fdaResult.description;
+    if (fdaResult.severity === "severe") {
+      maxSeverity = "severe";
+    } else if (fdaResult.severity === "minor" && maxSeverity !== "severe") {
+      maxSeverity = "minor";
+    }
+    if (maxSeverity === "severe") {
+      description = fdaResult.description;
+    }
   }
 
   // Check for discrepancies between sources
@@ -87,8 +100,11 @@ export async function processMedicationPair(
     if (severities.size > 1) {
       description = `Discrepancy detected: Different sources report varying levels of risk. Consult your healthcare provider.`;
       // Always err on the side of caution when sources disagree
-      if (severities.has("severe")) maxSeverity = "severe";
-      else if (severities.has("minor")) maxSeverity = "minor";
+      if (severities.has("severe")) {
+        maxSeverity = "severe";
+      } else if (severities.has("minor")) {
+        maxSeverity = "minor";
+      }
     }
   }
 
