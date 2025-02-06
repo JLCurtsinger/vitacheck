@@ -91,38 +91,40 @@ export async function processMedicationPair(
   let maxSeverity: Severity = "unknown";
   let description = "Insufficient data available - Please consult your healthcare provider.";
 
+  // Helper function to determine if a severity level should update maxSeverity
+  const shouldUpdateMaxSeverity = (currentSeverity: Severity, newSeverity: Severity): boolean => {
+    if (newSeverity === "severe") return true;
+    if (newSeverity === "minor" && currentSeverity !== "severe") return true;
+    if (newSeverity === "safe" && currentSeverity === "unknown") return true;
+    return false;
+  };
+
   // Collect all sources and determine max severity
   if (rxnormResult) {
     sources.push(...rxnormResult.sources);
-    if (rxnormResult.severity === "severe") {
-      maxSeverity = "severe";
-    } else if (rxnormResult.severity === "minor" && maxSeverity !== "severe") {
-      maxSeverity = "minor";
+    if (shouldUpdateMaxSeverity(maxSeverity, rxnormResult.severity)) {
+      maxSeverity = rxnormResult.severity;
+      description = rxnormResult.description;
     }
-    description = rxnormResult.description;
   }
 
   if (suppaiResult) {
     sources.push(...suppaiResult.sources);
-    if (suppaiResult.severity === "severe") {
-      maxSeverity = "severe";
-    } else if (suppaiResult.severity === "minor" && maxSeverity !== "severe") {
-      maxSeverity = "minor";
-    }
-    if (maxSeverity === "severe") {
-      description = suppaiResult.description;
+    if (shouldUpdateMaxSeverity(maxSeverity, suppaiResult.severity)) {
+      maxSeverity = suppaiResult.severity;
+      if (maxSeverity === "severe") {
+        description = suppaiResult.description;
+      }
     }
   }
 
   if (fdaResult) {
     sources.push(...fdaResult.sources);
-    if (fdaResult.severity === "severe") {
-      maxSeverity = "severe";
-    } else if (fdaResult.severity === "minor" && maxSeverity !== "severe") {
-      maxSeverity = "minor";
-    }
-    if (maxSeverity === "severe") {
-      description = fdaResult.description;
+    if (shouldUpdateMaxSeverity(maxSeverity, fdaResult.severity)) {
+      maxSeverity = fdaResult.severity;
+      if (maxSeverity === "severe") {
+        description = fdaResult.description;
+      }
     }
   }
 
