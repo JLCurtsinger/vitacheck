@@ -1,3 +1,4 @@
+
 /**
  * Medication Pair Processing Utilities
  * 
@@ -13,6 +14,8 @@ import { checkRxNormInteractions } from '../services/interactions/rxnorm-interac
 import { checkSuppAiInteractions } from '../services/interactions/suppai-interactions';
 import { checkFDAInteractions } from '../services/interactions/fda-interactions';
 import { checkHighRiskCombination } from './high-risk-interactions';
+
+type Severity = "safe" | "minor" | "severe" | "unknown";
 
 /**
  * Generates all possible unique pairs of medications from an input array
@@ -85,7 +88,7 @@ export async function processMedicationPair(
   ]);
 
   const sources: InteractionSource[] = [];
-  let maxSeverity: "safe" | "minor" | "severe" | "unknown" = "unknown";
+  let maxSeverity: Severity = "unknown";
   let description = "Insufficient data available - Please consult your healthcare provider.";
 
   // Collect all sources and determine max severity
