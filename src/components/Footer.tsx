@@ -10,12 +10,18 @@ export default function Footer() {
             This tool is for informational purposes only and is not a substitute for professional medical advice.
             Always consult with a healthcare provider before making any changes to your medication regimen.
           </p>
-          <div className="text-center">
+          <div className="text-center space-x-4">
             <Link 
               to="/privacy-policy"
               className="text-sm text-gray-300 hover:text-white transition-colors duration-200"
             >
               Privacy Policy
+            </Link>
+            <Link 
+              to="/terms-and-conditions"
+              className="text-sm text-gray-300 hover:text-white transition-colors duration-200"
+            >
+              Terms and Conditions
             </Link>
           </div>
         </div>

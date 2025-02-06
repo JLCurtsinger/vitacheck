@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Check from "./pages/Check";
 import Results from "./pages/Results";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsAndConditions from "./pages/TermsAndConditions";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/check" element={<Check />} />
           <Route path="/results" element={<Results />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
