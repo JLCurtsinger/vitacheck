@@ -1,69 +1,96 @@
-# Welcome to your Lovable project
+# VitaCheck - Medication Interaction Checker
 
-## Project info
+## Overview
 
-**URL**: https://lovable.dev/projects/39015cd8-1141-4c60-a2d6-0967f8e916c9
+VitaCheck is a comprehensive medication interaction checking system that helps users identify potential risks when combining different medications and supplements. The application queries multiple medical databases and APIs to provide thorough, reliable information about drug interactions.
 
-## How can I edit this code?
+## Key Features
 
-There are several ways of editing your application.
+- Multi-source verification: Checks multiple medical databases (RxNorm, SUPP.AI, FDA)
+- Cross-validation: Identifies and flags discrepancies between different data sources
+- High-risk combination detection: Built-in checks for known dangerous drug combinations
+- User-friendly interface: Clear presentation of interaction risks and severity levels
 
-**Use Lovable**
+## Architecture
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/39015cd8-1141-4c60-a2d6-0967f8e916c9) and start prompting.
+### Frontend Components
 
-Changes made via Lovable will be committed automatically to this repo.
+- `/src/components/MedicationForm.tsx`: Main form for entering medications
+- `/src/components/Results.tsx`: Displays interaction check results
+- `/src/components/interaction/*`: Components for rendering different aspects of interaction results
 
-**Use your preferred IDE**
+### Data Flow
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. User enters medications in MedicationForm
+2. Form submission triggers interaction checks
+3. Multiple APIs are queried simultaneously:
+   - RxNorm for medication identification and basic interactions
+   - SUPP.AI for supplement interactions
+   - FDA database for additional warnings
+4. Results are aggregated and cross-validated
+5. Findings are displayed with appropriate severity indicators
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### API Integration Points
 
-Follow these steps:
+#### RxNorm API (`/src/lib/api/rxnorm.ts`)
+- Purpose: Medication identification and standardization
+- Endpoints: 
+  - `/REST/rxcui.json`: Lookup medication identifiers
+  - `/REST/interaction/interaction.json`: Check drug interactions
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+#### FDA API (`/src/lib/api/fda.ts`)
+- Purpose: Official FDA warnings and precautions
+- Endpoint: `/drug/label.json`
+- Provides: Official warnings, contraindications, and adverse effects
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+#### SUPP.AI Integration (`/src/lib/api/suppai.ts`)
+- Purpose: Supplement interaction checking
+- Provides: Natural supplement and medication interaction data
 
-# Step 3: Install the necessary dependencies.
-npm i
+### Core Utilities
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+#### Interaction Processing (`/src/lib/api/utils/pair-processing-utils.ts`)
+- Manages the core logic for processing medication pairs
+- Aggregates data from multiple sources
+- Determines final severity ratings
+- Handles discrepancy detection
 
-**Edit a file directly in GitHub**
+#### High-Risk Combinations (`/src/lib/api/utils/high-risk-interactions.ts`)
+- Maintains database of known dangerous combinations
+- Provides immediate warnings for high-risk scenarios
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Development Setup
 
-**Use GitHub Codespaces**
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Start development server: `npm run dev`
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## API Keys and Environment Variables
 
-## What technologies are used for this project?
+Required API keys:
+- FDA API key (for extended access)
+- SUPP.AI API key
+- RxNorm API key (if using premium features)
 
-This project is built with .
+## Testing
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+The application includes:
+- Unit tests for core utilities
+- Integration tests for API interactions
+- End-to-end tests for critical user flows
 
-## How can I deploy this project?
+## Deployment
 
-Simply open [Lovable](https://lovable.dev/projects/39015cd8-1141-4c60-a2d6-0967f8e916c9) and click on Share -> Publish.
+The application can be deployed using:
+1. Lovable's built-in deployment feature
+2. Manual deployment to any static hosting service
 
-## I want to use a custom domain - is that possible?
+## Contributing
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+1. Fork the repository
+2. Create a feature branch
+3. Submit a pull request with detailed description
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

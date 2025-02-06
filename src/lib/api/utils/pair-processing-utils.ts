@@ -1,9 +1,24 @@
+/**
+ * Medication Pair Processing Utilities
+ * 
+ * This module handles the core logic for processing medication pairs and determining
+ * interaction severity based on multiple data sources. It implements a comprehensive
+ * checking system that queries multiple medical databases and aggregates their results.
+ * 
+ * @module pair-processing-utils
+ */
+
 import { InteractionResult, MedicationLookupResult, InteractionSource } from '../types';
 import { checkRxNormInteractions } from '../services/interactions/rxnorm-interactions';
 import { checkSuppAiInteractions } from '../services/interactions/suppai-interactions';
 import { checkFDAInteractions } from '../services/interactions/fda-interactions';
 import { checkHighRiskCombination } from './high-risk-interactions';
 
+/**
+ * Generates all possible unique pairs of medications from an input array
+ * @param medications - Array of medication names to generate pairs from
+ * @returns Array of medication name pairs
+ */
 export function generateMedicationPairs(medications: string[]): Array<[string, string]> {
   const pairs: Array<[string, string]> = [];
   const processedPairs = new Set<string>();
@@ -23,6 +38,20 @@ export function generateMedicationPairs(medications: string[]): Array<[string, s
   return pairs;
 }
 
+/**
+ * Processes a pair of medications to determine potential interactions
+ * 
+ * This function:
+ * 1. Queries multiple medical databases (RxNorm, SUPP.AI, FDA)
+ * 2. Aggregates and cross-validates the results
+ * 3. Determines the final severity rating
+ * 4. Handles discrepancies between different data sources
+ * 
+ * @param med1 - First medication name
+ * @param med2 - Second medication name
+ * @param medicationStatuses - Map of medication lookup results
+ * @returns Processed interaction result with severity and warnings
+ */
 export async function processMedicationPair(
   med1: string,
   med2: string,
@@ -36,17 +65,17 @@ export async function processMedicationPair(
   if (highRiskCheck.isHighRisk) {
     return {
       medications: [med1, med2],
-      severity: "severe",
+      severity: "severe" as const,
       description: highRiskCheck.description || "High risk combination detected",
       sources: [{
         name: "VitaCheck Safety Database",
-        severity: "severe",
+        severity: "severe" as const,
         description: highRiskCheck.description
       }]
     };
   }
 
-  // Always query all APIs regardless of previous results
+  // Query all available databases simultaneously
   const [rxnormResult, suppaiResult, fdaResult] = await Promise.all([
     med1Status.source === 'RxNorm' && med2Status.source === 'RxNorm'
       ? checkRxNormInteractions(med1Status.id!, med2Status.id!, med1, med2)
@@ -120,7 +149,7 @@ export async function processMedicationPair(
     description,
     sources: sources.length > 0 ? sources : [{
       name: "No Data Available",
-      severity: "unknown",
+      severity: "unknown" as const,
       description: "Interaction status unknown - Please consult your healthcare provider"
     }]
   };
