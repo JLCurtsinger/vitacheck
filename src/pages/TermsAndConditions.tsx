@@ -23,54 +23,57 @@ export default function TermsAndConditions() {
           
           <div className="mb-6">
             <p className="text-sm text-gray-600 mb-4">
-              Effective Date: February 6, 2025<br />
-              Last Updated: February 6, 2025
+              Effective Date: February 16, 2025<br />
+              Last Updated: February 16, 2025
             </p>
           </div>
 
           <section className="mb-8">
             <h2 className="text-2xl font-semibold mb-4">1. Introduction</h2>
             <p className="mb-4">
-              Welcome to VitaCheck ("we," "our," or "us"). These Terms and Conditions ("Terms") govern your use of the VitaCheck website and services. By accessing or using VitaCheck, you agree to be bound by these Terms. If you do not agree, please discontinue use immediately.
+              Welcome to VitaCheck ("we," "our," or "us"). By accessing and using our website, you agree to these Terms and Conditions ("Terms"). If you do not agree, please discontinue use immediately.
             </p>
             <p className="mb-4">
-              VitaCheck provides general information on potential medication and supplement interactions but does not provide medical advice. Always consult a licensed healthcare professional before making any decisions related to medications or supplements.
+              VitaCheck provides general information on potential interactions between medications and supplements but does not provide medical advice. You must consult a licensed healthcare provider before making any decisions about your medications or supplements.
             </p>
           </section>
 
           <section className="mb-8">
             <h2 className="text-2xl font-semibold mb-4">2. Use of VitaCheck</h2>
             <p className="mb-4">
-              You agree to use VitaCheck only for lawful and informational purposes. By using this site, you acknowledge that:
+              By using VitaCheck, you agree that:
             </p>
             <ul className="list-disc pl-6 mb-4">
-              <li>VitaCheck is not a substitute for medical advice.</li>
-              <li>The results displayed may contain errors, omissions, or outdated information and should not be solely relied upon.</li>
+              <li>You will use VitaCheck only for informational purposes.</li>
+              <li>VitaCheck does not replace medical advice, diagnosis, or treatment.</li>
               <li>You assume all responsibility for decisions made based on the information provided.</li>
-              <li>You will not misuse the service, including attempting to hack, disrupt, or scrape data from VitaCheck.</li>
+              <li>You will not misuse the service, including attempts to hack, disrupt, or scrape data.</li>
             </ul>
+            <p>
+              We reserve the right to modify, suspend, or terminate access to VitaCheck at any time without notice.
+            </p>
           </section>
 
           <section className="mb-8">
             <h2 className="text-2xl font-semibold mb-4">3. No Medical Advice – Use at Your Own Risk</h2>
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 my-4">
               <p className="text-yellow-700">
-                <strong>⚠️ VitaCheck does not provide medical advice.</strong> The site aggregates information from third-party medical databases (e.g., RxNorm, SUPP.AI, openFDA) and presents it for informational purposes only.
+                <strong>⚠️ VitaCheck is an informational tool only.</strong> We pull data from third-party sources (RxNorm, SUPP.AI, openFDA, etc.) and present it as-is.
               </p>
             </div>
             <p className="mb-4">By using VitaCheck, you acknowledge that:</p>
             <ul className="list-disc pl-6 mb-4">
-              <li>The information provided may be incomplete, inaccurate, or outdated.</li>
-              <li>No tool can guarantee 100% accurate drug interaction warnings.</li>
-              <li>You must consult a healthcare provider before making any medication decisions.</li>
+              <li>The results may contain errors, omissions, or outdated information.</li>
+              <li>VitaCheck cannot guarantee 100% accurate drug interaction warnings.</li>
+              <li>You must consult a healthcare professional before making medication decisions.</li>
             </ul>
-            <p>If you experience a medical emergency, call 911 or contact a licensed healthcare provider immediately.</p>
+            <p>If you are experiencing a medical emergency, call 911 or contact a licensed healthcare provider immediately.</p>
           </section>
 
           <section className="mb-8">
             <h2 className="text-2xl font-semibold mb-4">4. Third-Party API Use & Limitations</h2>
             <p className="mb-4">
-              VitaCheck relies on external sources (e.g., RxNorm, SUPP.AI, openFDA) for medication data. We do not control or verify the accuracy of these sources.
+              VitaCheck relies on external databases (e.g., RxNorm, SUPP.AI, openFDA) for medication interaction data. We do not control or verify the accuracy of these sources.
             </p>
             <ul className="list-disc pl-6 mb-4">
               <li>API data may be incomplete, inconsistent, or contain errors.</li>
@@ -117,7 +120,7 @@ export default function TermsAndConditions() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold mb-4">8. Governing Law</h2>
             <p>
-              These Terms are governed by the laws of The United States government and the state of Arizona, without regard to conflict of law principles. Any legal disputes arising from the use of VitaCheck shall be handled in the courts of the United States or Arizona.
+              These Terms are governed by the laws of The United States of America, without regard to conflict of law principles. Any legal disputes arising from the use of VitaCheck shall be handled in the courts of The United States of America.
             </p>
           </section>
 
@@ -127,8 +130,8 @@ export default function TermsAndConditions() {
               If you have any concerns or questions about these Terms, you may contact us at:
             </p>
             <p className="mb-4">
-              📧 Admin@LessonLink.com<br />
-              🌐 LessonLink.com
+              📧 Admin@VitaCheck.cc<br />
+              🌐 VitaCheck.cc
             </p>
           </section>
 
