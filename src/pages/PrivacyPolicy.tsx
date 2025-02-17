@@ -23,19 +23,19 @@ export default function PrivacyPolicy() {
           
           <div className="mb-6">
             <p className="text-sm text-gray-600 mb-4">
-              Effective Date: February 6, 2025<br />
-              Last Updated: February 6, 2025
+              Effective Date: Feb. 16, 2025<br />
+              Last Updated: Feb. 16, 2025
             </p>
           </div>
 
           <section className="mb-8">
             <h2 className="text-2xl font-semibold mb-4">1. Introduction</h2>
             <p className="mb-4">
-              Welcome to VitaCheck ("we," "our," or "us"). VitaCheck is a free online tool designed to provide general information about potential interactions between medications and supplements.
+              Welcome to VitaCheck ("we," "our," or "us"). Your privacy is important to us, and we are committed to protecting any information you may provide while using our website.
             </p>
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 my-4">
               <p className="text-yellow-700">
-                <strong>⚠️ Important Disclaimer:</strong> VitaCheck is not a substitute for professional medical advice, diagnosis, or treatment. The information provided by VitaCheck may contain errors, omissions, or outdated information. You must consult a licensed healthcare provider before making any decisions regarding your medications or supplements.
+                <strong>⚠️ Important Disclaimer:</strong> VitaCheck is an informational tool only and does not provide medical advice. The information presented on this site may be incomplete, inaccurate, or outdated. Always consult a licensed healthcare provider before making any medication or supplement decisions.
               </p>
             </div>
             <p>
@@ -46,7 +46,7 @@ export default function PrivacyPolicy() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold mb-4">2. Information We Collect</h2>
             <p className="mb-4">
-              VitaCheck does not require users to create an account or submit personal identifying information. However, we may collect limited non-personal data to improve our service:
+              VitaCheck does not require users to create an account or submit personal identifying information. However, we may collect the following non-personal data to improve our service:
             </p>
             <ul className="list-disc pl-6 mb-4">
               <li>Medication & Supplement Queries: When you enter a medication or supplement name, we process this data to retrieve interaction information.</li>
@@ -71,7 +71,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">4. Third-Party APIs & Limitations</h2>
+            <h2 className="text-2xl font-semibold mb-4">4. Third-Party API Use & Limitations</h2>
             <p className="mb-4">
               VitaCheck relies on external sources (e.g., RxNorm, SUPP.AI, openFDA) to retrieve medication interaction data. We do not control or verify the accuracy of these sources.
             </p>
@@ -98,6 +98,9 @@ export default function PrivacyPolicy() {
               <li>We do not guarantee that all dangerous drug interactions will be detected.</li>
               <li>You must not make medication decisions based solely on information from VitaCheck.</li>
             </ul>
+            <p>
+              VitaCheck is for informational purposes only. You must consult a licensed medical professional before starting, stopping, or combining any medications or supplements.
+            </p>
           </section>
 
           <section className="mb-8">
@@ -111,6 +114,9 @@ export default function PrivacyPolicy() {
               <li>Missed interactions that were not flagged due to API limitations.</li>
               <li>Losses resulting from inaccurate or outdated information.</li>
             </ul>
+            <p>
+              By using this website, you agree to hold VitaCheck harmless from any claims, damages, or legal disputes arising from the use of this tool.
+            </p>
           </section>
 
           <section className="mb-8">
@@ -123,6 +129,9 @@ export default function PrivacyPolicy() {
               <li>We do not collect personally identifiable information.</li>
               <li>We use standard security protocols to protect user queries.</li>
             </ul>
+            <p>
+              However, we cannot guarantee the security of data transmitted over the internet. Use VitaCheck at your own risk.
+            </p>
           </section>
 
           <section className="mb-8">
@@ -138,8 +147,8 @@ export default function PrivacyPolicy() {
               If you have any concerns or questions about this Privacy Policy, you may contact us at:
             </p>
             <p className="mb-4">
-              📧 Admin@LessonLink.com<br />
-              🌐 LessonLink.com
+              📧 Admin@VitaCheck.cc<br />
+              🌐 VitaCheck.cc
             </p>
           </section>
 
