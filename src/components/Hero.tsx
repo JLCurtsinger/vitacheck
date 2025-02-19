@@ -1,11 +1,81 @@
+
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
+import { Plus, X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Hero() {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [medications, setMedications] = useState<string[]>([""]);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const addMedication = () => {
+    setMedications([...medications, ""]);
+  };
+
+  const removeMedication = (index: number) => {
+    const newMedications = medications.filter((_, i) => i !== index);
+    setMedications(newMedications);
+  };
+
+  const updateMedication = (index: number, value: string) => {
+    const newMedications = [...medications];
+    newMedications[index] = value;
+    setMedications(newMedications);
+  };
+
+  const validateMedication = (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed.length < 2) {
+      return {
+        isValid: false,
+        error: "Medication name must be at least 2 characters"
+      };
+    }
+    if (/[<>{}]/.test(trimmed)) {
+      return {
+        isValid: false,
+        error: "Invalid characters detected"
+      };
+    }
+    return { isValid: true, error: null };
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const validMedications = medications
+      .map(med => med.trim())
+      .filter(med => med !== "");
+      
+    if (validMedications.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Please enter at least one medication or supplement"
+      });
+      return;
+    }
+    
+    for (const med of validMedications) {
+      const { isValid, error } = validateMedication(med);
+      if (!isValid) {
+        toast({
+          variant: "destructive",
+          title: "Invalid Input",
+          description: `${med}: ${error}`
+        });
+        return;
+      }
+    }
+    
+    navigate("/results", { state: { medications: validMedications } });
   };
 
   return (
@@ -31,14 +101,50 @@ export default function Hero() {
           <p className="mt-6 text-lg leading-8 text-gray-600">
             Easily verify potential interactions between your medications and supplements. Get instant, clear results to make informed decisions about your health.
           </p>
-          <div className="mt-10 flex items-center justify-center gap-x-6">
+          
+          <form onSubmit={handleSubmit} className="mt-10 space-y-4 max-w-xl mx-auto">
+            {medications.map((medication, index) => (
+              <div key={index} className="flex gap-2">
+                <Input
+                  value={medication}
+                  onChange={(e) => updateMedication(index, e.target.value)}
+                  placeholder="Enter medication or supplement name"
+                  className="flex-1 h-12 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                />
+                {medications.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => removeMedication(index)}
+                    className="hover:bg-red-50 hover:text-red-600 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+            
+            <div className="flex gap-2 justify-center">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addMedication}
+                className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white border-0 transition-all hover:scale-105"
+              >
+                <Plus className="h-4 w-4" />
+                Add Another
+              </Button>
+            </div>
+
             <Button
-              onClick={() => navigate("/check")}
-              className="rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-6 text-lg font-semibold text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              type="submit"
+              className="w-full mt-6 h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
+              disabled={medications.every(med => med.trim() === "")}
             >
-              Get Started
+              Check Interactions
             </Button>
-          </div>
+          </form>
         </div>
       </div>
       
