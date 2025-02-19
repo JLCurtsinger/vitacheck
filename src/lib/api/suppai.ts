@@ -4,7 +4,7 @@
  * Handles interactions with the SUPP.AI API for supplement interaction checking.
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface SuppAiResponse {
   interactions?: Array<{
@@ -17,16 +17,6 @@ export interface SuppAiResponse {
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // milliseconds
-
-// Ensure we have the required environment variables
-const supabaseUrl = 'https://kqbytrxntxdelgltcmqj.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxYnl0cnhudHhkZWxnbHRjbXFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYzMDI3NjAsImV4cCI6MjA1MTg3ODc2MH0.7F2ANCrynm8nasGIfQ16dNNJic7rbZaFXHWO9L_eCwQ';
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing required Supabase configuration');
-}
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
  * Fetches supplement interactions from the SUPP.AI API.
