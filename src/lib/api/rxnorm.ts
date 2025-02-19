@@ -4,6 +4,8 @@
  * Handles interactions with the RxNorm API for medication lookups and interaction checking.
  */
 
+import { createClient } from '@supabase/supabase-js';
+
 interface RxNormResponse {
   idGroup?: {
     rxnormId?: string[];
@@ -23,7 +25,11 @@ interface RxNormInteractionResponse {
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // milliseconds
-const RXNORM_API_KEY = import.meta.env.VITE_RXNORM_API_KEY;
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL || '',
+  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+);
 
 /**
  * Retrieves the RxCUI (RxNorm Concept Unique Identifier) for a given medication name.
@@ -35,16 +41,19 @@ export async function getRxCUI(medication: string): Promise<string | null> {
   
   while (attempts < MAX_RETRIES) {
     try {
-      const url = `https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(medication.trim())}&apiKey=${RXNORM_API_KEY}`;
-      const response = await fetch(url);
+      const { data, error } = await supabase.functions.invoke('rxnorm', {
+        body: { 
+          operation: 'rxcui',
+          name: medication.trim()
+        }
+      });
       
-      if (!response.ok) {
-        console.error(`RxNorm API error (${response.status}): ${response.statusText}`);
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (error) {
+        console.error(`RxNorm API error:`, error);
+        throw error;
       }
       
-      const data: RxNormResponse = await response.json();
-      return data.idGroup?.rxnormId?.[0] || null;
+      return data?.idGroup?.rxnormId?.[0] || null;
       
     } catch (error) {
       attempts++;
@@ -73,16 +82,19 @@ export async function getDrugInteractions(rxCUI: string) {
   
   while (attempts < MAX_RETRIES) {
     try {
-      const url = `https://rxnav.nlm.nih.gov/REST/interaction/interaction.json?rxcui=${rxCUI}&apiKey=${RXNORM_API_KEY}`;
-      const response = await fetch(url);
+      const { data, error } = await supabase.functions.invoke('rxnorm', {
+        body: {
+          operation: 'interactions',
+          rxcui: rxCUI
+        }
+      });
       
-      if (!response.ok) {
-        console.error(`Drug interactions API error (${response.status}): ${response.statusText}`);
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (error) {
+        console.error(`Drug interactions API error:`, error);
+        throw error;
       }
       
-      const data: RxNormInteractionResponse = await response.json();
-      return data.fullInteractionTypeGroup || [];
+      return data?.fullInteractionTypeGroup || [];
       
     } catch (error) {
       attempts++;
