@@ -4,16 +4,10 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Max-Age': '86400' // 24 hours cache for preflight requests
+  'Access-Control-Max-Age': '86400'
 };
 
-// Timeout duration for RxNorm API calls (in milliseconds)
-const API_TIMEOUT = 10000; // 10 seconds
-
-interface RxNormEndpoint {
-  path: string;
-  params: Record<string, string>;
-}
+const API_TIMEOUT = 10000; // 10 seconds timeout
 
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = API_TIMEOUT): Promise<Response> {
   const controller = new AbortController();
@@ -35,22 +29,6 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout 
   }
 }
 
-function buildRxNormUrl(endpoint: RxNormEndpoint): string {
-  const baseUrl = "https://rxnav.nlm.nih.gov/REST";
-  const apiKey = Deno.env.get("RXNORM_API_KEY");
-  
-  if (!apiKey) {
-    console.error("RxNorm API Key is missing");
-    throw new Error("RxNorm API key not configured");
-  }
-  
-  const queryParams = new URLSearchParams(endpoint.params);
-  const url = `${baseUrl}${endpoint.path}?${queryParams.toString()}`;
-  console.log(`Making request to RxNorm API (sanitized URL): ${url}`);
-  
-  return url;
-}
-
 export default async function handler(req: Request) {
   // Handle CORS preflight requests immediately
   if (req.method === 'OPTIONS') {
@@ -61,14 +39,26 @@ export default async function handler(req: Request) {
   }
 
   try {
-    const apiKey = Deno.env.get("RXNORM_API_KEY");
-    if (!apiKey) {
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    const apiKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!authHeader || !authHeader.startsWith('Bearer ') || authHeader.split(' ')[1] !== apiKey) {
+      console.error('Invalid or missing authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { 
+          status: 401,
+          headers: corsHeaders
+        }
+      );
+    }
+
+    const rxnormApiKey = Deno.env.get("RXNORM_API_KEY");
+    if (!rxnormApiKey) {
       console.error("RxNorm API Key is missing");
       return new Response(
-        JSON.stringify({ 
-          error: "Configuration error",
-          details: "API key not configured"
-        }),
+        JSON.stringify({ error: "RxNorm API key not configured" }),
         { 
           status: 500,
           headers: corsHeaders
@@ -76,6 +66,7 @@ export default async function handler(req: Request) {
       );
     }
 
+    // Parse request body
     const { operation, name, rxcui } = await req.json();
     console.log(`Processing ${operation} request`);
 
@@ -86,7 +77,7 @@ export default async function handler(req: Request) {
       );
     }
 
-    let endpoint: RxNormEndpoint;
+    let apiUrl: string;
     
     switch (operation) {
       case "rxcui":
@@ -96,10 +87,7 @@ export default async function handler(req: Request) {
             { status: 400, headers: corsHeaders }
           );
         }
-        endpoint = {
-          path: "/rxcui.json",
-          params: { name }
-        };
+        apiUrl = `https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(name)}`;
         break;
         
       case "interactions":
@@ -109,10 +97,7 @@ export default async function handler(req: Request) {
             { status: 400, headers: corsHeaders }
           );
         }
-        endpoint = {
-          path: "/interaction/interaction.json",
-          params: { rxcui }
-        };
+        apiUrl = `https://rxnav.nlm.nih.gov/REST/interaction/interaction.json?rxcui=${rxcui}`;
         break;
         
       default:
@@ -122,11 +107,11 @@ export default async function handler(req: Request) {
         );
     }
 
+    console.log(`Making request to RxNorm API: ${apiUrl}`);
+
     try {
-      const rxnormUrl = buildRxNormUrl(endpoint);
-      
       const response = await fetchWithTimeout(
-        rxnormUrl,
+        apiUrl,
         {
           headers: {
             'Accept': 'application/json'
@@ -162,8 +147,6 @@ export default async function handler(req: Request) {
       );
 
     } catch (error) {
-      console.error(`Error making RxNorm API request:`, error);
-      
       if (error.message.includes('timed out')) {
         return new Response(
           JSON.stringify({ 
@@ -176,7 +159,6 @@ export default async function handler(req: Request) {
           }
         );
       }
-      
       throw error;
     }
 
