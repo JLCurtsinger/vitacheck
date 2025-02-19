@@ -1,3 +1,4 @@
+
 /**
  * RxNorm API Integration Module
  * Handles interactions with the RxNorm API for medication lookups and interaction checking.
@@ -22,6 +23,7 @@ interface RxNormInteractionResponse {
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // milliseconds
+const RXNORM_API_KEY = import.meta.env.VITE_RXNORM_API_KEY;
 
 /**
  * Retrieves the RxCUI (RxNorm Concept Unique Identifier) for a given medication name.
@@ -33,7 +35,7 @@ export async function getRxCUI(medication: string): Promise<string | null> {
   
   while (attempts < MAX_RETRIES) {
     try {
-      const url = `https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(medication.trim())}`;
+      const url = `https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(medication.trim())}&apiKey=${RXNORM_API_KEY}`;
       const response = await fetch(url);
       
       if (!response.ok) {
@@ -71,7 +73,7 @@ export async function getDrugInteractions(rxCUI: string) {
   
   while (attempts < MAX_RETRIES) {
     try {
-      const url = `https://rxnav.nlm.nih.gov/REST/interaction/interaction.json?rxcui=${rxCUI}`;
+      const url = `https://rxnav.nlm.nih.gov/REST/interaction/interaction.json?rxcui=${rxCUI}&apiKey=${RXNORM_API_KEY}`;
       const response = await fetch(url);
       
       if (!response.ok) {
