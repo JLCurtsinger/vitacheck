@@ -2,8 +2,8 @@
 const corsHeaders = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type,Authorization',
   'Access-Control-Max-Age': '86400'
 };
 
@@ -22,6 +22,7 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout 
     return response;
   } catch (error) {
     clearTimeout(timeoutId);
+    console.error('Fetch with timeout error:', error);
     if (error.name === 'AbortError') {
       throw new Error(`Request timed out after ${timeout}ms`);
     }
@@ -30,7 +31,7 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout 
 }
 
 export default async function handler(req: Request) {
-  // Handle CORS preflight requests immediately
+  // Immediate response for OPTIONS requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
@@ -66,8 +67,21 @@ export default async function handler(req: Request) {
       );
     }
 
-    // Parse request body
-    const { operation, name, rxcui } = await req.json();
+    let requestBody;
+    try {
+      requestBody = await req.json();
+    } catch (error) {
+      console.error('Error parsing request body:', error);
+      return new Response(
+        JSON.stringify({ error: "Invalid request body" }),
+        { 
+          status: 400,
+          headers: corsHeaders
+        }
+      );
+    }
+
+    const { operation, name, rxcui } = requestBody;
     console.log(`Processing ${operation} request`);
 
     if (!operation) {
@@ -78,7 +92,6 @@ export default async function handler(req: Request) {
     }
 
     let apiUrl: string;
-    
     switch (operation) {
       case "rxcui":
         if (!name) {
@@ -122,7 +135,6 @@ export default async function handler(req: Request) {
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`RxNorm API error (${response.status}):`, errorText);
-        
         return new Response(
           JSON.stringify({ 
             error: `RxNorm API error (${response.status})`,
@@ -137,7 +149,6 @@ export default async function handler(req: Request) {
       
       const data = await response.json();
       console.log(`Successfully received RxNorm API response for ${operation}`);
-      
       return new Response(
         JSON.stringify(data),
         { 
@@ -147,6 +158,7 @@ export default async function handler(req: Request) {
       );
 
     } catch (error) {
+      console.error('RxNorm API request error:', error);
       if (error.message.includes('timed out')) {
         return new Response(
           JSON.stringify({ 
@@ -159,11 +171,20 @@ export default async function handler(req: Request) {
           }
         );
       }
-      throw error;
+      return new Response(
+        JSON.stringify({ 
+          error: "RxNorm API request failed",
+          details: error.message
+        }),
+        { 
+          status: 500,
+          headers: corsHeaders
+        }
+      );
     }
 
   } catch (error) {
-    console.error("Error in RxNorm Edge Function:", error);
+    console.error("Unhandled error in RxNorm Edge Function:", error);
     return new Response(
       JSON.stringify({ 
         error: "Internal server error",
