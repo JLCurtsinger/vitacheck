@@ -13,7 +13,17 @@ interface RxNormEndpoint {
 
 function buildRxNormUrl(endpoint: RxNormEndpoint): string {
   const baseUrl = "https://rxnav.nlm.nih.gov/REST";
-  const queryParams = new URLSearchParams(endpoint.params);
+  const apiKey = Deno.env.get("RXNORM_API_KEY");
+  
+  if (!apiKey) {
+    throw new Error("RxNorm API key not found in environment variables");
+  }
+  
+  const queryParams = new URLSearchParams({
+    ...endpoint.params,
+    apiKey
+  });
+  
   return `${baseUrl}${endpoint.path}?${queryParams.toString()}`;
 }
 
@@ -25,6 +35,7 @@ serve(async (req) => {
 
   try {
     const { operation, name, rxcui } = await req.json();
+    console.log(`Processing ${operation} request:`, { name, rxcui });
 
     if (!operation) {
       return new Response(
@@ -70,12 +81,25 @@ serve(async (req) => {
     const rxnormUrl = buildRxNormUrl(endpoint);
     console.log(`Fetching RxNorm data from: ${rxnormUrl}`);
     
-    const response = await fetch(rxnormUrl);
+    const response = await fetch(rxnormUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+
     if (!response.ok) {
-      throw new Error(`RxNorm API error: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error(`RxNorm API error (${response.status}):`, errorText);
+      
+      throw new Error(
+        `RxNorm API error (${response.status}): ${errorText || response.statusText}`
+      );
     }
     
     const data = await response.json();
+    console.log(`RxNorm API response:`, data);
+    
     return new Response(
       JSON.stringify(data),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -84,8 +108,14 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error in RxNorm proxy:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ 
+        error: error.message,
+        details: error.stack
+      }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
     );
   }
 });
