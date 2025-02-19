@@ -26,7 +26,7 @@ interface RxNormInteractionResponse {
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // milliseconds
 
-// Ensure we have the required environment variables
+// Initialize Supabase client
 const supabaseUrl = 'https://kqbytrxntxdelgltcmqj.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxYnl0cnhudHhkZWxnbHRjbXFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYzMDI3NjAsImV4cCI6MjA1MTg3ODc2MH0.7F2ANCrynm8nasGIfQ16dNNJic7rbZaFXHWO9L_eCwQ';
 

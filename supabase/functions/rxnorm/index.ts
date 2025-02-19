@@ -1,10 +1,10 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+}
 
 interface RxNormEndpoint {
   path: string;
@@ -13,12 +13,7 @@ interface RxNormEndpoint {
 
 function buildRxNormUrl(endpoint: RxNormEndpoint): string {
   const baseUrl = "https://rxnav.nlm.nih.gov/REST";
-  const apiKey = Deno.env.get("RXNORM_API_KEY");
-  const queryParams = new URLSearchParams({
-    ...endpoint.params,
-    apiKey: apiKey || "",
-  });
-  
+  const queryParams = new URLSearchParams(endpoint.params);
   return `${baseUrl}${endpoint.path}?${queryParams.toString()}`;
 }
 
@@ -29,30 +24,40 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const operation = url.searchParams.get("operation");
-    const params: Record<string, string> = {};
-    
-    // Parse query parameters
-    url.searchParams.forEach((value, key) => {
-      if (key !== "operation") {
-        params[key] = value;
-      }
-    });
+    const { operation, name, rxcui } = await req.json();
+
+    if (!operation) {
+      return new Response(
+        JSON.stringify({ error: "Operation parameter is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     let endpoint: RxNormEndpoint;
     
     switch (operation) {
       case "rxcui":
+        if (!name) {
+          return new Response(
+            JSON.stringify({ error: "Name parameter is required for rxcui operation" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
         endpoint = {
           path: "/rxcui.json",
-          params: { name: params.name || "" }
+          params: { name }
         };
         break;
       case "interactions":
+        if (!rxcui) {
+          return new Response(
+            JSON.stringify({ error: "RxCUI parameter is required for interactions operation" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
         endpoint = {
           path: "/interaction/interaction.json",
-          params: { rxcui: params.rxcui || "" }
+          params: { rxcui }
         };
         break;
       default:
