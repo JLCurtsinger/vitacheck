@@ -1,10 +1,8 @@
 
 const corsHeaders = {
-  'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-  'Access-Control-Max-Age': '86400'
+  'Access-Control-Allow-Headers': 'Content-Type,Authorization'
 };
 
 const API_TIMEOUT = 10000; // 10 seconds timeout
@@ -31,15 +29,24 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout 
 }
 
 export default async function handler(req: Request) {
-  // Immediate response for OPTIONS requests
+  // Handle CORS preflight requests - must be first
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
-      headers: corsHeaders
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Max-Age': '86400'
+      }
     });
   }
 
   try {
+    // All other responses should include CORS and Content-Type headers
+    const responseHeaders = {
+      ...corsHeaders,
+      'Content-Type': 'application/json'
+    };
+
     // Verify authentication
     const authHeader = req.headers.get('Authorization');
     const apiKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -50,7 +57,7 @@ export default async function handler(req: Request) {
         JSON.stringify({ error: 'Unauthorized' }),
         { 
           status: 401,
-          headers: corsHeaders
+          headers: responseHeaders
         }
       );
     }
@@ -62,7 +69,7 @@ export default async function handler(req: Request) {
         JSON.stringify({ error: "RxNorm API key not configured" }),
         { 
           status: 500,
-          headers: corsHeaders
+          headers: responseHeaders
         }
       );
     }
@@ -76,7 +83,7 @@ export default async function handler(req: Request) {
         JSON.stringify({ error: "Invalid request body" }),
         { 
           status: 400,
-          headers: corsHeaders
+          headers: responseHeaders
         }
       );
     }
@@ -87,7 +94,7 @@ export default async function handler(req: Request) {
     if (!operation) {
       return new Response(
         JSON.stringify({ error: "Operation parameter is required" }),
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: responseHeaders }
       );
     }
 
@@ -97,7 +104,7 @@ export default async function handler(req: Request) {
         if (!name) {
           return new Response(
             JSON.stringify({ error: "Name parameter is required for rxcui operation" }),
-            { status: 400, headers: corsHeaders }
+            { status: 400, headers: responseHeaders }
           );
         }
         apiUrl = `https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(name)}`;
@@ -107,7 +114,7 @@ export default async function handler(req: Request) {
         if (!rxcui) {
           return new Response(
             JSON.stringify({ error: "RxCUI parameter is required for interactions operation" }),
-            { status: 400, headers: corsHeaders }
+            { status: 400, headers: responseHeaders }
           );
         }
         apiUrl = `https://rxnav.nlm.nih.gov/REST/interaction/interaction.json?rxcui=${rxcui}`;
@@ -116,7 +123,7 @@ export default async function handler(req: Request) {
       default:
         return new Response(
           JSON.stringify({ error: "Invalid operation" }),
-          { status: 400, headers: corsHeaders }
+          { status: 400, headers: responseHeaders }
         );
     }
 
@@ -142,7 +149,7 @@ export default async function handler(req: Request) {
           }),
           { 
             status: response.status,
-            headers: corsHeaders
+            headers: responseHeaders
           }
         );
       }
@@ -153,7 +160,7 @@ export default async function handler(req: Request) {
         JSON.stringify(data),
         { 
           status: 200,
-          headers: corsHeaders
+          headers: responseHeaders
         }
       );
 
@@ -167,7 +174,7 @@ export default async function handler(req: Request) {
           }),
           { 
             status: 504,
-            headers: corsHeaders
+            headers: responseHeaders
           }
         );
       }
@@ -178,7 +185,7 @@ export default async function handler(req: Request) {
         }),
         { 
           status: 500,
-          headers: corsHeaders
+          headers: responseHeaders
         }
       );
     }
@@ -192,7 +199,10 @@ export default async function handler(req: Request) {
       }),
       { 
         status: 500,
-        headers: corsHeaders
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
       }
     );
   }
