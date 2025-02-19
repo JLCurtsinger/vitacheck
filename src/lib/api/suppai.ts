@@ -1,10 +1,10 @@
+
 /**
  * SUPP.AI API Integration Module
  * Handles interactions with the SUPP.AI API for supplement interaction checking.
- * Note: The SUPP.AI API may return CORS errors as it doesn't include proper
- * Access-Control-Allow-Origin headers. In production, consider using a server-side
- * proxy to bypass these restrictions.
  */
+
+import { createClient } from '@supabase/supabase-js';
 
 export interface SuppAiResponse {
   interactions?: Array<{
@@ -18,6 +18,16 @@ export interface SuppAiResponse {
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // milliseconds
 
+// Ensure we have the required environment variables
+const supabaseUrl = 'https://kqbytrxntxdelgltcmqj.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxYnl0cnhudHhkZWxnbHRjbXFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYzMDI3NjAsImV4cCI6MjA1MTg3ODc2MH0.7F2ANCrynm8nasGIfQ16dNNJic7rbZaFXHWO9L_eCwQ';
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing required Supabase configuration');
+}
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 /**
  * Fetches supplement interactions from the SUPP.AI API.
  * @param medication - The name of the medication/supplement to check
@@ -28,33 +38,19 @@ export async function getSupplementInteractions(medication: string) {
   
   while (attempts < MAX_RETRIES) {
     try {
-      const url = `https://supp.ai/api/agent/search?q=${encodeURIComponent(medication.trim())}`;
-      const response = await fetch(url, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        // Note: Using 'cors' mode explicitly to detect CORS errors
-        mode: 'cors'
+      const { data, error } = await supabase.functions.invoke('suppai', {
+        body: { query: medication.trim() }
       });
       
-      if (!response.ok) {
-        console.error(`SUPP.AI API error (${response.status}): ${response.statusText}`);
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (error) {
+        console.error(`SUPP.AI API error:`, error);
+        throw error;
       }
       
-      const data: SuppAiResponse = await response.json();
-      return data.interactions || [];
+      return data?.interactions || [];
       
     } catch (error) {
       attempts++;
-      // Check specifically for CORS errors
-      if (error instanceof TypeError && error.message.includes('CORS')) {
-        console.error('CORS error when accessing SUPP.AI API. This occurs because the API does not include proper CORS headers.');
-        console.error('Consider implementing a server-side proxy to bypass CORS restrictions.');
-        return [];
-      }
-      
       console.error(`SUPP.AI lookup attempt ${attempts} failed:`, error);
       
       if (attempts < MAX_RETRIES) {
