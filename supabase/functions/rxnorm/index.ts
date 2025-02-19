@@ -1,38 +1,14 @@
 
-const corsHeaders = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Max-Age': '86400' // 24 hours cache for preflight requests
-};
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
-// Timeout duration for RxNorm API calls (in milliseconds)
-const API_TIMEOUT = 10000; // 10 seconds
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 interface RxNormEndpoint {
   path: string;
   params: Record<string, string>;
-}
-
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = API_TIMEOUT): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
-    return response;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new Error(`Request timed out after ${timeout}ms`);
-    }
-    throw error;
-  }
 }
 
 function buildRxNormUrl(endpoint: RxNormEndpoint): string {
@@ -40,49 +16,52 @@ function buildRxNormUrl(endpoint: RxNormEndpoint): string {
   const apiKey = Deno.env.get("RXNORM_API_KEY");
   
   if (!apiKey) {
-    console.error("RxNorm API Key is missing");
+    console.error("RxNorm API Key is missing in Edge Function environment variables");
     throw new Error("RxNorm API key not configured");
   }
   
-  const queryParams = new URLSearchParams(endpoint.params);
+  console.log("Successfully retrieved RxNorm API key");
+  
+  const queryParams = new URLSearchParams({
+    ...endpoint.params
+  });
+  
   const url = `${baseUrl}${endpoint.path}?${queryParams.toString()}`;
-  console.log(`Making request to RxNorm API (sanitized URL): ${url}`);
+  console.log(`Constructed RxNorm API URL (sanitized): ${url.replace(apiKey, '[REDACTED]')}`);
   
   return url;
 }
 
-export default async function handler(req: Request) {
-  // Handle CORS preflight requests immediately
+serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Verify API key exists before processing request
     const apiKey = Deno.env.get("RXNORM_API_KEY");
     if (!apiKey) {
-      console.error("RxNorm API Key is missing");
+      console.error("RxNorm API Key is missing in Edge Function environment variables");
       return new Response(
         JSON.stringify({ 
-          error: "Configuration error",
-          details: "API key not configured"
+          error: "RxNorm API key not configured",
+          details: "Please configure the RXNORM_API_KEY in Supabase Edge Function settings"
         }),
         { 
           status: 500,
-          headers: corsHeaders
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
         }
       );
     }
 
     const { operation, name, rxcui } = await req.json();
-    console.log(`Processing ${operation} request`);
+    console.log(`Processing ${operation} request with params:`, { name, rxcui });
 
     if (!operation) {
       return new Response(
         JSON.stringify({ error: "Operation parameter is required" }),
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -93,7 +72,7 @@ export default async function handler(req: Request) {
         if (!name) {
           return new Response(
             JSON.stringify({ error: "Name parameter is required for rxcui operation" }),
-            { status: 400, headers: corsHeaders }
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
         endpoint = {
@@ -101,12 +80,11 @@ export default async function handler(req: Request) {
           params: { name }
         };
         break;
-        
       case "interactions":
         if (!rxcui) {
           return new Response(
             JSON.stringify({ error: "RxCUI parameter is required for interactions operation" }),
-            { status: 400, headers: corsHeaders }
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
         endpoint = {
@@ -114,25 +92,23 @@ export default async function handler(req: Request) {
           params: { rxcui }
         };
         break;
-        
       default:
         return new Response(
           JSON.stringify({ error: "Invalid operation" }),
-          { status: 400, headers: corsHeaders }
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }
 
     try {
       const rxnormUrl = buildRxNormUrl(endpoint);
+      console.log(`Making request to RxNorm API...`);
       
-      const response = await fetchWithTimeout(
-        rxnormUrl,
-        {
-          headers: {
-            'Accept': 'application/json'
-          }
+      const response = await fetch(rxnormUrl, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
         }
-      );
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -141,11 +117,11 @@ export default async function handler(req: Request) {
         return new Response(
           JSON.stringify({ 
             error: `RxNorm API error (${response.status})`,
-            details: errorText
+            details: errorText || response.statusText
           }),
           { 
-            status: response.status,
-            headers: corsHeaders
+            status: response.status, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
         );
       }
@@ -155,42 +131,26 @@ export default async function handler(req: Request) {
       
       return new Response(
         JSON.stringify(data),
-        { 
-          status: 200,
-          headers: corsHeaders
-        }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
 
     } catch (error) {
       console.error(`Error making RxNorm API request:`, error);
-      
-      if (error.message.includes('timed out')) {
-        return new Response(
-          JSON.stringify({ 
-            error: "Request timeout",
-            details: "The RxNorm API request timed out"
-          }),
-          { 
-            status: 504,
-            headers: corsHeaders
-          }
-        );
-      }
-      
-      throw error;
+      throw new Error(`Failed to fetch from RxNorm API: ${error.message}`);
     }
 
   } catch (error) {
     console.error("Error in RxNorm Edge Function:", error);
     return new Response(
       JSON.stringify({ 
-        error: "Internal server error",
-        details: error.message
+        error: "RxNorm Edge Function error",
+        details: error.message,
+        stack: error.stack
       }),
       { 
-        status: 500,
-        headers: corsHeaders
+        status: 500, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
     );
   }
-}
+});
