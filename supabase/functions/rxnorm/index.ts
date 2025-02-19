@@ -16,20 +16,15 @@ function buildRxNormUrl(endpoint: RxNormEndpoint): string {
   const apiKey = Deno.env.get("RXNORM_API_KEY");
   
   if (!apiKey) {
-    console.error("RxNorm API Key is missing in Edge Function environment variables");
-    throw new Error("RxNorm API key not configured");
+    throw new Error("RxNorm API key not found in environment variables");
   }
   
-  console.log("Successfully retrieved RxNorm API key");
-  
   const queryParams = new URLSearchParams({
-    ...endpoint.params
+    ...endpoint.params,
+    apiKey
   });
   
-  const url = `${baseUrl}${endpoint.path}?${queryParams.toString()}`;
-  console.log(`Constructed RxNorm API URL (sanitized): ${url.replace(apiKey, '[REDACTED]')}`);
-  
-  return url;
+  return `${baseUrl}${endpoint.path}?${queryParams.toString()}`;
 }
 
 serve(async (req) => {
@@ -39,24 +34,8 @@ serve(async (req) => {
   }
 
   try {
-    // Verify API key exists before processing request
-    const apiKey = Deno.env.get("RXNORM_API_KEY");
-    if (!apiKey) {
-      console.error("RxNorm API Key is missing in Edge Function environment variables");
-      return new Response(
-        JSON.stringify({ 
-          error: "RxNorm API key not configured",
-          details: "Please configure the RXNORM_API_KEY in Supabase Edge Function settings"
-        }),
-        { 
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-
     const { operation, name, rxcui } = await req.json();
-    console.log(`Processing ${operation} request with params:`, { name, rxcui });
+    console.log(`Processing ${operation} request:`, { name, rxcui });
 
     if (!operation) {
       return new Response(
@@ -99,53 +78,39 @@ serve(async (req) => {
         );
     }
 
-    try {
-      const rxnormUrl = buildRxNormUrl(endpoint);
-      console.log(`Making request to RxNorm API...`);
-      
-      const response = await fetch(rxnormUrl, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`RxNorm API error (${response.status}):`, errorText);
-        
-        return new Response(
-          JSON.stringify({ 
-            error: `RxNorm API error (${response.status})`,
-            details: errorText || response.statusText
-          }),
-          { 
-            status: response.status, 
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
-          }
-        );
+    const rxnormUrl = buildRxNormUrl(endpoint);
+    console.log(`Fetching RxNorm data from: ${rxnormUrl}`);
+    
+    const response = await fetch(rxnormUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
       }
-      
-      const data = await response.json();
-      console.log(`Successfully received RxNorm API response for ${operation}`);
-      
-      return new Response(
-        JSON.stringify(data),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    });
 
-    } catch (error) {
-      console.error(`Error making RxNorm API request:`, error);
-      throw new Error(`Failed to fetch from RxNorm API: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`RxNorm API error (${response.status}):`, errorText);
+      
+      throw new Error(
+        `RxNorm API error (${response.status}): ${errorText || response.statusText}`
+      );
     }
+    
+    const data = await response.json();
+    console.log(`RxNorm API response:`, data);
+    
+    return new Response(
+      JSON.stringify(data),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
 
   } catch (error) {
-    console.error("Error in RxNorm Edge Function:", error);
+    console.error("Error in RxNorm proxy:", error);
     return new Response(
       JSON.stringify({ 
-        error: "RxNorm Edge Function error",
-        details: error.message,
-        stack: error.stack
+        error: error.message,
+        details: error.stack
       }),
       { 
         status: 500, 
