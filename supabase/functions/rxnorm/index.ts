@@ -92,8 +92,15 @@ serve(async (req) => {
       const errorText = await response.text();
       console.error(`RxNorm API error (${response.status}):`, errorText);
       
-      throw new Error(
-        `RxNorm API error (${response.status}): ${errorText || response.statusText}`
+      return new Response(
+        JSON.stringify({ 
+          error: `RxNorm API error (${response.status})`,
+          details: errorText || response.statusText
+        }),
+        { 
+          status: response.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
       );
     }
     
