@@ -4,8 +4,6 @@
  * Handles interactions with the RxNorm API for medication lookups and interaction checking.
  */
 
-import { supabase } from '@/integrations/supabase/client';
-
 interface RxNormResponse {
   idGroup?: {
     rxnormId?: string[];
@@ -36,18 +34,22 @@ export async function getRxCUI(medication: string): Promise<string | null> {
   
   while (attempts < MAX_RETRIES) {
     try {
-      const { data, error } = await supabase.functions.invoke('rxnorm', {
-        body: { 
+      const response = await fetch('/.netlify/functions/rxnorm', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
           operation: 'rxcui',
           name: medication.trim()
-        }
+        })
       });
       
-      if (error) {
-        console.error(`RxNorm API error:`, error);
-        throw error;
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
+      const data = await response.json();
       return data?.idGroup?.rxnormId?.[0] || null;
       
     } catch (error) {
@@ -77,18 +79,22 @@ export async function getDrugInteractions(rxCUI: string) {
   
   while (attempts < MAX_RETRIES) {
     try {
-      const { data, error } = await supabase.functions.invoke('rxnorm', {
-        body: {
+      const response = await fetch('/.netlify/functions/rxnorm', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           operation: 'interactions',
           rxcui: rxCUI
-        }
+        })
       });
       
-      if (error) {
-        console.error(`Drug interactions API error:`, error);
-        throw error;
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
+      const data = await response.json();
       return data?.fullInteractionTypeGroup || [];
       
     } catch (error) {

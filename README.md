@@ -24,7 +24,7 @@ VitaCheck is a comprehensive medication interaction checking system that helps u
 1. User enters medications in MedicationForm
 2. Form submission triggers interaction checks
 3. Multiple APIs are queried simultaneously:
-   - RxNorm for medication identification and basic interactions
+   - RxNorm for medication identification and basic interactions (via Netlify Functions)
    - SUPP.AI for supplement interactions
    - FDA database for additional warnings
 4. Results are aggregated and cross-validated
@@ -32,11 +32,14 @@ VitaCheck is a comprehensive medication interaction checking system that helps u
 
 ### API Integration Points
 
-#### RxNorm API (`/src/lib/api/rxnorm.ts`)
+#### RxNorm API (via Netlify Functions)
 - Purpose: Medication identification and standardization
-- Endpoints: 
-  - `/REST/rxcui.json`: Lookup medication identifiers
-  - `/REST/interaction/interaction.json`: Check drug interactions
+- Endpoint: `/.netlify/functions/rxnorm`
+- Operations:
+  - `rxcui`: Lookup medication identifiers
+  - `interactions`: Check drug interactions
+- Environment Variables:
+  - `VITE_RXNORM_API_KEY`: Required for RxNorm API access
 
 #### FDA API (`/src/lib/api/fda.ts`)
 - Purpose: Official FDA warnings and precautions
