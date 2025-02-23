@@ -5,20 +5,32 @@
  */
 
 interface RxNormResponse {
-  idGroup?: {
-    rxnormId?: string[];
+  status: "success" | "error";
+  data?: {
+    idGroup?: {
+      rxnormId?: string[];
+    };
   };
+  error?: string;
+  details?: string;
+  message?: string;
 }
 
 interface RxNormInteractionResponse {
-  fullInteractionTypeGroup?: Array<{
-    fullInteractionType: Array<{
-      interactionPair: Array<{
-        description: string;
-        severity?: string;
+  status: "success" | "error";
+  data?: {
+    fullInteractionTypeGroup?: Array<{
+      fullInteractionType: Array<{
+        interactionPair: Array<{
+          description: string;
+          severity?: string;
+        }>;
       }>;
     }>;
-  }>;
+  };
+  error?: string;
+  details?: string;
+  message?: string;
 }
 
 const MAX_RETRIES = 3;
@@ -34,6 +46,8 @@ export async function getRxCUI(medication: string): Promise<string | null> {
   
   while (attempts < MAX_RETRIES) {
     try {
+      console.log(`Attempting to get RxCUI for medication: ${medication} (attempt ${attempts + 1}/${MAX_RETRIES})`);
+      
       const response = await fetch('/.netlify/functions/rxnorm', {
         method: 'POST',
         headers: {
@@ -49,8 +63,14 @@ export async function getRxCUI(medication: string): Promise<string | null> {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      const data = await response.json();
-      return data?.idGroup?.rxnormId?.[0] || null;
+      const data: RxNormResponse = await response.json();
+      console.log('RxNorm API response:', data);
+      
+      if (data.status === 'error') {
+        throw new Error(data.error || 'Unknown error occurred');
+      }
+      
+      return data.data?.idGroup?.rxnormId?.[0] || null;
       
     } catch (error) {
       attempts++;
@@ -79,6 +99,8 @@ export async function getDrugInteractions(rxCUI: string) {
   
   while (attempts < MAX_RETRIES) {
     try {
+      console.log(`Attempting to get drug interactions for RxCUI: ${rxCUI} (attempt ${attempts + 1}/${MAX_RETRIES})`);
+      
       const response = await fetch('/.netlify/functions/rxnorm', {
         method: 'POST',
         headers: {
@@ -94,8 +116,14 @@ export async function getDrugInteractions(rxCUI: string) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      const data = await response.json();
-      return data?.fullInteractionTypeGroup || [];
+      const data: RxNormInteractionResponse = await response.json();
+      console.log('Drug interactions API response:', data);
+      
+      if (data.status === 'error') {
+        throw new Error(data.error || 'Unknown error occurred');
+      }
+      
+      return data.data?.fullInteractionTypeGroup || [];
       
     } catch (error) {
       attempts++;

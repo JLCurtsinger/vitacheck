@@ -17,20 +17,33 @@ function buildRxNormUrl(endpoint: RxNormEndpoint): string {
   const apiKey = process.env.VITE_RXNORM_API_KEY;
   
   if (!apiKey) {
+    console.error("RxNorm API key not found in environment variables");
     throw new Error("RxNorm API key not found in environment variables");
   }
   
   const queryParams = new URLSearchParams({
-    ...endpoint.params,
-    apiKey
+    ...endpoint.params
   });
   
+  // Log the constructed URL (without API key for security)
+  const maskedUrl = `${baseUrl}${endpoint.path}?${queryParams.toString()}`;
+  console.log('Constructed RxNorm URL (API key masked):', maskedUrl);
+  
+  // Add API key to actual request
+  queryParams.append('apiKey', apiKey);
   return `${baseUrl}${endpoint.path}?${queryParams.toString()}`;
 }
 
 const handler: Handler = async (event) => {
+  console.log('Received request:', {
+    method: event.httpMethod,
+    headers: event.headers,
+    body: event.body ? JSON.parse(event.body) : null
+  });
+
   // Handle CORS preflight requests
   if (event.httpMethod === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
     return {
       statusCode: 200,
       headers: corsHeaders,
@@ -40,21 +53,29 @@ const handler: Handler = async (event) => {
 
   try {
     if (!event.body) {
+      console.error('Request body is missing');
       return {
         statusCode: 400,
         headers: corsHeaders,
-        body: JSON.stringify({ error: "Request body is required" })
+        body: JSON.stringify({ 
+          error: "Request body is required",
+          status: "error"
+        })
       };
     }
 
     const { operation, name, rxcui } = JSON.parse(event.body);
-    console.log(`Processing ${operation} request:`, { name, rxcui });
+    console.log('Processing request:', { operation, name, rxcui });
 
     if (!operation) {
+      console.error('Operation parameter is missing');
       return {
         statusCode: 400,
         headers: corsHeaders,
-        body: JSON.stringify({ error: "Operation parameter is required" })
+        body: JSON.stringify({ 
+          error: "Operation parameter is required",
+          status: "error"
+        })
       };
     }
 
@@ -63,79 +84,131 @@ const handler: Handler = async (event) => {
     switch (operation) {
       case "rxcui":
         if (!name) {
+          console.error('Name parameter is missing for rxcui operation');
           return {
             statusCode: 400,
             headers: corsHeaders,
-            body: JSON.stringify({ error: "Name parameter is required for rxcui operation" })
+            body: JSON.stringify({ 
+              error: "Name parameter is required for rxcui operation",
+              status: "error"
+            })
           };
         }
         endpoint = {
-          path: "/rxcui.json",
-          params: { name }
+          path: "/rxcui/json",  // Fixed path format
+          params: { name: name.trim() }
         };
         break;
       case "interactions":
         if (!rxcui) {
+          console.error('RxCUI parameter is missing for interactions operation');
           return {
             statusCode: 400,
             headers: corsHeaders,
-            body: JSON.stringify({ error: "RxCUI parameter is required for interactions operation" })
+            body: JSON.stringify({ 
+              error: "RxCUI parameter is required for interactions operation",
+              status: "error"
+            })
           };
         }
         endpoint = {
           path: "/interaction/interaction.json",
-          params: { rxcui }
+          params: { rxcui: rxcui.toString() }
         };
         break;
       default:
+        console.error(`Invalid operation requested: ${operation}`);
         return {
           statusCode: 400,
           headers: corsHeaders,
-          body: JSON.stringify({ error: "Invalid operation" })
+          body: JSON.stringify({ 
+            error: "Invalid operation",
+            status: "error"
+          })
         };
     }
 
-    const rxnormUrl = buildRxNormUrl(endpoint);
-    console.log(`Fetching RxNorm data from: ${rxnormUrl}`);
-    
-    const response = await fetch(rxnormUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`RxNorm API error (${response.status}):`, errorText);
+    try {
+      const rxnormUrl = buildRxNormUrl(endpoint);
+      console.log('Sending request to RxNorm API...');
       
+      const response = await fetch(rxnormUrl, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const responseData = await response.text();
+      console.log('RxNorm API response status:', response.status);
+      console.log('RxNorm API response headers:', response.headers);
+      console.log('RxNorm API response body:', responseData);
+
+      if (!response.ok) {
+        return {
+          statusCode: response.status,
+          headers: corsHeaders,
+          body: JSON.stringify({ 
+            error: `RxNorm API error (${response.status})`,
+            details: responseData || response.statusText,
+            status: "error"
+          })
+        };
+      }
+      
+      // Try to parse the response as JSON
+      let data;
+      try {
+        data = JSON.parse(responseData);
+      } catch (e) {
+        console.error('Failed to parse RxNorm response as JSON:', e);
+        return {
+          statusCode: 500,
+          headers: corsHeaders,
+          body: JSON.stringify({ 
+            error: "Invalid JSON response from RxNorm API",
+            details: responseData,
+            status: "error"
+          })
+        };
+      }
+
+      // Handle empty or null responses gracefully
+      if (!data || (operation === 'interactions' && (!data.fullInteractionTypeGroup || data.fullInteractionTypeGroup.length === 0))) {
+        return {
+          statusCode: 200,
+          headers: corsHeaders,
+          body: JSON.stringify({
+            status: "success",
+            data: operation === 'interactions' ? { fullInteractionTypeGroup: [] } : data,
+            message: "No data found"
+          })
+        };
+      }
+
       return {
-        statusCode: response.status,
+        statusCode: 200,
         headers: corsHeaders,
-        body: JSON.stringify({ 
-          error: `RxNorm API error (${response.status})`,
-          details: errorText || response.statusText
+        body: JSON.stringify({
+          status: "success",
+          data
         })
       };
+
+    } catch (error) {
+      console.error('Error making request to RxNorm API:', error);
+      throw error;  // Re-throw to be caught by outer try-catch
     }
-    
-    const data = await response.json();
-    console.log(`RxNorm API response:`, data);
-    
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: JSON.stringify(data)
-    };
 
   } catch (error) {
-    console.error("Error in RxNorm proxy:", error);
+    console.error("Unhandled error in RxNorm function:", error);
     return {
       statusCode: 500,
       headers: corsHeaders,
       body: JSON.stringify({ 
         error: error.message,
-        details: error.stack
+        details: error.stack,
+        status: "error"
       })
     };
   }
