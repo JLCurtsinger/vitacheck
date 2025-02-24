@@ -9,6 +9,7 @@ import { Search, Filter, Plus, ThumbsUp, ThumbsDown, Menu, X } from "lucide-reac
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import Footer from "@/components/Footer";
 
 interface Experience {
   id: string;
@@ -130,7 +131,8 @@ export default function Experiences() {
     }
   };
 
-  return <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex flex-col">
       <div className="absolute top-0 left-0 w-full p-4 bg-white/80 backdrop-blur-sm shadow-sm">
         <div className="flex justify-between items-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Link to="/" className="flex-shrink-0">
@@ -165,7 +167,7 @@ export default function Experiences() {
           </div>}
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-8 flex-grow">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 text-transparent bg-clip-text">User Experiences</h2>
           <Dialog>
@@ -296,5 +298,8 @@ export default function Experiences() {
             ))}
         </div>
       </main>
-    </div>;
+
+      <Footer />
+    </div>
+  );
 }
