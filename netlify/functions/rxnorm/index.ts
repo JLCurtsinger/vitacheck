@@ -14,23 +14,7 @@ interface RxNormEndpoint {
 
 function buildRxNormUrl(endpoint: RxNormEndpoint): string {
   const baseUrl = "https://rxnav.nlm.nih.gov/REST";
-  const apiKey = process.env.VITE_RXNORM_API_KEY;
-  
-  if (!apiKey) {
-    console.error("RxNorm API key not found in environment variables");
-    throw new Error("RxNorm API key not found in environment variables");
-  }
-  
-  const queryParams = new URLSearchParams({
-    ...endpoint.params
-  });
-  
-  // Log the constructed URL (without API key for security)
-  const maskedUrl = `${baseUrl}${endpoint.path}?${queryParams.toString()}`;
-  console.log('Constructed RxNorm URL (API key masked):', maskedUrl);
-  
-  // Add API key to actual request
-  queryParams.append('apiKey', apiKey);
+  const queryParams = new URLSearchParams(endpoint.params);
   return `${baseUrl}${endpoint.path}?${queryParams.toString()}`;
 }
 
