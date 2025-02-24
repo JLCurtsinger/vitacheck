@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -19,12 +18,14 @@ interface Experience {
   upvotes: number;
   downvotes: number;
   created_at: string;
+  author_name?: string;
 }
 
 interface ExperienceFormData {
   medicationName: string;
   description: string;
   sentiment: "positive" | "neutral" | "negative";
+  authorName?: string;
 }
 
 export default function Experiences() {
@@ -34,12 +35,12 @@ export default function Experiences() {
   const [formData, setFormData] = useState<ExperienceFormData>({
     medicationName: "",
     description: "",
-    sentiment: "neutral"
+    sentiment: "neutral",
+    authorName: ""
   });
   
   const queryClient = useQueryClient();
 
-  // Fetch experiences
   const { data: experiences, isLoading } = useQuery({
     queryKey: ['experiences', searchQuery],
     queryFn: async () => {
@@ -58,7 +59,6 @@ export default function Experiences() {
     }
   });
 
-  // Submit new experience
   const submitMutation = useMutation({
     mutationFn: async (data: ExperienceFormData) => {
       const { data: result, error } = await supabase
@@ -66,7 +66,8 @@ export default function Experiences() {
         .insert([{
           medication_name: data.medicationName,
           description: data.description,
-          sentiment: data.sentiment
+          sentiment: data.sentiment,
+          author_name: data.authorName || null
         }])
         .select()
         .single();
@@ -80,7 +81,8 @@ export default function Experiences() {
       setFormData({
         medicationName: "",
         description: "",
-        sentiment: "neutral"
+        sentiment: "neutral",
+        authorName: ""
       });
     },
     onError: (error) => {
@@ -100,7 +102,6 @@ export default function Experiences() {
     }
   };
 
-  // Vote mutation
   const voteMutation = useMutation({
     mutationFn: async ({ id, type }: { id: string; type: 'upvote' | 'downvote' }) => {
       const field = type === 'upvote' ? 'upvotes' : 'downvotes';
@@ -124,7 +125,6 @@ export default function Experiences() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-      {/* Navigation Bar */}
       <div className="absolute top-0 left-0 w-full p-4 bg-white/80 backdrop-blur-sm shadow-sm">
         <div className="flex justify-between items-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Link to="/" className="flex-shrink-0">
@@ -133,7 +133,6 @@ export default function Experiences() {
             </h1>
           </Link>
           
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-4">
             <Link to="/check">
               <Button variant="ghost">Interaction Checker</Button>
@@ -143,7 +142,6 @@ export default function Experiences() {
             </Link>
           </div>
 
-          {/* Mobile Navigation */}
           <div className="md:hidden">
             <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)}>
               {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -151,7 +149,6 @@ export default function Experiences() {
           </div>
         </div>
 
-        {/* Mobile Menu */}
         {isMenuOpen && (
           <div className="md:hidden absolute top-16 right-4 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
             <Link 
@@ -172,7 +169,6 @@ export default function Experiences() {
         )}
       </div>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-8">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 text-transparent bg-clip-text">
@@ -182,7 +178,8 @@ export default function Experiences() {
             <DialogTrigger asChild>
               <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all hover:scale-[1.02]">
                 <Plus className="mr-2 h-4 w-4" />
-                Share Experience
+                <span className="hidden xs:inline">Share Experience</span>
+                <span className="inline xs:hidden">Share</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
@@ -190,6 +187,17 @@ export default function Experiences() {
                 <DialogTitle>Share Your Experience</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-6 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="authorName">Your Name (Optional)</Label>
+                  <Input
+                    id="authorName"
+                    value={formData.authorName}
+                    onChange={(e) => setFormData({...formData, authorName: e.target.value})}
+                    placeholder="Enter your name (optional)"
+                    className="border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="medicationName">Medication Name</Label>
                   <Input
@@ -247,7 +255,6 @@ export default function Experiences() {
           </Dialog>
         </div>
 
-        {/* Search and Filter Bar */}
         <div className="flex gap-4 mb-8">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -265,7 +272,6 @@ export default function Experiences() {
           </Button>
         </div>
 
-        {/* Experiences List */}
         <div className="space-y-6">
           {isLoading ? (
             <div className="text-center py-8">
@@ -283,9 +289,19 @@ export default function Experiences() {
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">{experience.medication_name}</h3>
-                    <p className="text-sm text-gray-500">
-                      {new Date(experience.created_at).toLocaleDateString()}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-gray-500">
+                        {new Date(experience.created_at).toLocaleDateString()}
+                      </p>
+                      {experience.author_name && (
+                        <>
+                          <span className="text-gray-300">•</span>
+                          <p className="text-sm text-gray-500">
+                            Shared by {experience.author_name}
+                          </p>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div className="px-3 py-1 rounded-full text-sm font-medium capitalize" 
                     style={{
