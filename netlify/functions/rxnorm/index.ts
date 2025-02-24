@@ -79,7 +79,7 @@ const handler: Handler = async (event) => {
           };
         }
         endpoint = {
-          path: "/rxcui.json",  // Updated path to match RxNorm API format
+          path: "/rxcui.json",
           params: { name: name.trim() }
         };
         break;
@@ -95,9 +95,10 @@ const handler: Handler = async (event) => {
             })
           };
         }
+        // Expect the caller to provide a string with multiple RxCUIs joined by "+"
         endpoint = {
-          path: "/interaction/interaction.json",
-          params: { rxcui: rxcui.toString() }
+          path: "/interaction/list.json",
+          params: { rxcuis: rxcui.toString() }
         };
         break;
       default:
