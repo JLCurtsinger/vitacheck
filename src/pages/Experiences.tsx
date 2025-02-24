@@ -9,6 +9,7 @@ import { Search, Filter, Plus, ThumbsUp, ThumbsDown, Menu, X } from "lucide-reac
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
 interface Experience {
   id: string;
   medication_name: string;
@@ -19,12 +20,14 @@ interface Experience {
   created_at: string;
   author_name?: string;
 }
+
 interface ExperienceFormData {
   medicationName: string;
   description: string;
   sentiment: "positive" | "neutral" | "negative";
   authorName?: string;
 }
+
 export default function Experiences() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,7 +38,9 @@ export default function Experiences() {
     sentiment: "neutral",
     authorName: ""
   });
+
   const queryClient = useQueryClient();
+
   const {
     data: experiences,
     isLoading
@@ -56,6 +61,7 @@ export default function Experiences() {
       return data as Experience[];
     }
   });
+
   const submitMutation = useMutation({
     mutationFn: async (data: ExperienceFormData) => {
       const {
@@ -87,6 +93,39 @@ export default function Experiences() {
       toast.error("Failed to share experience. Please try again.");
     }
   });
+
+  const voteMutation = useMutation({
+    mutationFn: async ({ id, type }: { id: string; type: 'upvote' | 'downvote' }) => {
+      const field = type === 'upvote' ? 'upvotes' : 'downvotes';
+      
+      const { data: current, error: getError } = await supabase
+        .from('experiences')
+        .select(field)
+        .eq('id', id)
+        .single();
+      
+      if (getError) throw getError;
+      
+      const { data, error: updateError } = await supabase
+        .from('experiences')
+        .update({ [field]: (current?.[field] || 0) + 1 })
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (updateError) throw updateError;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['experiences'] });
+      toast.success(`Vote registered successfully!`);
+    },
+    onError: (error) => {
+      console.error('Error registering vote:', error);
+      toast.error("Failed to register vote. Please try again.");
+    }
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -96,33 +135,7 @@ export default function Experiences() {
       setIsSubmitting(false);
     }
   };
-  const voteMutation = useMutation({
-    mutationFn: async ({
-      id,
-      type
-    }: {
-      id: string;
-      type: 'upvote' | 'downvote';
-    }) => {
-      const field = type === 'upvote' ? 'upvotes' : 'downvotes';
-      const {
-        data,
-        error
-      } = await supabase.from('experiences').update({
-        [field]: supabase.rpc('increment')
-      }).eq('id', id).select().single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['experiences']
-      });
-    },
-    onError: () => {
-      toast.error("Failed to register vote. Please try again.");
-    }
-  });
+
   return <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
       <div className="absolute top-0 left-0 w-full p-4 bg-white/80 backdrop-blur-sm shadow-sm">
         <div className="flex justify-between items-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -236,7 +249,8 @@ export default function Experiences() {
               <p className="text-gray-500 text-center">
                 No experiences shared yet. Be the first to share your experience!
               </p>
-            </div> : experiences.map(experience => <div key={experience.id} className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-6 space-y-4 hover:shadow-xl transition-shadow">
+            </div> : experiences.map((experience) => (
+              <div key={experience.id} className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-6 space-y-4 hover:shadow-xl transition-shadow">
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">{experience.medication_name}</h3>
@@ -263,22 +277,29 @@ export default function Experiences() {
                 <p className="text-gray-700">{experience.description}</p>
                 
                 <div className="flex gap-4 pt-2">
-                  <Button variant="outline" size="sm" className="border-2 border-gray-200 hover:border-blue-500 hover:bg-white/50" onClick={() => voteMutation.mutate({
-              id: experience.id,
-              type: 'upvote'
-            })}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-2 border-gray-200 hover:border-blue-500 hover:bg-white/50"
+                    onClick={() => voteMutation.mutate({ id: experience.id, type: 'upvote' })}
+                    disabled={voteMutation.isPending}
+                  >
                     <ThumbsUp className="w-4 h-4 mr-2" />
                     {experience.upvotes}
                   </Button>
-                  <Button variant="outline" size="sm" className="border-2 border-gray-200 hover:border-blue-500 hover:bg-white/50" onClick={() => voteMutation.mutate({
-              id: experience.id,
-              type: 'downvote'
-            })}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-2 border-gray-200 hover:border-blue-500 hover:bg-white/50"
+                    onClick={() => voteMutation.mutate({ id: experience.id, type: 'downvote' })}
+                    disabled={voteMutation.isPending}
+                  >
                     <ThumbsDown className="w-4 h-4 mr-2" />
                     {experience.downvotes}
                   </Button>
                 </div>
-              </div>)}
+              </div>
+            ))}
         </div>
       </main>
     </div>;
