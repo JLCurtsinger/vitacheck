@@ -41,10 +41,7 @@ export default function Experiences() {
 
   const queryClient = useQueryClient();
 
-  const {
-    data: experiences,
-    isLoading
-  } = useQuery({
+  const { data: experiences, isLoading } = useQuery({
     queryKey: ['experiences', searchQuery],
     queryFn: async () => {
       let query = supabase.from('experiences').select('*').order('created_at', {
@@ -53,10 +50,7 @@ export default function Experiences() {
       if (searchQuery) {
         query = query.ilike('medication_name', `%${searchQuery}%`);
       }
-      const {
-        data,
-        error
-      } = await query;
+      const { data, error } = await query;
       if (error) throw error;
       return data as Experience[];
     }
@@ -64,22 +58,22 @@ export default function Experiences() {
 
   const submitMutation = useMutation({
     mutationFn: async (data: ExperienceFormData) => {
-      const {
-        data: result,
-        error
-      } = await supabase.from('experiences').insert([{
-        medication_name: data.medicationName,
-        description: data.description,
-        sentiment: data.sentiment,
-        author_name: data.authorName || null
-      }]).select().single();
+      const { data: result, error } = await supabase
+        .from('experiences')
+        .insert([{
+          medication_name: data.medicationName,
+          description: data.description,
+          sentiment: data.sentiment,
+          author_name: data.authorName || null
+        }])
+        .select()
+        .single();
+      
       if (error) throw error;
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['experiences']
-      });
+      queryClient.invalidateQueries({ queryKey: ['experiences'] });
       toast.success("Experience shared successfully!");
       setFormData({
         medicationName: "",
