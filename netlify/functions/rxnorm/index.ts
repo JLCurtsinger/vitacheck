@@ -79,7 +79,7 @@ const handler: Handler = async (event) => {
           };
         }
         endpoint = {
-          path: "/rxcui/json",  // Fixed path format
+          path: "/rxcui.json",  // Updated path to match RxNorm API format
           params: { name: name.trim() }
         };
         break;
