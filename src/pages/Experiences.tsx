@@ -3,10 +3,46 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Search, Filter, Plus } from "lucide-react";
+import { toast } from "sonner";
+
+interface ExperienceFormData {
+  medicationName: string;
+  description: string;
+  sentiment: "positive" | "neutral" | "negative";
+}
 
 export default function Experiences() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState<ExperienceFormData>({
+    medicationName: "",
+    description: "",
+    sentiment: "neutral"
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      // For now, just simulate submission
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      toast.success("Experience shared successfully!");
+      setFormData({
+        medicationName: "",
+        description: "",
+        sentiment: "neutral"
+      });
+    } catch (error) {
+      toast.error("Failed to share experience. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -37,10 +73,68 @@ export default function Experiences() {
           <h2 className="text-3xl font-bold text-gray-900">
             Medication Experiences
           </h2>
-          <Button className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="mr-2 h-4 w-4" />
-            Share Experience
-          </Button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="mr-2 h-4 w-4" />
+                Share Experience
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Share Your Experience</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-6 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="medicationName">Medication Name</Label>
+                  <Input
+                    id="medicationName"
+                    value={formData.medicationName}
+                    onChange={(e) => setFormData({...formData, medicationName: e.target.value})}
+                    placeholder="Enter medication name"
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="description">Your Experience</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    placeholder="Share your experience with this medication..."
+                    className="min-h-[100px]"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Overall Experience</Label>
+                  <div className="flex gap-4">
+                    {["positive", "neutral", "negative"].map((sentiment) => (
+                      <Button
+                        key={sentiment}
+                        type="button"
+                        variant={formData.sentiment === sentiment ? "default" : "outline"}
+                        onClick={() => setFormData({...formData, sentiment: sentiment as ExperienceFormData["sentiment"]})}
+                        className="flex-1 capitalize"
+                      >
+                        {sentiment}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Submitting..." : "Share Experience"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Search and Filter Bar */}
