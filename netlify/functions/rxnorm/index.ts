@@ -15,7 +15,9 @@ interface RxNormEndpoint {
 function buildRxNormUrl(endpoint: RxNormEndpoint): string {
   const baseUrl = "https://rxnav.nlm.nih.gov/REST";
   const queryParams = new URLSearchParams(endpoint.params);
-  return `${baseUrl}${endpoint.path}?${queryParams.toString()}`;
+  const url = `${baseUrl}${endpoint.path}?${queryParams.toString()}`;
+  console.log('Built RxNorm API URL:', url);
+  return url;
 }
 
 const handler: Handler = async (event) => {
@@ -37,13 +39,12 @@ const handler: Handler = async (event) => {
 
   try {
     if (!event.body) {
-      const error = new Error('Request body is missing');
-      console.error('Validation error:', { error: error.message });
+      console.error('Request validation failed: Missing body');
       return {
         statusCode: 400,
         headers: corsHeaders,
         body: JSON.stringify({ 
-          error: error.message,
+          error: "Request body is required",
           status: "error"
         })
       };
@@ -53,13 +54,12 @@ const handler: Handler = async (event) => {
     console.log('Processing request:', { operation, name, rxcui });
 
     if (!operation) {
-      const error = new Error('Operation parameter is required');
-      console.error('Validation error:', { error: error.message, body: event.body });
+      console.error('Request validation failed: Missing operation');
       return {
         statusCode: 400,
         headers: corsHeaders,
         body: JSON.stringify({ 
-          error: error.message,
+          error: "Operation parameter is required",
           status: "error"
         })
       };
@@ -70,13 +70,12 @@ const handler: Handler = async (event) => {
     switch (operation) {
       case "rxcui":
         if (!name) {
-          const error = new Error('Name parameter is required for rxcui operation');
-          console.error('Validation error:', { error: error.message, body: event.body });
+          console.error('Request validation failed: Missing name for rxcui operation');
           return {
             statusCode: 400,
             headers: corsHeaders,
             body: JSON.stringify({ 
-              error: error.message,
+              error: "Name parameter is required for rxcui operation",
               status: "error"
             })
           };
@@ -88,13 +87,12 @@ const handler: Handler = async (event) => {
         break;
       case "interactions":
         if (!rxcui) {
-          const error = new Error('RxCUI parameter is required for interactions operation');
-          console.error('Validation error:', { error: error.message, body: event.body });
+          console.error('Request validation failed: Missing rxcui for interactions operation');
           return {
             statusCode: 400,
             headers: corsHeaders,
             body: JSON.stringify({ 
-              error: error.message,
+              error: "RxCUI parameter is required for interactions operation",
               status: "error"
             })
           };
@@ -105,13 +103,12 @@ const handler: Handler = async (event) => {
         };
         break;
       default:
-        const error = new Error(`Invalid operation: ${operation}`);
-        console.error('Validation error:', { error: error.message, body: event.body });
+        console.error('Request validation failed: Invalid operation', operation);
         return {
           statusCode: 400,
           headers: corsHeaders,
           body: JSON.stringify({ 
-            error: error.message,
+            error: `Invalid operation: ${operation}`,
             status: "error"
           })
         };
@@ -119,7 +116,11 @@ const handler: Handler = async (event) => {
 
     try {
       const rxnormUrl = buildRxNormUrl(endpoint);
-      console.log('Sending request to RxNorm API:', rxnormUrl);
+      console.log(`Making ${operation} request to RxNorm API:`, {
+        url: rxnormUrl,
+        operation,
+        parameters: endpoint.params
+      });
       
       const response = await fetch(rxnormUrl, {
         headers: {
@@ -131,15 +132,16 @@ const handler: Handler = async (event) => {
       const responseData = await response.text();
       console.log('RxNorm API response:', {
         status: response.status,
-        headers: Object.fromEntries(response.headers),
         url: rxnormUrl,
-        body: responseData
+        operation,
+        responseData
       });
 
       if (!response.ok) {
         console.error('RxNorm API error:', {
           status: response.status,
           url: rxnormUrl,
+          operation,
           response: responseData,
           requestBody: event.body
         });
@@ -162,6 +164,7 @@ const handler: Handler = async (event) => {
       } catch (e) {
         console.error('Failed to parse RxNorm response:', {
           error: e instanceof Error ? e.message : 'Unknown error',
+          operation,
           response: responseData,
           requestBody: event.body
         });
@@ -180,6 +183,11 @@ const handler: Handler = async (event) => {
       if (!data || 
           (operation === 'rxcui' && (!data.idGroup?.rxnormId || data.idGroup.rxnormId.length === 0)) ||
           (operation === 'interactions' && (!data.fullInteractionTypeGroup || data.fullInteractionTypeGroup.length === 0))) {
+        console.log('No data found in RxNorm response:', {
+          operation,
+          url: rxnormUrl,
+          data
+        });
         return {
           statusCode: 200,
           headers: corsHeaders,
@@ -203,6 +211,7 @@ const handler: Handler = async (event) => {
     } catch (error) {
       console.error('RxNorm API request failed:', {
         error: error instanceof Error ? { message: error.message, stack: error.stack } : 'Unknown error',
+        operation,
         requestBody: event.body
       });
       throw error;
