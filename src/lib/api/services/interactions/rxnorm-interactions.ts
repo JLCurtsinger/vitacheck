@@ -27,13 +27,26 @@ export async function checkRxNormInteractions(
     };
   }
   
+  // Check if RxNorm explicitly confirms no interactions
+  if (rxnormInteractions.length === 0) {
+    return {
+      sources: [{
+        name: "RxNorm",
+        severity: "unknown",
+        description: "No interaction data found in RxNorm database"
+      }],
+      description: "No interaction data available in RxNorm database. Consult your healthcare provider.",
+      severity: "unknown"
+    };
+  }
+  
   return {
     sources: [{
       name: "RxNorm",
-      severity: "safe",
-      description: "No known interactions detected"
+      severity: "unknown",
+      description: "Interaction status unknown"
     }],
-    description: "No known interactions detected between these medications in RxNorm database.",
-    severity: "safe"
+    description: "No interaction data available. Consult your healthcare provider.",
+    severity: "unknown"
   };
 }

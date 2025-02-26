@@ -89,63 +89,49 @@ export async function processMedicationPair(
 
   const sources: InteractionSource[] = [];
   let maxSeverity: Severity = "unknown";
-  let description = "Insufficient data available - Please consult your healthcare provider.";
+  let description = "No interaction data available. Consult your healthcare provider.";
+  let hasExplicitSafety = false;
+  let hasAdverseReaction = false;
 
-  // Helper function to determine if a severity level should update maxSeverity
-  const shouldUpdateMaxSeverity = (currentSeverity: Severity, newSeverity: Severity): boolean => {
-    if (newSeverity === "severe") return true;
-    if (newSeverity === "minor" && currentSeverity !== "severe") return true;
-    if (newSeverity === "safe" && currentSeverity === "unknown") return true;
-    return false;
-  };
-
-  // Collect all sources and determine max severity
+  // Collect all sources and analyze their results
   if (rxnormResult) {
     sources.push(...rxnormResult.sources);
-    if (shouldUpdateMaxSeverity(maxSeverity, rxnormResult.severity)) {
-      maxSeverity = rxnormResult.severity;
-      description = rxnormResult.description;
-    }
+    if (rxnormResult.severity === "safe") hasExplicitSafety = true;
+    if (rxnormResult.severity === "minor" || rxnormResult.severity === "severe") hasAdverseReaction = true;
   }
 
   if (suppaiResult) {
     sources.push(...suppaiResult.sources);
-    if (shouldUpdateMaxSeverity(maxSeverity, suppaiResult.severity)) {
-      maxSeverity = suppaiResult.severity;
-      if (maxSeverity === "severe") {
-        description = suppaiResult.description;
-      }
-    }
+    if (suppaiResult.severity === "safe") hasExplicitSafety = true;
+    if (suppaiResult.severity === "minor" || suppaiResult.severity === "severe") hasAdverseReaction = true;
   }
 
   if (fdaResult) {
     sources.push(...fdaResult.sources);
-    if (shouldUpdateMaxSeverity(maxSeverity, fdaResult.severity)) {
-      maxSeverity = fdaResult.severity;
-      if (maxSeverity === "severe") {
-        description = fdaResult.description;
-      }
-    }
+    if (fdaResult.severity === "safe") hasExplicitSafety = true;
+    if (fdaResult.severity === "minor" || fdaResult.severity === "severe") hasAdverseReaction = true;
   }
 
-  // Check for discrepancies between sources
-  if (sources.length > 1) {
-    const severities = new Set(sources.map(s => s.severity));
-    if (severities.size > 1) {
-      description = `Discrepancy detected: Different sources report varying levels of risk. Consult your healthcare provider.`;
-      // Always err on the side of caution when sources disagree
-      if (severities.has("severe")) {
-        maxSeverity = "severe";
-      } else if (severities.has("minor")) {
-        maxSeverity = "minor";
-      }
+  // Determine final severity and description based on collected data
+  if (hasAdverseReaction) {
+    // If any source reports an adverse reaction, use the most severe warning
+    if (sources.some(s => s.severity === "severe")) {
+      maxSeverity = "severe";
+      description = sources.find(s => s.severity === "severe")?.description || 
+                   "Severe interaction detected. Consult your healthcare provider.";
+    } else {
+      maxSeverity = "minor";
+      description = sources.find(s => s.severity === "minor")?.description || 
+                   "Minor interaction possible. Monitor for side effects.";
     }
-  }
-
-  // Only mark as safe if we have data from at least one source and all agree it's safe
-  if (sources.length > 0 && sources.every(s => s.severity === "safe")) {
+  } else if (hasExplicitSafety && !hasAdverseReaction) {
+    // Only mark as safe if at least one source explicitly confirms safety and no source reports adverse reactions
     maxSeverity = "safe";
-    description = "No known interactions detected in available databases, but always consult your healthcare provider.";
+    description = "Verified safe to take together based on available data. Always consult your healthcare provider.";
+  } else {
+    // If no explicit safety confirmation or adverse reactions found
+    maxSeverity = "unknown";
+    description = "No interaction data available. Consult your healthcare provider.";
   }
 
   return {
