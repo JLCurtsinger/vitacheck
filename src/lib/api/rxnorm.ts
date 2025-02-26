@@ -131,30 +131,3 @@ export async function getDrugInteractions(rxCUIs: string[]): Promise<any[]> {
   
   return data.data?.fullInteractionTypeGroup || [];
 }
-
-/**
- * Processes a list of medications to check for interactions
- * @param medications - Array of medication names to check
- * @returns Array of interaction data
- */
-export async function processInteractions(medications: string[]): Promise<any[]> {
-  // First, get RxCUIs for all medications
-  const rxcuiPromises = medications.map(med => getRxCUI(med));
-  const rxcuis = await Promise.all(rxcuiPromises);
-  
-  // Filter out any medications where RxCUI lookup failed
-  const validRxCUIs = rxcuis.filter(Boolean) as string[];
-  
-  if (validRxCUIs.length < 2) {
-    console.warn('Not enough valid RxCUIs found for interaction check', {
-      total: medications.length,
-      valid: validRxCUIs.length,
-      medications,
-      rxcuis: validRxCUIs
-    });
-    return [];
-  }
-  
-  // Proceed with interaction check
-  return getDrugInteractions(validRxCUIs);
-}

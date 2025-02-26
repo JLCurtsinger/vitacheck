@@ -1,3 +1,4 @@
+
 import { getDrugInteractions } from '../../rxnorm';
 import { InteractionSource } from '../../types';
 
@@ -11,7 +12,7 @@ export async function checkRxNormInteractions(
   description: string;
   severity: "safe" | "minor" | "severe" | "unknown";
 }> {
-  const rxnormInteractions = await getDrugInteractions(med1Id);
+  const rxnormInteractions = await getDrugInteractions([med1Id, med2Id]);
   
   if (rxnormInteractions.length > 0) {
     const description = rxnormInteractions[0]?.fullInteractionType?.[0]?.interactionPair?.[0]?.description || "";
