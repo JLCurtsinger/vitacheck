@@ -1,6 +1,6 @@
 
 import { Badge } from "@/components/ui/badge";
-import { Database, FileText, Flask } from "lucide-react";
+import { Database, FileText, TestTube } from "lucide-react";
 
 interface SourceAttributionProps {
   sources: string[];
@@ -17,7 +17,7 @@ export function SourceAttribution({ sources }: SourceAttributionProps) {
       case 'FDA':
         return <FileText className="h-3 w-3 mr-1" />;
       case 'SUPP.AI':
-        return <Flask className="h-3 w-3 mr-1" />;
+        return <TestTube className="h-3 w-3 mr-1" />;
       default:
         return null;
     }
