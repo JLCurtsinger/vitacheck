@@ -1,3 +1,4 @@
+
 /**
  * FDA API Integration Module
  * Handles interactions with the openFDA API for medication warnings and adverse effects.
@@ -23,31 +24,39 @@ export async function getFDAWarnings(medication: string): Promise<FDAResponse> {
   
   while (attempts < MAX_RETRIES) {
     try {
-      const url = `https://api.fda.gov/drug/label.json?search=openfda.brand_name:${encodeURIComponent(medication.trim())}`;
+      // Expand search to include both brand and generic names using OR
+      const encodedMedication = encodeURIComponent(medication.trim());
+      const searchQuery = `openfda.brand_name:"${encodedMedication}"+OR+openfda.generic_name:"${encodedMedication}"`;
+      const url = `https://api.fda.gov/drug/label.json?search=${searchQuery}`;
+      
+      console.log(`[OpenFDA] Making API request: ${url}`);
+      
       const response = await fetch(url);
       
       if (!response.ok) {
         if (response.status === 404) {
-          console.warn('No FDA data found for medication:', medication);
+          console.warn('[OpenFDA] No FDA data found for medication:', medication);
           return { results: [] };
         }
-        console.error(`FDA API error (${response.status}): ${response.statusText}`);
+        console.error(`[OpenFDA] API error (${response.status}): ${response.statusText}`);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data: FDAResponse = await response.json();
+      console.log(`[OpenFDA] Received data for ${medication}:`, 
+        data.results ? `Found ${data.results.length} results` : 'No results');
       return data;
       
     } catch (error) {
       attempts++;
-      console.error(`FDA lookup attempt ${attempts} failed:`, error);
+      console.error(`[OpenFDA] Lookup attempt ${attempts} failed:`, error);
       
       if (attempts < MAX_RETRIES) {
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
         continue;
       }
       
-      console.error('All FDA lookup attempts failed for medication:', medication);
+      console.error('[OpenFDA] All lookup attempts failed for medication:', medication);
       return { results: [] };
     }
   }
