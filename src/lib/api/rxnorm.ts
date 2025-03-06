@@ -124,7 +124,7 @@ export async function getDrugInteractions(rxCUIs: string[]): Promise<any[]> {
   const data: RxNormInteractionResponse = await response.json();
   console.log('Drug interactions API response:', data);
   
-  if (data.status === 'error' || data.message === "No data found") {
+  if (data.status === 'error' || data.message === "No data found" || data.message === "No interactions found") {
     console.log('No interactions found for RxCUIs:', rxcuiString);
     return [];
   }

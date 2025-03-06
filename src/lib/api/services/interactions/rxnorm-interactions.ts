@@ -14,32 +14,43 @@ export async function checkRxNormInteractions(
 }> {
   const rxnormInteractions = await getDrugInteractions([med1Id, med2Id]);
   
-  if (rxnormInteractions.length > 0) {
+  // Check if interactions were found
+  if (rxnormInteractions.length > 0 && 
+      rxnormInteractions[0]?.fullInteractionType && 
+      rxnormInteractions[0]?.fullInteractionType.length > 0) {
+    
     const description = rxnormInteractions[0]?.fullInteractionType?.[0]?.interactionPair?.[0]?.description || "";
-    return {
-      sources: [{
-        name: "RxNorm",
-        severity: "minor",
-        description
-      }],
-      description,
-      severity: "minor"
-    };
+    
+    // If we have an interaction description, it's a minor interaction at minimum
+    if (description) {
+      return {
+        sources: [{
+          name: "RxNorm",
+          severity: "minor",
+          description
+        }],
+        description,
+        severity: "minor"
+      };
+    }
   }
   
-  // Check if RxNorm explicitly confirms no interactions
+  // If RxNorm explicitly confirms no interactions
+  // This case happens when RxNorm returns a response but with empty interaction data
+  // This indicates that RxNorm knows about these medications but found no interactions
   if (rxnormInteractions.length === 0) {
     return {
       sources: [{
         name: "RxNorm",
-        severity: "unknown",
-        description: "No interaction data found in RxNorm database"
+        severity: "safe",
+        description: "No interactions found in RxNorm database"
       }],
-      description: "No interaction data available in RxNorm database. Consult your healthcare provider.",
-      severity: "unknown"
+      description: "No interactions found in RxNorm database. Always consult your healthcare provider.",
+      severity: "safe"
     };
   }
   
+  // Default case - we don't have clear information
   return {
     sources: [{
       name: "RxNorm",

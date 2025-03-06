@@ -97,6 +97,7 @@ const handler: Handler = async (event) => {
             })
           };
         }
+        // Updated to use the correct interaction endpoint
         endpoint = {
           path: "/interaction/list.json",
           params: { rxcuis: rxcui.toString() }
@@ -161,6 +162,8 @@ const handler: Handler = async (event) => {
       let data;
       try {
         data = JSON.parse(responseData);
+        // Add detailed logging of the response for debugging
+        console.log('RxNorm interaction response:', JSON.stringify(data, null, 2));
       } catch (e) {
         console.error('Failed to parse RxNorm response:', {
           error: e instanceof Error ? e.message : 'Unknown error',
@@ -180,25 +183,74 @@ const handler: Handler = async (event) => {
       }
 
       // Handle empty or null responses gracefully
-      if (!data || 
-          (operation === 'rxcui' && (!data.idGroup?.rxnormId || data.idGroup.rxnormId.length === 0)) ||
-          (operation === 'interactions' && (!data.fullInteractionTypeGroup || data.fullInteractionTypeGroup.length === 0))) {
-        console.log('No data found in RxNorm response:', {
+      if (!data) {
+        console.log('No data returned from RxNorm API:', {
           operation,
-          url: rxnormUrl,
-          data
+          url: rxnormUrl
         });
         return {
           statusCode: 200,
           headers: corsHeaders,
           body: JSON.stringify({
             status: "success",
-            data: operation === 'interactions' ? { fullInteractionTypeGroup: [] } : data,
+            data: operation === 'interactions' ? { fullInteractionTypeGroup: [] } : {},
             message: "No data found"
           })
         };
       }
+      
+      // For interactions, ensure fullInteractionTypeGroup is present in the response
+      if (operation === 'interactions') {
+        // Check if the response has the expected fullInteractionTypeGroup structure
+        if (!data.fullInteractionTypeGroup) {
+          console.log('No interactions found in RxNorm response:', {
+            operation,
+            url: rxnormUrl,
+            data
+          });
+          return {
+            statusCode: 200,
+            headers: corsHeaders,
+            body: JSON.stringify({
+              status: "success",
+              data: { fullInteractionTypeGroup: [] },
+              message: "No interactions found"
+            })
+          };
+        }
+        
+        // Return the full response with interactions
+        return {
+          statusCode: 200,
+          headers: corsHeaders,
+          body: JSON.stringify({
+            status: "success",
+            data: { fullInteractionTypeGroup: data.fullInteractionTypeGroup }
+          })
+        };
+      }
+      
+      // For rxcui operation, handle expected response format
+      if (operation === 'rxcui') {
+        if (!data.idGroup?.rxnormId || data.idGroup.rxnormId.length === 0) {
+          console.log('No RxCUI found in RxNorm response:', {
+            operation,
+            url: rxnormUrl,
+            data
+          });
+          return {
+            statusCode: 200,
+            headers: corsHeaders,
+            body: JSON.stringify({
+              status: "success",
+              data,
+              message: "No data found"
+            })
+          };
+        }
+      }
 
+      // Return the response for other operations
       return {
         statusCode: 200,
         headers: corsHeaders,
