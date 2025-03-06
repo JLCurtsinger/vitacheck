@@ -45,10 +45,10 @@ export function generateMedicationPairs(medications: string[]): Array<[string, s
  * Processes a pair of medications to determine potential interactions
  * 
  * This function:
- * 1. Queries multiple medical databases (RxNorm, SUPP.AI, FDA)
- * 2. Aggregates and cross-validates the results
- * 3. Determines the final severity rating
- * 4. Handles discrepancies between different data sources
+ * 1. Queries multiple medical databases (RxNorm, SUPP.AI, FDA) simultaneously
+ * 2. Aggregates and merges the results from all sources
+ * 3. Determines the final severity rating based on all available data
+ * 4. Ensures interactions are always displayed if any API detects them
  * 
  * @param med1 - First medication name
  * @param med2 - Second medication name
@@ -78,70 +78,100 @@ export async function processMedicationPair(
     };
   }
 
-  // Query all available databases simultaneously
-  const [rxnormResult, suppaiResult, fdaResult] = await Promise.all([
-    med1Status.source === 'RxNorm' && med2Status.source === 'RxNorm'
-      ? checkRxNormInteractions(med1Status.id!, med2Status.id!, med1, med2)
+  console.log(`Checking interactions between ${med1} (${med1Status.id || 'no id'}) and ${med2} (${med2Status.id || 'no id'})`);
+
+  // Query all available databases simultaneously to maintain the existing parallel API call pattern
+  const results = await Promise.all([
+    // Only check RxNorm if both medications have RxNorm IDs
+    med1Status.source === 'RxNorm' && med2Status.source === 'RxNorm' && med1Status.id && med2Status.id
+      ? checkRxNormInteractions(med1Status.id, med2Status.id, med1, med2)
       : Promise.resolve(null),
     checkSuppAiInteractions(med1, med2),
     checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || [])
   ]);
 
+  // Destructure results for clarity
+  const [rxnormResult, suppaiResult, fdaResult] = results;
+  
+  console.log('API Results:', {
+    rxnorm: rxnormResult ? `Found: ${rxnormResult.severity}` : 'No data',
+    suppai: suppaiResult ? `Found: ${suppaiResult.severity}` : 'No data',
+    fda: fdaResult ? `Found: ${fdaResult.severity}` : 'No data'
+  });
+
+  // Merge all sources from different APIs
   const sources: InteractionSource[] = [];
-  let maxSeverity: Severity = "unknown";
-  let description = "No interaction data available. Consult your healthcare provider.";
+  if (rxnormResult) sources.push(...rxnormResult.sources);
+  if (suppaiResult) sources.push(...suppaiResult.sources);
+  if (fdaResult) sources.push(...fdaResult.sources);
+
+  // Track interaction statuses across all APIs
+  let hasAnyInteraction = false;
   let hasExplicitSafety = false;
-  let hasAdverseReaction = false;
+  let hasUnknownStatus = false;
+  let mostSevereDescription = "No information found for this combination. Consult a healthcare provider for more details.";
+  let mostSeverity: Severity = "unknown";
 
-  // Collect all sources and analyze their results
-  if (rxnormResult) {
-    sources.push(...rxnormResult.sources);
-    if (rxnormResult.severity === "safe") hasExplicitSafety = true;
-    if (rxnormResult.severity === "minor" || rxnormResult.severity === "severe") hasAdverseReaction = true;
-  }
-
-  if (suppaiResult) {
-    sources.push(...suppaiResult.sources);
-    if (suppaiResult.severity === "safe") hasExplicitSafety = true;
-    if (suppaiResult.severity === "minor" || suppaiResult.severity === "severe") hasAdverseReaction = true;
-  }
-
-  if (fdaResult) {
-    sources.push(...fdaResult.sources);
-    if (fdaResult.severity === "safe") hasExplicitSafety = true;
-    if (fdaResult.severity === "minor" || fdaResult.severity === "severe") hasAdverseReaction = true;
-  }
-
-  // Determine final severity and description based on collected data
-  if (hasAdverseReaction) {
-    // If any source reports an adverse reaction, use the most severe warning
-    if (sources.some(s => s.severity === "severe")) {
-      maxSeverity = "severe";
-      description = sources.find(s => s.severity === "severe")?.description || 
-                   "Severe interaction detected. Consult your healthcare provider.";
-    } else {
-      maxSeverity = "minor";
-      description = sources.find(s => s.severity === "minor")?.description || 
-                   "Minor interaction possible. Monitor for side effects.";
+  // Analyze results from all APIs to determine overall severity
+  for (const result of [rxnormResult, suppaiResult, fdaResult]) {
+    if (!result) continue;
+    
+    // If any API reports an interaction, we consider there is an interaction
+    if (result.severity === "minor" || result.severity === "severe") {
+      hasAnyInteraction = true;
+      
+      // Track the most severe interaction and its description
+      if (
+        (result.severity === "severe") || 
+        (result.severity === "minor" && mostSeverity !== "severe")
+      ) {
+        mostSeverity = result.severity;
+        mostSevereDescription = result.description;
+      }
     }
-  } else if (hasExplicitSafety && !hasAdverseReaction) {
-    // Only mark as safe if at least one source explicitly confirms safety and no source reports adverse reactions
-    maxSeverity = "safe";
-    description = "Verified safe to take together based on available data. Always consult your healthcare provider.";
+    
+    // Track if any API explicitly confirms safety
+    if (result.severity === "safe") {
+      hasExplicitSafety = true;
+    }
+    
+    // Track if any API returns unknown status
+    if (result.severity === "unknown") {
+      hasUnknownStatus = true;
+    }
+  }
+
+  // Determine final result based on merged data
+  let finalSeverity: Severity;
+  let finalDescription: string;
+  
+  if (hasAnyInteraction) {
+    // If any API reports an interaction, use the most severe level
+    finalSeverity = mostSeverity;
+    finalDescription = mostSevereDescription;
+  } else if (hasExplicitSafety && !hasAnyInteraction) {
+    // Only mark as safe if at least one API explicitly confirms safety and no API reports interactions
+    finalSeverity = "safe";
+    finalDescription = "Verified safe to take together based on available data. Always consult your healthcare provider.";
   } else {
-    // If no explicit safety confirmation or adverse reactions found
-    maxSeverity = "unknown";
-    description = "No interaction data available. Consult your healthcare provider.";
+    // Default case - no clear information available
+    finalSeverity = "unknown";
+    finalDescription = "No information found for this combination. Consult a healthcare provider for more details.";
+  }
+
+  // Ensure we always have at least one source entry
+  if (sources.length === 0) {
+    sources.push({
+      name: "No Data Available",
+      severity: "unknown",
+      description: "No interaction data available from any source"
+    });
   }
 
   return {
     medications: [med1, med2],
-    severity: maxSeverity,
-    description,
-    sources: sources.length > 0 ? sources : [{
-      name: "No Data Available",
-      severity: "unknown" as const,
-      description: "Interaction status unknown - Please consult your healthcare provider"
-    }]
+    severity: finalSeverity,
+    description: finalDescription,
+    sources
   };
 }

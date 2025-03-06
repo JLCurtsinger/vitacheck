@@ -13,6 +13,7 @@ export default function Results() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [interactions, setInteractions] = useState<InteractionResultType[]>([]);
+  const [hasAnyInteraction, setHasAnyInteraction] = useState(false);
 
   const medications = location.state?.medications || [];
 
@@ -24,9 +25,21 @@ export default function Results() {
 
     const fetchInteractions = async () => {
       try {
+        console.log('Fetching interactions for medications:', medications);
         const results = await checkInteractions(medications);
         setInteractions(results);
+        
+        // Check if any interaction was found
+        setHasAnyInteraction(results.some(result => 
+          result.severity === "minor" || result.severity === "severe"
+        ));
+        
+        console.log('Interaction results:', {
+          count: results.length,
+          hasInteractions: results.some(r => r.severity === "minor" || r.severity === "severe")
+        });
       } catch (error) {
+        console.error('Error checking interactions:', error);
         toast({
           variant: "destructive",
           title: "Error",
@@ -67,13 +80,20 @@ export default function Results() {
 
       {interactions.length === 0 ? (
         <ErrorMessage
+          title="No Medications to Compare"
+          description="Please select at least two medications to check for interactions."
+        />
+      ) : !hasAnyInteraction ? (
+        <ErrorMessage
           title="No Interactions Found"
-          description="No known interactions detected, but consult a healthcare professional for advice."
+          description="No information found for this combination. Consult a healthcare provider for more details."
         />
       ) : (
         <div className="space-y-6">
           {interactions.map((interaction, index) => (
-            <InteractionResult key={index} interaction={interaction} />
+            interaction.severity === "minor" || interaction.severity === "severe" ? (
+              <InteractionResult key={index} interaction={interaction} />
+            ) : null
           ))}
         </div>
       )}
