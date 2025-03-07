@@ -77,6 +77,13 @@ export default function Login() {
             </Button>
           </form>
         </div>
+        
+        {/* Disclaimer */}
+        <div className="mt-8 text-center text-sm text-gray-500 max-w-md mx-auto px-4">
+          <p className="italic">
+            This site is currently under construction. Access is limited as we work to provide a highly accurate and reliable platform that you can trust. Our goal is to ensure the highest level of accuracy and safety before releasing VitaCheck to the public.
+          </p>
+        </div>
       </div>
     </div>
   );
