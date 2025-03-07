@@ -13,7 +13,7 @@ export default function NavHeader() {
   };
 
   return (
-    <div className="absolute top-0 right-0 p-4 z-10">
+    <div className="absolute top-0 left-0 p-4 z-10">
       <Button 
         variant="ghost" 
         onClick={logout} 
