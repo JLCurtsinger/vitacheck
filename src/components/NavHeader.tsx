@@ -13,17 +13,7 @@ export default function NavHeader() {
     });
   };
 
-  return (
-    <div className="hidden md:block">
-      {/* Only show this version on medium screens and up */}
-      <Button 
-        variant="ghost" 
-        onClick={logout} 
-        className="text-gray-700 hover:text-gray-900 flex items-center gap-2"
-      >
-        <LogOut className="h-4 w-4" />
-        Log Out
-      </Button>
-    </div>
-  );
+  // This component is now empty since the logout button has been moved
+  // to the Hero component's navigation
+  return null;
 }
