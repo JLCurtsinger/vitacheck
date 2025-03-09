@@ -54,13 +54,15 @@ export default function Navbar() {
       )}
     >
       <div className="container mx-auto flex items-center justify-between px-4">
-        <Link 
-          to="/"
-          className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 text-transparent bg-clip-text hover:opacity-80 transition-opacity duration-300"
-          onClick={scrollToTop}
-        >
-          Vitacheck
-        </Link>
+        {!scrolled && (
+          <Link 
+            to="/"
+            className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 text-transparent bg-clip-text hover:opacity-80 transition-opacity duration-300"
+            onClick={scrollToTop}
+          >
+            Vitacheck
+          </Link>
+        )}
         
         {/* Desktop menu */}
         <div className="hidden md:flex items-center gap-2">
