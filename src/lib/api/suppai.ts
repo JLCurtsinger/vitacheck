@@ -26,6 +26,8 @@ const RETRY_DELAY = 1000; // milliseconds
 export async function getSupplementInteractions(medication: string) {
   let attempts = 0;
   
+  console.log(`🔍 [SUPPAI Client] Fetching interactions for: ${medication}`);
+  
   while (attempts < MAX_RETRIES) {
     try {
       const { data, error } = await supabase.functions.invoke('suppai', {
@@ -33,22 +35,26 @@ export async function getSupplementInteractions(medication: string) {
       });
       
       if (error) {
-        console.error(`SUPP.AI API error:`, error);
+        console.error(`❌ [SUPPAI Client] API error:`, error);
         throw error;
       }
+      
+      console.log(`✅ [SUPPAI Client] Received data for ${medication}:`, 
+        data?.interactions ? `Found ${data.interactions.length} interactions` : 'No interactions found');
+      console.log(`⚙️ [SUPPAI Client] Raw response:`, data);
       
       return data?.interactions || [];
       
     } catch (error) {
       attempts++;
-      console.error(`SUPP.AI lookup attempt ${attempts} failed:`, error);
+      console.error(`❌ [SUPPAI Client] Lookup attempt ${attempts} failed:`, error);
       
       if (attempts < MAX_RETRIES) {
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
         continue;
       }
       
-      console.error('All SUPP.AI lookup attempts failed for medication:', medication);
+      console.error('❌ [SUPPAI Client] All lookup attempts failed for medication:', medication);
       return [];
     }
   }

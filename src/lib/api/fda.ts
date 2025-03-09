@@ -22,6 +22,8 @@ const RETRY_DELAY = 1000; // milliseconds
 export async function getFDAWarnings(medication: string): Promise<FDAResponse> {
   let attempts = 0;
   
+  console.log(`🔍 [FDA Client] Fetching warnings for: ${medication}`);
+  
   while (attempts < MAX_RETRIES) {
     try {
       // Expand search to include both brand and generic names using OR
@@ -29,34 +31,36 @@ export async function getFDAWarnings(medication: string): Promise<FDAResponse> {
       const searchQuery = `openfda.brand_name:"${encodedMedication}"+OR+openfda.generic_name:"${encodedMedication}"`;
       const url = `https://api.fda.gov/drug/label.json?search=${searchQuery}`;
       
-      console.log(`[OpenFDA] Making API request: ${url}`);
+      console.log(`🔍 [FDA Client] Making API request: ${url}`);
       
       const response = await fetch(url);
       
       if (!response.ok) {
         if (response.status === 404) {
-          console.warn('[OpenFDA] No FDA data found for medication:', medication);
+          console.warn('⚠️ [FDA Client] No FDA data found for medication:', medication);
           return { results: [] };
         }
-        console.error(`[OpenFDA] API error (${response.status}): ${response.statusText}`);
+        console.error(`❌ [FDA Client] API error (${response.status}): ${response.statusText}`);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data: FDAResponse = await response.json();
-      console.log(`[OpenFDA] Received data for ${medication}:`, 
+      console.log(`✅ [FDA Client] Received data for ${medication}:`, 
         data.results ? `Found ${data.results.length} results` : 'No results');
+      console.log(`⚙️ [FDA Client] Raw response:`, data);
+      
       return data;
       
     } catch (error) {
       attempts++;
-      console.error(`[OpenFDA] Lookup attempt ${attempts} failed:`, error);
+      console.error(`❌ [FDA Client] Lookup attempt ${attempts} failed:`, error);
       
       if (attempts < MAX_RETRIES) {
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
         continue;
       }
       
-      console.error('[OpenFDA] All lookup attempts failed for medication:', medication);
+      console.error('❌ [FDA Client] All lookup attempts failed for medication:', medication);
       return { results: [] };
     }
   }

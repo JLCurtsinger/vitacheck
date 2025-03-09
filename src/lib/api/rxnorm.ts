@@ -47,7 +47,7 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
  * @returns The RxCUI if found, null otherwise
  */
 export async function getRxCUI(medication: string): Promise<string | null> {
-  console.log(`Attempting to get RxCUI for medication: ${medication}`);
+  console.log(`🔍 [RxNorm Client] Attempting to get RxCUI for medication: ${medication}`);
   
   const response = await fetch('/.netlify/functions/rxnorm', {
     method: 'POST',
@@ -61,7 +61,7 @@ export async function getRxCUI(medication: string): Promise<string | null> {
   });
   
   if (!response.ok) {
-    console.error('RxNorm API error:', {
+    console.error('❌ [RxNorm Client] API error:', {
       status: response.status,
       medication
     });
@@ -69,15 +69,15 @@ export async function getRxCUI(medication: string): Promise<string | null> {
   }
   
   const data: RxNormResponse = await response.json();
-  console.log('RxNorm API response:', data);
+  console.log('⚙️ [RxNorm Client] API raw response:', data);
   
   if (data.status === 'error' || data.message === "No data found") {
-    console.log('No RxCUI found for medication:', medication);
+    console.log('⚠️ [RxNorm Client] No RxCUI found for medication:', medication);
     return null;
   }
   
   const rxcui = data.data?.idGroup?.rxnormId?.[0] || null;
-  console.log(`Retrieved RxCUI for ${medication}:`, rxcui);
+  console.log(`✅ [RxNorm Client] Retrieved RxCUI for ${medication}:`, rxcui);
   return rxcui;
 }
 
@@ -90,17 +90,17 @@ export async function getDrugInteractions(rxCUIs: string[]): Promise<any[]> {
   // Validate RxCUIs before proceeding
   const validRxCUIs = rxCUIs.filter(Boolean);
   if (validRxCUIs.length === 0) {
-    console.warn('No valid RxCUIs provided for interaction check');
+    console.warn('⚠️ [RxNorm Client] No valid RxCUIs provided for interaction check');
     return [];
   }
 
-  console.log('Checking interactions for RxCUIs:', validRxCUIs);
+  console.log('🔍 [RxNorm Client] Checking interactions for RxCUIs:', validRxCUIs);
   
   // Add delay to prevent rate limiting
   await delay(INTERACTION_REQUEST_DELAY);
   
   const rxcuiString = validRxCUIs.join('+');
-  console.log(`Making interaction request with RxCUIs: ${rxcuiString}`);
+  console.log(`🔍 [RxNorm Client] Making interaction request with RxCUIs: ${rxcuiString}`);
   
   const response = await fetch('/.netlify/functions/rxnorm', {
     method: 'POST',
@@ -114,7 +114,7 @@ export async function getDrugInteractions(rxCUIs: string[]): Promise<any[]> {
   });
   
   if (!response.ok) {
-    console.error('Drug interactions API error:', {
+    console.error('❌ [RxNorm Client] Drug interactions API error:', {
       status: response.status,
       rxcuis: rxcuiString
     });
@@ -122,12 +122,16 @@ export async function getDrugInteractions(rxCUIs: string[]): Promise<any[]> {
   }
   
   const data: RxNormInteractionResponse = await response.json();
-  console.log('Drug interactions API response:', data);
+  console.log('⚙️ [RxNorm Client] Drug interactions API raw response:', data);
   
   if (data.status === 'error' || data.message === "No data found" || data.message === "No interactions found") {
-    console.log('No interactions found for RxCUIs:', rxcuiString);
+    console.log('⚠️ [RxNorm Client] No interactions found for RxCUIs:', rxcuiString);
     return [];
   }
   
-  return data.data?.fullInteractionTypeGroup || [];
+  const interactionResults = data.data?.fullInteractionTypeGroup || [];
+  console.log('✅ [RxNorm Client] Processed interaction results:', 
+    interactionResults.length > 0 ? `Found ${interactionResults.length} interaction groups` : 'No interactions');
+  
+  return interactionResults;
 }

@@ -23,7 +23,7 @@ serve(async (req) => {
     }
 
     const url = `https://supp.ai/api/agent/search?q=${encodeURIComponent(query.trim())}`
-    console.log(`Fetching SUPP.AI data from: ${url}`)
+    console.log(`🔍 SUPPAI: Fetching data from: ${url}`)
 
     const response = await fetch(url, {
       headers: {
@@ -37,13 +37,15 @@ serve(async (req) => {
     }
 
     const data = await response.json()
+    console.log(`✅ SUPPAI: Response received:`, JSON.stringify(data).substring(0, 200) + '...')
+    
     return new Response(
       JSON.stringify(data),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     )
 
   } catch (error) {
-    console.error("Error in SUPP.AI proxy:", error)
+    console.error("❌ SUPPAI: Error in proxy:", error)
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

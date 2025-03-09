@@ -35,7 +35,7 @@ serve(async (req) => {
 
   try {
     const { operation, name, rxcui } = await req.json();
-    console.log(`Processing ${operation} request:`, { name, rxcui });
+    console.log(`🔍 RXNORM: Processing ${operation} request:`, { name, rxcui });
 
     if (!operation) {
       return new Response(
@@ -79,7 +79,7 @@ serve(async (req) => {
     }
 
     const rxnormUrl = buildRxNormUrl(endpoint);
-    console.log(`Fetching RxNorm data from: ${rxnormUrl}`);
+    console.log(`🔍 RXNORM: Fetching data from: ${rxnormUrl}`);
     
     const response = await fetch(rxnormUrl, {
       headers: {
@@ -90,7 +90,7 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`RxNorm API error (${response.status}):`, errorText);
+      console.error(`❌ RXNORM: API error (${response.status}):`, errorText);
       
       return new Response(
         JSON.stringify({ 
@@ -105,7 +105,7 @@ serve(async (req) => {
     }
     
     const data = await response.json();
-    console.log(`RxNorm API response:`, data);
+    console.log(`✅ RXNORM: API response for ${operation}:`, JSON.stringify(data).substring(0, 200) + '...');
     
     return new Response(
       JSON.stringify(data),
@@ -113,7 +113,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("Error in RxNorm proxy:", error);
+    console.error("❌ RXNORM: Error in proxy:", error);
     return new Response(
       JSON.stringify({ 
         error: error.message,
