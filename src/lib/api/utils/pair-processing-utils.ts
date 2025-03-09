@@ -174,12 +174,17 @@ export async function processMedicationPair(
   if (adverseEventsResult && adverseEventsResult.eventCount > 0) {
     hasAnyInteraction = true;
     
-    if (adverseEventsResult.seriousCount > 0 && mostSeverity !== "severe") {
-      mostSeverity = "severe";
-      mostSevereDescription = `Real-world data shows ${adverseEventsResult.eventCount} reported adverse events (including ${adverseEventsResult.seriousCount} serious cases) for this combination. Consult a healthcare provider before combining.`;
-    } else if (adverseEventsResult.eventCount > 5 && mostSeverity !== "severe") {
-      mostSeverity = "minor";
+    if (adverseEventsResult.seriousCount > 0) {
+      // This is the fix - we now check if the current mostSeverity is different from "severe"
+      // Instead of comparing "minor" == "severe" which causes the type error
       if (mostSeverity !== "severe") {
+        mostSeverity = "severe";
+        mostSevereDescription = `Real-world data shows ${adverseEventsResult.eventCount} reported adverse events (including ${adverseEventsResult.seriousCount} serious cases) for this combination. Consult a healthcare provider before combining.`;
+      }
+    } else if (adverseEventsResult.eventCount > 5) {
+      // Similarly fixed here
+      if (mostSeverity !== "severe") {
+        mostSeverity = "minor";
         mostSevereDescription = `Real-world data shows ${adverseEventsResult.eventCount} reported adverse events for this combination. Monitor for side effects and consult a healthcare provider if concerned.`;
       }
     }
