@@ -2,13 +2,14 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { LogOut } from "lucide-react";
+import { LogOut, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export default function Navbar() {
   const { logout } = useAuth();
   const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
 
   // Handle scroll events
@@ -39,6 +40,10 @@ export default function Navbar() {
     });
   };
 
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
   return (
     <header
       className={cn(
@@ -57,7 +62,8 @@ export default function Navbar() {
           Vitacheck
         </Link>
         
-        <div className="flex items-center gap-2">
+        {/* Desktop menu */}
+        <div className="hidden md:flex items-center gap-2">
           {/* Only show logout button if we're not on the login page */}
           {location.pathname !== "/login" && (
             <Button 
@@ -71,7 +77,45 @@ export default function Navbar() {
             </Button>
           )}
         </div>
+
+        {/* Mobile menu button */}
+        <div className="md:hidden">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={toggleMobileMenu}
+            className="p-1"
+          >
+            {mobileMenuOpen ? (
+              <X className="h-6 w-6" />
+            ) : (
+              <Menu className="h-6 w-6" />
+            )}
+          </Button>
+        </div>
       </div>
+
+      {/* Mobile menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-white/95 backdrop-blur-sm py-4 px-4 shadow-md animate-fade-in">
+          <div className="flex flex-col gap-2">
+            {location.pathname !== "/login" && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  logout();
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center justify-center gap-1 hover:bg-gray-100 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Logout</span>
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 }
