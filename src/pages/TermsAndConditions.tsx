@@ -1,5 +1,5 @@
-
 import { Link } from "react-router-dom";
+import Navbar from "@/components/Navbar";
 
 export default function TermsAndConditions() {
   const scrollToTop = () => {
@@ -8,15 +8,7 @@ export default function TermsAndConditions() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <div className="absolute top-0 left-0 w-full p-4">
-        <Link 
-          to="/"
-          className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 text-transparent bg-clip-text hover:opacity-80 transition-opacity duration-300"
-          onClick={scrollToTop}
-        >
-          Vitacheck
-        </Link>
-      </div>
+      <Navbar />
       <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <article className="prose prose-slate max-w-none">
           <h1 className="text-3xl font-bold mb-8">Terms and Conditions for VitaCheck</h1>
