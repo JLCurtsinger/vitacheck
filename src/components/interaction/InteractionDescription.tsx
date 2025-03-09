@@ -14,6 +14,7 @@ interface InteractionDescriptionProps {
 
 export function InteractionDescription({ interaction, finalSeverity }: InteractionDescriptionProps) {
   const [showFullDetails, setShowFullDetails] = useState(false);
+  const [showAdverseEvents, setShowAdverseEvents] = useState(false);
   
   // Get unique source names to display
   const sourceNames = Array.from(new Set(interaction.sources.map(s => s.name))).filter(name => 
@@ -97,6 +98,9 @@ export function InteractionDescription({ interaction, finalSeverity }: Interacti
     ? bulletPoints.slice(0, 2)
     : [interaction.description?.substring(0, 150) + (interaction.description?.length > 150 ? "..." : "")];
   
+  // Check if we have adverse event data
+  const hasAdverseEvents = interaction.adverseEvents && interaction.adverseEvents.eventCount > 0;
+  
   // Function to render HTML content safely
   const renderHTML = (html: string) => {
     return <span dangerouslySetInnerHTML={{ __html: html }} />;
@@ -142,6 +146,42 @@ export function InteractionDescription({ interaction, finalSeverity }: Interacti
                 </div>
               )}
             </div>
+            
+            {/* Adverse Events Section for Severe Interactions */}
+            {hasAdverseEvents && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <div className="font-medium text-red-700 mb-2">
+                  ⚠️ Real-world reports suggest potential adverse reactions when combining these medications. Consult a doctor.
+                </div>
+                
+                {showAdverseEvents && (
+                  <div className="mt-2 text-sm">
+                    <p className="mb-2">Based on FDA adverse event reports, the following reactions have been reported:</p>
+                    <ul className="list-disc list-inside space-y-1 ml-2">
+                      {interaction.adverseEvents.commonReactions.map((reaction, index) => (
+                        <li key={index} className="text-red-800">{reaction}</li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-xs text-red-600">
+                      Total of {interaction.adverseEvents.eventCount} reports, including {interaction.adverseEvents.seriousCount} serious cases.
+                    </p>
+                  </div>
+                )}
+                
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowAdverseEvents(!showAdverseEvents)}
+                  className="w-full mt-2 bg-white text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"
+                >
+                  {showAdverseEvents ? (
+                    <>Hide Details <ChevronUp className="h-4 w-4" /></>
+                  ) : (
+                    <>View Adverse Event Details <ChevronDown className="h-4 w-4" /></>
+                  )}
+                </Button>
+              </div>
+            )}
             
             {bulletPoints.length > 2 && (
               <Button 
@@ -191,6 +231,52 @@ export function InteractionDescription({ interaction, finalSeverity }: Interacti
               </div>
             )}
           </div>
+          
+          {/* Adverse Events Section for Non-Severe Interactions */}
+          {hasAdverseEvents && finalSeverity !== "safe" && (
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <div className="font-medium text-yellow-700 mb-2">
+                ⚠️ Real-world reports suggest potential adverse reactions when combining these medications. Consult a doctor.
+              </div>
+              
+              {showAdverseEvents && (
+                <div className="mt-2 text-sm">
+                  <p className="mb-2">Based on FDA adverse event reports, the following reactions have been reported:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    {interaction.adverseEvents.commonReactions.map((reaction, index) => (
+                      <li key={index} className="text-yellow-800">{reaction}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-xs text-yellow-600">
+                    Total of {interaction.adverseEvents.eventCount} reports, including {interaction.adverseEvents.seriousCount} serious cases.
+                  </p>
+                </div>
+              )}
+              
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowAdverseEvents(!showAdverseEvents)}
+                className="w-full mt-2 bg-white text-yellow-600 border-yellow-300 hover:bg-yellow-50 hover:text-yellow-700"
+              >
+                {showAdverseEvents ? (
+                  <>Hide Details <ChevronUp className="h-4 w-4" /></>
+                ) : (
+                  <>View Adverse Event Details <ChevronDown className="h-4 w-4" /></>
+                )}
+              </Button>
+            </div>
+          )}
+          
+          {/* Safe Combination with No Adverse Events */}
+          {finalSeverity === "safe" && !hasAdverseEvents && (
+            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+              <div className="flex items-center gap-2 text-green-700">
+                <CheckCircle className="h-4 w-4" />
+                <p className="font-medium">No significant adverse events reported for this combination.</p>
+              </div>
+            </div>
+          )}
           
           {bulletPoints.length > 2 && (
             <Button 

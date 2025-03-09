@@ -1,6 +1,6 @@
 
 import { Badge } from "@/components/ui/badge";
-import { Database, FileText, TestTube } from "lucide-react";
+import { Database, FileText, TestTube, AlertTriangle } from "lucide-react";
 
 interface SourceAttributionProps {
   sources: string[];
@@ -16,6 +16,8 @@ export function SourceAttribution({ sources }: SourceAttributionProps) {
         return <Database className="h-3 w-3 mr-1" />;
       case 'FDA':
         return <FileText className="h-3 w-3 mr-1" />;
+      case 'FDA ADVERSE EVENTS':
+        return <AlertTriangle className="h-3 w-3 mr-1" />;
       case 'SUPP.AI':
         return <TestTube className="h-3 w-3 mr-1" />;
       default:
@@ -30,6 +32,8 @@ export function SourceAttribution({ sources }: SourceAttributionProps) {
         return "bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700";
       case 'FDA':
         return "bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-700";
+      case 'FDA ADVERSE EVENTS':
+        return "bg-red-50 hover:bg-red-100 border-red-200 text-red-700";
       case 'SUPP.AI':
         return "bg-green-50 hover:bg-green-100 border-green-200 text-green-700";
       default:

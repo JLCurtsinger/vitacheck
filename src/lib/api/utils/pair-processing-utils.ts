@@ -14,6 +14,7 @@ import { checkRxNormInteractions } from '../services/interactions/rxnorm-interac
 import { checkSuppAiInteractions } from '../services/interactions/suppai-interactions';
 import { checkFDAInteractions } from '../services/interactions/fda-interactions';
 import { checkHighRiskCombination } from './high-risk-interactions';
+import { getAdverseEvents } from '../openfda-events';
 
 type Severity = "safe" | "minor" | "severe" | "unknown";
 
@@ -87,16 +88,19 @@ export async function processMedicationPair(
       ? checkRxNormInteractions(med1Status.id, med2Status.id, med1, med2)
       : Promise.resolve(null),
     checkSuppAiInteractions(med1, med2),
-    checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || [])
+    checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || []),
+    // Add the new OpenFDA Adverse Events check
+    getAdverseEvents(med1, med2)
   ]);
 
   // Destructure results for clarity
-  const [rxnormResult, suppaiResult, fdaResult] = results;
+  const [rxnormResult, suppaiResult, fdaResult, adverseEventsResult] = results;
   
   console.log('API Results:', {
     rxnorm: rxnormResult ? `Found: ${rxnormResult.severity}` : 'No data',
     suppai: suppaiResult ? `Found: ${suppaiResult.severity}` : 'No data',
-    fda: fdaResult ? `Found: ${fdaResult.severity}` : 'No data'
+    fda: fdaResult ? `Found: ${fdaResult.severity}` : 'No data',
+    adverseEvents: adverseEventsResult ? `Found ${adverseEventsResult.eventCount} events` : 'No data'
   });
 
   // Merge all sources from different APIs
@@ -104,6 +108,31 @@ export async function processMedicationPair(
   if (rxnormResult) sources.push(...rxnormResult.sources);
   if (suppaiResult) sources.push(...suppaiResult.sources);
   if (fdaResult) sources.push(...fdaResult.sources);
+  
+  // Add adverse events as a source if found
+  if (adverseEventsResult && adverseEventsResult.eventCount > 0) {
+    // Determine severity based on the number and seriousness of reports
+    const adverseEventSeverity: Severity = 
+      adverseEventsResult.seriousCount > 0 ? "severe" : 
+      adverseEventsResult.eventCount > 5 ? "minor" : "unknown";
+    
+    // Create a description for the adverse events
+    const reactionsList = adverseEventsResult.commonReactions.length > 0 
+      ? `. Common reported reactions include: ${adverseEventsResult.commonReactions.join(', ')}.`
+      : '';
+    
+    const severityText = adverseEventsResult.seriousCount > 0 
+      ? 'serious' 
+      : 'potential';
+    
+    const description = `Real-world data shows ${adverseEventsResult.eventCount} reported ${severityText} adverse events for this combination${reactionsList} Consult a healthcare provider before combining.`;
+    
+    sources.push({
+      name: "FDA Adverse Events",
+      severity: adverseEventSeverity,
+      description
+    });
+  }
 
   // Track interaction statuses across all APIs
   let hasAnyInteraction = false;
@@ -140,6 +169,21 @@ export async function processMedicationPair(
       hasUnknownStatus = true;
     }
   }
+  
+  // If we have adverse events data, factor it into the severity determination
+  if (adverseEventsResult && adverseEventsResult.eventCount > 0) {
+    hasAnyInteraction = true;
+    
+    if (adverseEventsResult.seriousCount > 0 && mostSeverity !== "severe") {
+      mostSeverity = "severe";
+      mostSevereDescription = `Real-world data shows ${adverseEventsResult.eventCount} reported adverse events (including ${adverseEventsResult.seriousCount} serious cases) for this combination. Consult a healthcare provider before combining.`;
+    } else if (adverseEventsResult.eventCount > 5 && mostSeverity !== "severe") {
+      mostSeverity = "minor";
+      if (mostSeverity !== "severe") {
+        mostSevereDescription = `Real-world data shows ${adverseEventsResult.eventCount} reported adverse events for this combination. Monitor for side effects and consult a healthcare provider if concerned.`;
+      }
+    }
+  }
 
   // Determine final result based on merged data
   let finalSeverity: Severity;
@@ -172,6 +216,7 @@ export async function processMedicationPair(
     medications: [med1, med2],
     severity: finalSeverity,
     description: finalDescription,
-    sources
+    sources,
+    adverseEvents: adverseEventsResult || undefined
   };
 }

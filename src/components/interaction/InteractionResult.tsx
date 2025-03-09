@@ -1,3 +1,4 @@
+
 import { InteractionResult as InteractionResultType } from "@/lib/api-utils";
 import { InteractionHeader } from "./InteractionHeader";
 import { InteractionDescription } from "./InteractionDescription";
@@ -11,6 +12,15 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
   const determineSeverity = (
     interaction: InteractionResultType
   ): "safe" | "minor" | "severe" | "unknown" => {
+    // Check for adverse events first
+    if (interaction.adverseEvents?.seriousCount > 0) {
+      return "severe";
+    }
+    
+    if (interaction.adverseEvents?.eventCount > 5) {
+      return "minor";
+    }
+
     if (interaction.sources.some((source) => source.severity === "severe")) {
       return "severe";
     }
