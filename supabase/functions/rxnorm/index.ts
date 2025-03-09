@@ -27,6 +27,48 @@ function buildRxNormUrl(endpoint: RxNormEndpoint): string {
   return `${baseUrl}${endpoint.path}?${queryParams.toString()}`;
 }
 
+async function fetchRxCUIByName(name: string): Promise<string | null> {
+  console.log(`🔍 RXNORM: Fetching RxCUI for medication name: ${name}`);
+  
+  const endpoint: RxNormEndpoint = {
+    path: "/rxcui.json",
+    params: { name: name.trim() }
+  };
+  
+  const rxnormUrl = buildRxNormUrl(endpoint);
+  
+  try {
+    const response = await fetch(rxnormUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      console.error(`❌ RXNORM: Error fetching RxCUI (${response.status})`);
+      return null;
+    }
+    
+    const data = await response.json();
+    console.log(`⚙️ RXNORM: RxCUI lookup response:`, data);
+    
+    // Extract RxCUI from response
+    const rxcui = data?.idGroup?.rxnormId?.[0] || null;
+    
+    if (rxcui) {
+      console.log(`✅ RXNORM: Found RxCUI for ${name}: ${rxcui}`);
+    } else {
+      console.log(`⚠️ RXNORM: No RxCUI found for ${name}`);
+    }
+    
+    return rxcui;
+  } catch (error) {
+    console.error(`❌ RXNORM: Failed to fetch RxCUI for ${name}:`, error);
+    return null;
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -38,7 +80,7 @@ serve(async (req) => {
     const { operation, name, rxcui, rxcuis } = reqBody;
     
     // Support both rxcui and rxcuis for better compatibility
-    const resolvedRxcui = rxcui || rxcuis;
+    let resolvedRxcui = rxcui || rxcuis;
     
     console.log(`🔍 RXNORM: Processing ${operation} request:`, { 
       name, 
@@ -75,6 +117,26 @@ serve(async (req) => {
         };
         break;
       case "interactions":
+        // If rxcui is missing but name is provided, try to fetch the rxcui first
+        if (!resolvedRxcui && name) {
+          console.log(`🔍 RXNORM: RxCUI missing for interactions. Attempting to fetch RxCUI for: ${name}`);
+          
+          resolvedRxcui = await fetchRxCUIByName(name);
+          
+          if (!resolvedRxcui) {
+            return new Response(
+              JSON.stringify({ 
+                error: "Could not find RxCUI for the given medication name",
+                status: "error",
+                medication: name
+              }),
+              { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          
+          console.log(`✅ RXNORM: Successfully resolved RxCUI for ${name}: ${resolvedRxcui}`);
+        }
+        
         if (!resolvedRxcui) {
           return new Response(
             JSON.stringify({ 
@@ -84,6 +146,7 @@ serve(async (req) => {
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
+        
         endpoint = {
           path: "/interaction/interaction.json",
           params: { rxcui: resolvedRxcui }
