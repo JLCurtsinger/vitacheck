@@ -34,12 +34,24 @@ serve(async (req) => {
   }
 
   try {
-    const { operation, name, rxcui } = await req.json();
-    console.log(`🔍 RXNORM: Processing ${operation} request:`, { name, rxcui });
+    const reqBody = await req.json();
+    const { operation, name, rxcui, rxcuis } = reqBody;
+    
+    // Support both rxcui and rxcuis for better compatibility
+    const resolvedRxcui = rxcui || rxcuis;
+    
+    console.log(`🔍 RXNORM: Processing ${operation} request:`, { 
+      name, 
+      rxcui: resolvedRxcui,
+      requestBody: reqBody
+    });
 
     if (!operation) {
       return new Response(
-        JSON.stringify({ error: "Operation parameter is required" }),
+        JSON.stringify({ 
+          error: "Operation parameter is required",
+          status: "error"
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -50,7 +62,10 @@ serve(async (req) => {
       case "rxcui":
         if (!name) {
           return new Response(
-            JSON.stringify({ error: "Name parameter is required for rxcui operation" }),
+            JSON.stringify({ 
+              error: "Name parameter is required for rxcui operation",
+              status: "error"
+            }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
@@ -60,20 +75,26 @@ serve(async (req) => {
         };
         break;
       case "interactions":
-        if (!rxcui) {
+        if (!resolvedRxcui) {
           return new Response(
-            JSON.stringify({ error: "RxCUI parameter is required for interactions operation" }),
+            JSON.stringify({ 
+              error: "RxCUI parameter is required for interactions operation",
+              status: "error" 
+            }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
         endpoint = {
           path: "/interaction/interaction.json",
-          params: { rxcui }
+          params: { rxcui: resolvedRxcui }
         };
         break;
       default:
         return new Response(
-          JSON.stringify({ error: "Invalid operation" }),
+          JSON.stringify({ 
+            error: "Invalid operation",
+            status: "error"
+          }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }
@@ -95,7 +116,8 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: `RxNorm API error (${response.status})`,
-          details: errorText || response.statusText
+          details: errorText || response.statusText,
+          status: "error"
         }),
         { 
           status: response.status,
@@ -108,7 +130,10 @@ serve(async (req) => {
     console.log(`✅ RXNORM: API response for ${operation}:`, JSON.stringify(data).substring(0, 200) + '...');
     
     return new Response(
-      JSON.stringify(data),
+      JSON.stringify({
+        ...data,
+        status: "success"
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
@@ -117,7 +142,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: error.message,
-        details: error.stack
+        details: error.stack,
+        status: "error"
       }),
       { 
         status: 500, 

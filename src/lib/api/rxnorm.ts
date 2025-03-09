@@ -102,21 +102,27 @@ export async function getDrugInteractions(rxCUIs: string[]): Promise<any[]> {
   const rxcuiString = validRxCUIs.join('+');
   console.log(`🔍 [RxNorm Client] Making interaction request with RxCUIs: ${rxcuiString}`);
   
+  // FIXED: Using the correct parameter name 'rxcui' instead of 'rxcuis'
+  const requestBody = {
+    operation: 'interactions',
+    rxcui: rxcuiString
+  };
+  
+  console.log(`📡 [RxNorm Client] Sending request to RxNorm:`, requestBody);
+  
   const response = await fetch('/.netlify/functions/rxnorm', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      operation: 'interactions',
-      rxcui: rxcuiString
-    })
+    body: JSON.stringify(requestBody)
   });
   
   if (!response.ok) {
     console.error('❌ [RxNorm Client] Drug interactions API error:', {
       status: response.status,
-      rxcuis: rxcuiString
+      rxcuis: rxcuiString,
+      requestBody
     });
     return [];
   }
