@@ -9,6 +9,13 @@ interface SourceAttributionProps {
 export function SourceAttribution({ sources }: SourceAttributionProps) {
   if (!sources.length) return null;
   
+  // Sort sources to prioritize FDA Adverse Events
+  const sortedSources = [...sources].sort((a, b) => {
+    if (a.includes("Adverse")) return -1;
+    if (b.includes("Adverse")) return 1;
+    return a.localeCompare(b);
+  });
+  
   // Get the appropriate icon for each source
   const getSourceIcon = (source: string) => {
     switch (source.toUpperCase()) {
@@ -42,9 +49,9 @@ export function SourceAttribution({ sources }: SourceAttributionProps) {
   };
   
   return (
-    <div className="flex flex-wrap gap-1 mb-3">
-      <span className="text-sm font-medium text-gray-500 mr-1">Sources:</span>
-      {sources.map((source, index) => (
+    <div className="flex flex-wrap gap-2 mb-4">
+      <span className="text-sm font-medium text-gray-500 mr-1">Data Sources:</span>
+      {sortedSources.map((source, index) => (
         <Badge 
           key={index} 
           variant="outline" 

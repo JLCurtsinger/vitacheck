@@ -27,7 +27,19 @@ export default function Results() {
       try {
         console.log('Fetching interactions for medications:', medications);
         const results = await checkInteractions(medications);
-        setInteractions(results);
+        
+        // Sort interactions by severity (severe -> minor -> unknown -> safe)
+        const sortedResults = [...results].sort((a, b) => {
+          const severityOrder = {
+            "severe": 0,
+            "minor": 1, 
+            "unknown": 2,
+            "safe": 3
+          };
+          return severityOrder[a.severity] - severityOrder[b.severity];
+        });
+        
+        setInteractions(sortedResults);
         
         // Check if any interaction was found
         setHasAnyInteraction(results.some(result => 
@@ -90,10 +102,9 @@ export default function Results() {
         />
       ) : (
         <div className="space-y-6">
+          {/* Display all interactions now, not just minor/severe ones */}
           {interactions.map((interaction, index) => (
-            interaction.severity === "minor" || interaction.severity === "severe" ? (
-              <InteractionResult key={index} interaction={interaction} />
-            ) : null
+            <InteractionResult key={index} interaction={interaction} />
           ))}
         </div>
       )}

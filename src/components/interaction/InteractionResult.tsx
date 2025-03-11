@@ -3,53 +3,28 @@ import { InteractionResult as InteractionResultType } from "@/lib/api-utils";
 import { InteractionHeader } from "./InteractionHeader";
 import { InteractionDescription } from "./InteractionDescription";
 import { InteractionFooter } from "./InteractionFooter";
+import { cn } from "@/lib/utils";
 
 interface InteractionResultProps {
   interaction: InteractionResultType;
 }
 
 export function InteractionResult({ interaction }: InteractionResultProps) {
-  const determineSeverity = (
-    interaction: InteractionResultType
-  ): "safe" | "minor" | "severe" | "unknown" => {
-    // Check for adverse events first
-    if (interaction.adverseEvents?.seriousCount > 0) {
-      return "severe";
-    }
-    
-    if (interaction.adverseEvents?.eventCount > 5) {
-      return "minor";
-    }
-
-    if (interaction.sources.some((source) => source.severity === "severe")) {
-      return "severe";
-    }
-
-    if (interaction.sources.some((source) => source.severity === "unknown")) {
-      return "unknown";
-    }
-
-    if (interaction.sources.some((source) => source.severity === "minor")) {
-      return "minor";
-    }
-
-    if (
-      interaction.sources.length > 0 &&
-      interaction.sources.every((source) => source.severity === "safe")
-    ) {
-      return "safe";
-    }
-
-    return "unknown";
+  const severityColorMap = {
+    "severe": "border-red-200 bg-red-50/30",
+    "minor": "border-yellow-200 bg-yellow-50/30",
+    "unknown": "border-gray-200",
+    "safe": "border-green-200 bg-green-50/30"
   };
 
-  const finalSeverity = determineSeverity(interaction);
-
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 transition-transform hover:scale-[1.02]">
-      <InteractionHeader interaction={interaction} finalSeverity={finalSeverity} />
-      <InteractionDescription interaction={interaction} finalSeverity={finalSeverity} />
-      <InteractionFooter interaction={interaction} finalSeverity={finalSeverity} />
+    <div className={cn(
+      "bg-white rounded-xl shadow-lg p-6 transition-transform hover:scale-[1.02] border",
+      severityColorMap[interaction.severity]
+    )}>
+      <InteractionHeader interaction={interaction} />
+      <InteractionDescription interaction={interaction} />
+      <InteractionFooter interaction={interaction} />
     </div>
   );
 }
