@@ -9,38 +9,18 @@
  * @module pair-processing-utils
  */
 
-import { InteractionResult, MedicationLookupResult, InteractionSource } from '../types';
+import { InteractionResult, MedicationLookupResult } from '../types';
 import { checkRxNormInteractions } from '../services/interactions/rxnorm-interactions';
 import { checkSuppAiInteractions } from '../services/interactions/suppai-interactions';
 import { checkFDAInteractions } from '../services/interactions/fda-interactions';
 import { checkHighRiskCombination } from './high-risk-interactions';
 import { getAdverseEvents } from '../openfda-events';
+import { generateMedicationPairs } from './medication-pairs';
+import { determineFinalSeverity, createDefaultSource } from './severity-processor';
+import { processAdverseEventsSource } from './adverse-events-processor';
 
-type Severity = "safe" | "minor" | "severe" | "unknown";
-
-/**
- * Generates all possible unique pairs of medications from an input array
- * @param medications - Array of medication names to generate pairs from
- * @returns Array of medication name pairs
- */
-export function generateMedicationPairs(medications: string[]): Array<[string, string]> {
-  const pairs: Array<[string, string]> = [];
-  const processedPairs = new Set<string>();
-  
-  for (let i = 0; i < medications.length; i++) {
-    for (let j = i + 1; j < medications.length; j++) {
-      const pair = [medications[i], medications[j]].sort();
-      const pairKey = pair.join('-');
-      
-      if (!processedPairs.has(pairKey)) {
-        processedPairs.add(pairKey);
-        pairs.push([medications[i], medications[j]]);
-      }
-    }
-  }
-  
-  return pairs;
-}
+// Re-export generateMedicationPairs for backward compatibility
+export { generateMedicationPairs } from './medication-pairs';
 
 /**
  * Processes a pair of medications to determine potential interactions
@@ -104,123 +84,35 @@ export async function processMedicationPair(
   });
 
   // Merge all sources from different APIs
-  const sources: InteractionSource[] = [];
+  const sources = [];
   if (rxnormResult) sources.push(...rxnormResult.sources);
   if (suppaiResult) sources.push(...suppaiResult.sources);
   if (fdaResult) sources.push(...fdaResult.sources);
   
   // Add adverse events as a source if found
-  if (adverseEventsResult && adverseEventsResult.eventCount > 0) {
-    // Determine severity based on the number and seriousness of reports
-    const adverseEventSeverity: Severity = 
-      adverseEventsResult.seriousCount > 0 ? "severe" : 
-      adverseEventsResult.eventCount > 5 ? "minor" : "unknown";
-    
-    // Create a description for the adverse events
-    const reactionsList = adverseEventsResult.commonReactions.length > 0 
-      ? `. Common reported reactions include: ${adverseEventsResult.commonReactions.join(', ')}.`
-      : '';
-    
-    const severityText = adverseEventsResult.seriousCount > 0 
-      ? 'serious' 
-      : 'potential';
-    
-    const description = `Real-world data shows ${adverseEventsResult.eventCount} reported ${severityText} adverse events for this combination${reactionsList} Consult a healthcare provider before combining.`;
-    
-    sources.push({
-      name: "FDA Adverse Events",
-      severity: adverseEventSeverity,
-      description
-    });
+  const adverseEventSource = processAdverseEventsSource(adverseEventsResult);
+  if (adverseEventSource) {
+    sources.push(adverseEventSource);
   }
 
-  // Track interaction statuses across all APIs
-  let hasAnyInteraction = false;
-  let hasExplicitSafety = false;
-  let hasUnknownStatus = false;
-  let mostSevereDescription = "No information found for this combination. Consult a healthcare provider for more details.";
-  let mostSeverity: Severity = "unknown";
-
-  // Analyze results from all APIs to determine overall severity
-  for (const result of [rxnormResult, suppaiResult, fdaResult]) {
-    if (!result) continue;
-    
-    // If any API reports an interaction, we consider there is an interaction
-    if (result.severity === "minor" || result.severity === "severe") {
-      hasAnyInteraction = true;
-      
-      // Track the most severe interaction and its description
-      if (
-        (result.severity === "severe") || 
-        (result.severity === "minor" && mostSeverity !== "severe")
-      ) {
-        mostSeverity = result.severity;
-        mostSevereDescription = result.description;
-      }
-    }
-    
-    // Track if any API explicitly confirms safety
-    if (result.severity === "safe") {
-      hasExplicitSafety = true;
-    }
-    
-    // Track if any API returns unknown status
-    if (result.severity === "unknown") {
-      hasUnknownStatus = true;
-    }
-  }
-  
-  // If we have adverse events data, factor it into the severity determination
-  if (adverseEventsResult && adverseEventsResult.eventCount > 0) {
-    hasAnyInteraction = true;
-    
-    if (adverseEventsResult.seriousCount > 0) {
-      // This is the fix - we now check if the current mostSeverity is different from "severe"
-      // Instead of comparing "minor" == "severe" which causes the type error
-      if (mostSeverity !== "severe") {
-        mostSeverity = "severe";
-        mostSevereDescription = `Real-world data shows ${adverseEventsResult.eventCount} reported adverse events (including ${adverseEventsResult.seriousCount} serious cases) for this combination. Consult a healthcare provider before combining.`;
-      }
-    } else if (adverseEventsResult.eventCount > 5) {
-      // Similarly fixed here
-      if (mostSeverity !== "severe") {
-        mostSeverity = "minor";
-        mostSevereDescription = `Real-world data shows ${adverseEventsResult.eventCount} reported adverse events for this combination. Monitor for side effects and consult a healthcare provider if concerned.`;
-      }
-    }
-  }
-
-  // Determine final result based on merged data
-  let finalSeverity: Severity;
-  let finalDescription: string;
-  
-  if (hasAnyInteraction) {
-    // If any API reports an interaction, use the most severe level
-    finalSeverity = mostSeverity;
-    finalDescription = mostSevereDescription;
-  } else if (hasExplicitSafety && !hasAnyInteraction) {
-    // Only mark as safe if at least one API explicitly confirms safety and no API reports interactions
-    finalSeverity = "safe";
-    finalDescription = "Verified safe to take together based on available data. Always consult your healthcare provider.";
-  } else {
-    // Default case - no clear information available
-    finalSeverity = "unknown";
-    finalDescription = "No information found for this combination. Consult a healthcare provider for more details.";
-  }
+  // Determine final severity and description based on all results
+  const { severity, description } = determineFinalSeverity(
+    rxnormResult,
+    suppaiResult,
+    fdaResult,
+    adverseEventsResult,
+    sources
+  );
 
   // Ensure we always have at least one source entry
   if (sources.length === 0) {
-    sources.push({
-      name: "No Data Available",
-      severity: "unknown",
-      description: "No interaction data available from any source"
-    });
+    sources.push(createDefaultSource());
   }
 
   return {
     medications: [med1, med2],
-    severity: finalSeverity,
-    description: finalDescription,
+    severity,
+    description,
     sources,
     adverseEvents: adverseEventsResult || undefined
   };
