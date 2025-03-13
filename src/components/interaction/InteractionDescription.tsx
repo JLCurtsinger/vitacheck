@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { AlertCircle, FileText } from "lucide-react";
 import { SourceAttribution } from "./SourceAttribution";
@@ -43,11 +42,11 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
   
   // Set the highest priority section to be open initially
   useEffect(() => {
-    // Reset all to closed
+    // Reset all to closed first
     setShowModerateRisks(false);
     setShowGeneralInfo(false);
     
-    // Then open highest priority section
+    // Then open the highest priority section
     if (hasSevereRisks) {
       // Severe risks are always visible, no need to set state
     } else if (hasModerateRisks) {
@@ -55,7 +54,7 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
     } else if (hasGeneralInfo) {
       setShowGeneralInfo(true);
     }
-  }, [hasSevereRisks, hasModerateRisks, hasGeneralInfo]);
+  }, [interaction.id, hasSevereRisks, hasModerateRisks, hasGeneralInfo]);
   
   return (
     <div className="mb-6 space-y-4">
@@ -89,15 +88,16 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
         <ModerateRisks 
           moderateRisks={moderateRisks} 
           defaultOpen={showModerateRisks} 
+          key={`moderate-${interaction.id}-${showModerateRisks}`}
         />
         
         {/* General Information - Expandable */}
         <GeneralInfo 
           generalInfo={generalInfo} 
-          defaultOpen={showGeneralInfo} 
+          defaultOpen={showGeneralInfo}
+          key={`general-${interaction.id}-${showGeneralInfo}`} 
         />
         
-        {/* When no bulletpoints are found */}
         {bulletPoints.length === 0 && (
           <div className="text-gray-700 italic p-2">
             No detailed clinical information available for this interaction. Please consult your healthcare provider.
@@ -105,7 +105,6 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
         )}
       </div>
       
-      {/* FDA Adverse Event Section */}
       {hasAdverseEvents && (
         <AdverseEvents adverseEvents={interaction.adverseEvents} />
       )}

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FileText, ChevronDown, ChevronUp } from "lucide-react";
 import { createHTMLProps } from "../utils/formatDescription";
 
@@ -10,6 +10,11 @@ interface GeneralInfoProps {
 
 export function GeneralInfo({ generalInfo, defaultOpen = false }: GeneralInfoProps) {
   const [showGeneralInfo, setShowGeneralInfo] = useState(defaultOpen);
+  
+  // Ensure the component respects changes to defaultOpen prop
+  useEffect(() => {
+    setShowGeneralInfo(defaultOpen);
+  }, [defaultOpen]);
   
   if (generalInfo.length === 0) return null;
   

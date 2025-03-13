@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { createHTMLProps } from "../utils/formatDescription";
 
@@ -10,6 +10,11 @@ interface ModerateRisksProps {
 
 export function ModerateRisks({ moderateRisks, defaultOpen = false }: ModerateRisksProps) {
   const [showModerateRisks, setShowModerateRisks] = useState(defaultOpen);
+  
+  // Ensure the component respects changes to defaultOpen prop
+  useEffect(() => {
+    setShowModerateRisks(defaultOpen);
+  }, [defaultOpen]);
   
   if (moderateRisks.length === 0) return null;
   
