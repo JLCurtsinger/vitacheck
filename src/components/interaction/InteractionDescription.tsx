@@ -1,7 +1,6 @@
 
 import { useState } from "react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, ChevronDown, ChevronUp, FileText, CheckCircle } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, FileText, CheckCircle, AlertCircle } from "lucide-react";
 import { SourceAttribution } from "./SourceAttribution";
 import { InteractionResult } from "@/lib/api-utils";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,8 @@ interface InteractionDescriptionProps {
 export function InteractionDescription({ interaction }: InteractionDescriptionProps) {
   const [showFullDetails, setShowFullDetails] = useState(false);
   const [showAdverseEvents, setShowAdverseEvents] = useState(false);
+  const [showModerateRisks, setShowModerateRisks] = useState(false);
+  const [showGeneralInfo, setShowGeneralInfo] = useState(false);
   
   // Get unique source names to display
   const sourceNames = Array.from(new Set(interaction.sources.map(s => s.name))).filter(name => 
@@ -45,10 +46,28 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
   // Format the description into bullet points
   const bulletPoints = formatDescriptionText(interaction.description);
   
-  // Create a concise summary (first 2 bullet points or shortened description)
-  const summary = bulletPoints.length > 0 
-    ? bulletPoints.slice(0, 2)
-    : [interaction.description?.substring(0, 150) + (interaction.description?.length > 150 ? "..." : "")];
+  // Categorize bullet points by severity
+  const severeRisks = bulletPoints.filter(point => 
+    point.toLowerCase().includes('severe') || 
+    point.toLowerCase().includes('fatal') || 
+    point.toLowerCase().includes('death') ||
+    point.toLowerCase().includes('dangerous') ||
+    point.toLowerCase().includes('emergency') ||
+    point.toLowerCase().includes('do not')
+  );
+
+  const moderateRisks = bulletPoints.filter(point => 
+    !severeRisks.includes(point) && (
+      point.toLowerCase().includes('caution') || 
+      point.toLowerCase().includes('warning') ||
+      point.toLowerCase().includes('moderate') ||
+      point.toLowerCase().includes('monitor')
+    )
+  );
+
+  const generalInfo = bulletPoints.filter(point => 
+    !severeRisks.includes(point) && !moderateRisks.includes(point)
+  );
   
   // Check if we have adverse event data
   const hasAdverseEvents = interaction.adverseEvents && interaction.adverseEvents.eventCount > 0;
@@ -71,52 +90,123 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
         "bg-gray-50/60 border-gray-200"
       )}>
         <h3 className={cn(
-          "text-base font-semibold mb-3 pb-2 border-b",
+          "text-base font-semibold mb-3 pb-2 border-b flex items-center gap-2",
           interaction.severity === "severe" ? "text-red-700 border-red-200" : 
           interaction.severity === "minor" ? "text-yellow-700 border-yellow-200" : 
           interaction.severity === "safe" ? "text-green-700 border-green-200" : 
           "text-gray-700 border-gray-200"
         )}>
+          {interaction.severity === "severe" && <AlertCircle className="h-5 w-5" />}
+          {interaction.severity === "minor" && <AlertTriangle className="h-5 w-5" />}
+          {interaction.severity === "safe" && <CheckCircle className="h-5 w-5" />}
           Clinical Interaction Information
         </h3>
         
-        <div className="mt-3 space-y-3">
-          {!showFullDetails ? (
-            // Show summary
-            <div className="space-y-3">
-              {summary.map((point, index) => (
-                <div key={index} className="flex items-start gap-2">
-                  <span className="mt-1">•</span>
-                  <p className="text-gray-700">{renderHTML(point)}</p>
-                </div>
-              ))}
+        {/* Critical Warnings - Always visible */}
+        {severeRisks.length > 0 && (
+          <div className="mb-4">
+            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded mb-3">
+              <div className="flex items-center gap-2 font-bold mb-2">
+                <AlertCircle className="h-5 w-5" />
+                🚨 Critical Warnings - Requires Immediate Attention
+              </div>
+              <div className="overflow-auto">
+                <table className="w-full border-collapse">
+                  <thead className="bg-red-50">
+                    <tr>
+                      <th className="p-2 text-left">Risk</th>
+                      <th className="p-2 text-left">Recommended Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {severeRisks.map((point, index) => (
+                      <tr key={index} className="border-b border-red-200">
+                        <td className="p-2">{renderHTML(point)}</td>
+                        <td className="p-2 font-medium">
+                          {point.toLowerCase().includes('fatal') || point.toLowerCase().includes('death') 
+                            ? "Seek immediate medical advice. DO NOT combine these medications."
+                            : "Contact healthcare provider before taking these medications together."}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          ) : (
-            // Show all bullet points
-            <div className="space-y-3">
-              {bulletPoints.map((point, index) => (
-                <div key={index} className="flex items-start gap-2">
-                  <span className="mt-1">•</span>
-                  <p className="text-gray-700">{renderHTML(point)}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
         
-        {bulletPoints.length > 2 && (
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => setShowFullDetails(!showFullDetails)}
-            className="w-full mt-3 flex items-center justify-center gap-1"
-          >
-            {showFullDetails ? (
-              <>Show Less <ChevronUp className="h-4 w-4" /></>
-            ) : (
-              <>View Full Details <ChevronDown className="h-4 w-4" /></>
+        {/* Moderate Risks - Expandable */}
+        {moderateRisks.length > 0 && (
+          <div className="mb-4 border border-yellow-200 rounded">
+            <button 
+              onClick={() => setShowModerateRisks(!showModerateRisks)}
+              className="w-full p-3 flex items-center justify-between bg-yellow-50/70 text-yellow-700 font-medium hover:bg-yellow-50"
+            >
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                ⚠️ Moderate Risks - Important Precautions 
+              </div>
+              {showModerateRisks ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            </button>
+            
+            {showModerateRisks && (
+              <div className="p-3">
+                <table className="w-full border-collapse">
+                  <thead className="bg-yellow-50">
+                    <tr>
+                      <th className="p-2 text-left">Precaution</th>
+                      <th className="p-2 text-left">Recommendation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {moderateRisks.map((point, index) => (
+                      <tr key={index} className="border-b border-yellow-100">
+                        <td className="p-2">{renderHTML(point)}</td>
+                        <td className="p-2">
+                          Monitor for side effects. Consult healthcare provider if symptoms occur.
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </Button>
+          </div>
+        )}
+        
+        {/* General Information - Expandable */}
+        {generalInfo.length > 0 && (
+          <div className="mb-2 border border-gray-200 rounded">
+            <button 
+              onClick={() => setShowGeneralInfo(!showGeneralInfo)}
+              className="w-full p-3 flex items-center justify-between bg-gray-50/70 text-gray-700 font-medium hover:bg-gray-50"
+            >
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                ℹ️ General Information
+              </div>
+              {showGeneralInfo ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            </button>
+            
+            {showGeneralInfo && (
+              <div className="p-3 space-y-2">
+                {generalInfo.map((point, index) => (
+                  <div key={index} className="flex items-start gap-2 py-1 border-b border-gray-100">
+                    <span className="mt-1">•</span>
+                    <p className="text-gray-700">{renderHTML(point)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* When no bulletpoints are found */}
+        {bulletPoints.length === 0 && (
+          <div className="text-gray-700 italic p-2">
+            No detailed clinical information available for this interaction. Please consult your healthcare provider.
+          </div>
         )}
       </div>
       
