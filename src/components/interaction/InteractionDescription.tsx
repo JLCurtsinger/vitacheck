@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { AlertCircle, FileText } from "lucide-react";
 import { SourceAttribution } from "./SourceAttribution";
@@ -40,6 +41,10 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
   // Check if we have adverse event data
   const hasAdverseEvents = interaction.adverseEvents && interaction.adverseEvents.eventCount > 0;
   
+  // Generate a unique identifier for this interaction if id doesn't exist
+  const interactionKey = interaction.id || 
+    `${interaction.medications[0]}-${interaction.medications[1]}-${interaction.severity}`;
+  
   // Set the highest priority section to be open initially
   useEffect(() => {
     // Reset all to closed first
@@ -54,7 +59,7 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
     } else if (hasGeneralInfo) {
       setShowGeneralInfo(true);
     }
-  }, [interaction.id, hasSevereRisks, hasModerateRisks, hasGeneralInfo]);
+  }, [interactionKey, hasSevereRisks, hasModerateRisks, hasGeneralInfo]);
   
   return (
     <div className="mb-6 space-y-4">
@@ -88,14 +93,14 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
         <ModerateRisks 
           moderateRisks={moderateRisks} 
           defaultOpen={showModerateRisks} 
-          key={`moderate-${interaction.id}-${showModerateRisks}`}
+          key={`moderate-${interactionKey}-${showModerateRisks}`}
         />
         
         {/* General Information - Expandable */}
         <GeneralInfo 
           generalInfo={generalInfo} 
           defaultOpen={showGeneralInfo}
-          key={`general-${interaction.id}-${showGeneralInfo}`} 
+          key={`general-${interactionKey}-${showGeneralInfo}`} 
         />
         
         {bulletPoints.length === 0 && (

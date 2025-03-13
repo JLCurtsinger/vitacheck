@@ -19,6 +19,7 @@ export interface AdverseEventData {
 }
 
 export interface InteractionResult {
+  id?: string; // Adding optional id property for interaction identification
   medications: [string, string];
   severity: "safe" | "minor" | "severe" | "unknown";
   description: string;
