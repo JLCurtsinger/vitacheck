@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AlertTriangle, ChevronDown, ChevronUp, FileText, CheckCircle, AlertCircle } from "lucide-react";
 import { SourceAttribution } from "./SourceAttribution";
 import { InteractionResult } from "@/lib/api-utils";
@@ -11,11 +11,6 @@ interface InteractionDescriptionProps {
 }
 
 export function InteractionDescription({ interaction }: InteractionDescriptionProps) {
-  const [showFullDetails, setShowFullDetails] = useState(false);
-  const [showAdverseEvents, setShowAdverseEvents] = useState(false);
-  const [showModerateRisks, setShowModerateRisks] = useState(false);
-  const [showGeneralInfo, setShowGeneralInfo] = useState(false);
-  
   // Get unique source names to display
   const sourceNames = Array.from(new Set(interaction.sources.map(s => s.name))).filter(name => 
     name !== "No Data Available" && name !== "Unknown"
@@ -68,6 +63,33 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
   const generalInfo = bulletPoints.filter(point => 
     !severeRisks.includes(point) && !moderateRisks.includes(point)
   );
+  
+  // Initialize state values based on content availability and priority
+  const [showAdverseEvents, setShowAdverseEvents] = useState(false);
+  
+  // Set initial states based on priority - only one section open at a time
+  const hasSevereRisks = severeRisks.length > 0;
+  const hasModerateRisks = moderateRisks.length > 0;
+  const hasGeneralInfo = generalInfo.length > 0;
+  
+  const [showModerateRisks, setShowModerateRisks] = useState(false);
+  const [showGeneralInfo, setShowGeneralInfo] = useState(false);
+  
+  // Set the highest priority section to be open initially
+  useEffect(() => {
+    // Reset all to closed
+    setShowModerateRisks(false);
+    setShowGeneralInfo(false);
+    
+    // Then open highest priority section
+    if (hasSevereRisks) {
+      // Severe risks are always visible, no need to set state
+    } else if (hasModerateRisks) {
+      setShowModerateRisks(true);
+    } else if (hasGeneralInfo) {
+      setShowGeneralInfo(true);
+    }
+  }, [hasSevereRisks, hasModerateRisks, hasGeneralInfo]);
   
   // Check if we have adverse event data
   const hasAdverseEvents = interaction.adverseEvents && interaction.adverseEvents.eventCount > 0;
@@ -297,3 +319,4 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
     </div>
   );
 }
+
