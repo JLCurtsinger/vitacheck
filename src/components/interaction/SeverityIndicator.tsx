@@ -1,16 +1,19 @@
+
 import { CheckCircle, AlertTriangle, XCircle, HelpCircle } from "lucide-react";
 
 interface SeverityIndicatorProps {
-  severity: "safe" | "minor" | "severe" | "unknown";
+  severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
 }
 
 export function SeverityIndicator({ severity }: SeverityIndicatorProps) {
-  const getSeverityColor = (severity: "safe" | "minor" | "severe" | "unknown") => {
+  const getSeverityColor = (severity: "safe" | "minor" | "moderate" | "severe" | "unknown") => {
     switch (severity) {
       case "safe":
         return "text-green-500";
       case "minor":
-        return "text-yellow-500";
+        return "text-yellow-400";
+      case "moderate":
+        return "text-yellow-600";
       case "severe":
         return "text-red-500";
       case "unknown":
@@ -18,12 +21,14 @@ export function SeverityIndicator({ severity }: SeverityIndicatorProps) {
     }
   };
 
-  const getSeverityIcon = (severity: "safe" | "minor" | "severe" | "unknown") => {
+  const getSeverityIcon = (severity: "safe" | "minor" | "moderate" | "severe" | "unknown") => {
     const className = "h-6 w-6";
     switch (severity) {
       case "safe":
         return <CheckCircle className={className} />;
       case "minor":
+        return <AlertTriangle className={`${className} text-yellow-400`} />;
+      case "moderate":
         return <AlertTriangle className={className} />;
       case "severe":
         return <XCircle className={className} />;
@@ -32,12 +37,14 @@ export function SeverityIndicator({ severity }: SeverityIndicatorProps) {
     }
   };
 
-  const getSeverityText = (severity: "safe" | "minor" | "severe" | "unknown") => {
+  const getSeverityText = (severity: "safe" | "minor" | "moderate" | "severe" | "unknown") => {
     switch (severity) {
       case "safe":
         return "Safe to take together";
       case "minor":
         return "Minor interaction possible";
+      case "moderate":
+        return "Moderate interaction risk";
       case "severe":
         return "Severe interaction risk";
       case "unknown":

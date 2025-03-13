@@ -14,8 +14,10 @@ export function InteractionHeader({ interaction }: InteractionHeaderProps) {
     switch (interaction.severity) {
       case "severe":
         return <XCircle className="h-5 w-5 text-red-500" />;
+      case "moderate":
+        return <AlertTriangle className="h-5 w-5 text-yellow-600" />;
       case "minor":
-        return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+        return <AlertTriangle className="h-5 w-5 text-yellow-400" />;
       case "safe":
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case "unknown":
@@ -30,8 +32,10 @@ export function InteractionHeader({ interaction }: InteractionHeaderProps) {
     switch (interaction.severity) {
       case "severe":
         return `🚨 Severe Interaction: ${medicationNames}`;
-      case "minor":
+      case "moderate":
         return `⚠️ Moderate Interaction: ${medicationNames}`;
+      case "minor":
+        return `ℹ️ Minor Interaction: ${medicationNames}`;
       case "safe":
         return `✅ Safe Combination: ${medicationNames}`;
       case "unknown":
@@ -44,8 +48,10 @@ export function InteractionHeader({ interaction }: InteractionHeaderProps) {
     switch (interaction.severity) {
       case "severe":
         return "text-red-600";
-      case "minor":
+      case "moderate":
         return "text-yellow-600";
+      case "minor":
+        return "text-yellow-500";
       case "safe":
         return "text-green-600";
       case "unknown":

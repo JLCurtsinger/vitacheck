@@ -12,6 +12,7 @@ interface InteractionResultProps {
 export function InteractionResult({ interaction }: InteractionResultProps) {
   const severityColorMap = {
     "severe": "border-red-200 bg-red-50/30",
+    "moderate": "border-yellow-300 bg-yellow-50/40",
     "minor": "border-yellow-200 bg-yellow-50/30",
     "unknown": "border-gray-200",
     "safe": "border-green-200 bg-green-50/30"

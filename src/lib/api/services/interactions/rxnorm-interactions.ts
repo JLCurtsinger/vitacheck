@@ -42,7 +42,7 @@ export async function checkRxNormInteractions(
 ): Promise<{
   sources: InteractionSource[];
   description: string;
-  severity: "safe" | "minor" | "severe" | "unknown";
+  severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
 } | null> {
   console.log(`Checking RxNorm interactions for ${med1Name}(${med1Id}) and ${med2Name}(${med2Id})`);
   
@@ -53,7 +53,7 @@ export async function checkRxNormInteractions(
     
     const { hasInteractions, description } = processRxNormInteractionData(rxnormInteractions);
     
-    // If we have an interaction description, it's a minor interaction at minimum
+    // If we have an interaction description, determine its severity
     if (hasInteractions) {
       // Determine severity based on description keywords
       const severity = detectSeverityFromDescription(description);

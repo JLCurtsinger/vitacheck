@@ -69,6 +69,7 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
       <div className={cn(
         "p-4 rounded-lg border",
         interaction.severity === "severe" ? "bg-red-50/60 border-red-200" : 
+        interaction.severity === "moderate" ? "bg-yellow-50/70 border-yellow-300" :
         interaction.severity === "minor" ? "bg-yellow-50/60 border-yellow-200" : 
         interaction.severity === "safe" ? "bg-green-50/60 border-green-200" : 
         "bg-gray-50/60 border-gray-200"
@@ -76,12 +77,13 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
         <h3 className={cn(
           "text-base font-semibold mb-3 pb-2 border-b flex items-center gap-2",
           interaction.severity === "severe" ? "text-red-700 border-red-200" : 
-          interaction.severity === "minor" ? "text-yellow-700 border-yellow-200" : 
+          interaction.severity === "moderate" ? "text-yellow-700 border-yellow-300" :
+          interaction.severity === "minor" ? "text-yellow-600 border-yellow-200" : 
           interaction.severity === "safe" ? "text-green-700 border-green-200" : 
           "text-gray-700 border-gray-200"
         )}>
-          {interaction.severity === "severe" && <AlertCircle className="h-5 w-5" />}
-          {interaction.severity === "minor" && <AlertCircle className="h-5 w-5" />}
+          {(interaction.severity === "severe" || interaction.severity === "moderate") && <AlertCircle className="h-5 w-5" />}
+          {interaction.severity === "minor" && <AlertCircle className="h-5 w-5 text-yellow-500" />}
           {interaction.severity === "safe" && <FileText className="h-5 w-5" />}
           Clinical Interaction Information
         </h3>

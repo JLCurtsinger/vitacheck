@@ -1,4 +1,3 @@
-
 /**
  * Severity Determination Utilities
  * 
@@ -7,7 +6,7 @@
 
 import { InteractionResult, InteractionSource, AdverseEventData } from '../types';
 
-export type Severity = "safe" | "minor" | "severe" | "unknown";
+export type Severity = "safe" | "minor" | "moderate" | "severe" | "unknown";
 
 /**
  * Determines the final severity and description based on all API responses
@@ -34,14 +33,12 @@ export function determineFinalSeverity(
     if (!result) continue;
     
     // If any API reports an interaction, we consider there is an interaction
-    if (result.severity === "minor" || result.severity === "severe") {
+    if (["minor", "moderate", "severe"].includes(result.severity)) {
       hasAnyInteraction = true;
       
       // Track the most severe interaction and its description
-      if (
-        (result.severity === "severe") || 
-        (result.severity === "minor" && mostSeverity !== "severe")
-      ) {
+      const severityOrder = { "severe": 3, "moderate": 2, "minor": 1, "unknown": 0, "safe": -1 };
+      if (severityOrder[result.severity] > severityOrder[mostSeverity]) {
         mostSeverity = result.severity;
         mostSevereDescription = result.description;
       }
@@ -59,19 +56,28 @@ export function determineFinalSeverity(
   }
   
   // If we have adverse events data, factor it into the severity determination
+  // but don't automatically escalate to severe just based on event count
   if (adverseEventsResult && adverseEventsResult.eventCount > 0) {
     hasAnyInteraction = true;
     
-    if (adverseEventsResult.seriousCount > 0) {
+    // Only escalate to severe if there are verified serious outcomes and multiple reports
+    if (adverseEventsResult.seriousCount > 5) {
       if (mostSeverity !== "severe") {
         mostSeverity = "severe";
         mostSevereDescription = `Real-world data shows ${adverseEventsResult.eventCount} reported adverse events (including ${adverseEventsResult.seriousCount} serious cases) for this combination. Consult a healthcare provider before combining.`;
       }
-    } else if (adverseEventsResult.eventCount > 5) {
-      if (mostSeverity !== "severe") {
-        mostSeverity = "minor";
+    } 
+    // Moderate if has serious reports but fewer than threshold or many regular reports
+    else if (adverseEventsResult.seriousCount > 0 || adverseEventsResult.eventCount > 10) {
+      if (mostSeverity !== "severe" && mostSeverity !== "moderate") {
+        mostSeverity = "moderate";
         mostSevereDescription = `Real-world data shows ${adverseEventsResult.eventCount} reported adverse events for this combination. Monitor for side effects and consult a healthcare provider if concerned.`;
       }
+    } 
+    // Otherwise minor
+    else if (mostSeverity !== "severe" && mostSeverity !== "moderate") {
+      mostSeverity = "minor";
+      mostSevereDescription = `Real-world data shows ${adverseEventsResult.eventCount} reported adverse events for this combination. Generally considered safe but monitor for side effects.`;
     }
   }
 

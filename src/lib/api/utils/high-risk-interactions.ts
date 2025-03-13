@@ -1,3 +1,4 @@
+
 /**
  * High-Risk Medication Combinations Module
  * 
@@ -17,7 +18,7 @@ interface HighRiskCombination {
   /** The medication or substance this combination interacts dangerously with */
   interactsWith: string;
   /** The severity level of the interaction */
-  severity: "safe" | "minor" | "severe" | "unknown";
+  severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
   /** Detailed description of the interaction and its risks */
   description: string;
 }
@@ -37,8 +38,14 @@ const HIGH_RISK_COMBINATIONS: HighRiskCombination[] = [
   {
     meds: ["lithium"],
     interactsWith: "ibuprofen",
-    severity: "severe",
-    description: "WARNING: May increase lithium levels, causing toxicity. Avoid combination."
+    severity: "moderate",
+    description: "WARNING: May increase lithium levels, potentially causing side effects. Monitor closely."
+  },
+  {
+    meds: ["xanax", "alprazolam"],
+    interactsWith: "ibuprofen",
+    severity: "minor",
+    description: "May slightly increase sedative effects. Generally safe but monitor for increased drowsiness."
   }
 ];
 
@@ -51,7 +58,7 @@ const HIGH_RISK_COMBINATIONS: HighRiskCombination[] = [
  */
 export function checkHighRiskCombination(med1: string, med2: string): {
   isHighRisk: boolean;
-  severity?: "safe" | "minor" | "severe" | "unknown";
+  severity?: "safe" | "minor" | "moderate" | "severe" | "unknown";
   description?: string;
 } {
   const med1Lower = med1.toLowerCase();

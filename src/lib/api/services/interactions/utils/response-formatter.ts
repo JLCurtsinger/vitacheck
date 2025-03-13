@@ -1,28 +1,25 @@
 
-/**
- * Utility for formatting interaction responses
- */
-import { InteractionSource } from '../../../types';
+import { InteractionSource } from "../../../types";
 
 /**
- * Creates a standardized response object for interaction data
+ * Formats an interaction response into a standardized format
  */
 export function formatInteractionResponse(
   sourceName: string,
-  severity: "safe" | "minor" | "severe" | "unknown",
+  severity: "safe" | "minor" | "moderate" | "severe" | "unknown",
   description: string
 ): {
   sources: InteractionSource[];
   description: string;
-  severity: "safe" | "minor" | "severe" | "unknown";
+  severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
 } {
   return {
     sources: [{
       name: sourceName,
-      severity,
-      description
+      severity: severity,
+      description: description
     }],
-    description,
-    severity
+    description: description,
+    severity: severity
   };
 }
