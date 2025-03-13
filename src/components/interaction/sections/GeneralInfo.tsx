@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { FileText, ChevronDown, ChevronUp } from "lucide-react";
-import { renderHTML } from "../utils/formatDescription";
+import { createHTMLProps } from "../utils/formatDescription";
 
 interface GeneralInfoProps {
   generalInfo: string[];
@@ -31,7 +31,7 @@ export function GeneralInfo({ generalInfo, defaultOpen = false }: GeneralInfoPro
           {generalInfo.map((point, index) => (
             <div key={index} className="flex items-start gap-2 py-1 border-b border-gray-100">
               <span className="mt-1">•</span>
-              <p className="text-gray-700">{renderHTML(point)}</p>
+              <p className="text-gray-700" dangerouslySetInnerHTML={createHTMLProps(point)}></p>
             </div>
           ))}
         </div>

@@ -1,6 +1,6 @@
 
 import { AlertCircle } from "lucide-react";
-import { renderHTML } from "../utils/formatDescription";
+import { createHTMLProps } from "../utils/formatDescription";
 
 interface CriticalWarningsProps {
   severeRisks: string[];
@@ -27,7 +27,7 @@ export function CriticalWarnings({ severeRisks }: CriticalWarningsProps) {
             <tbody>
               {severeRisks.map((point, index) => (
                 <tr key={index} className="border-b border-red-200">
-                  <td className="p-2">{renderHTML(point)}</td>
+                  <td className="p-2" dangerouslySetInnerHTML={createHTMLProps(point)}></td>
                   <td className="p-2 font-medium">
                     {point.toLowerCase().includes('fatal') || point.toLowerCase().includes('death') 
                       ? "Seek immediate medical advice. DO NOT combine these medications."

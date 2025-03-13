@@ -64,8 +64,8 @@ export const categorizeBulletPoints = (bulletPoints: string[]) => {
 };
 
 /**
- * Renders HTML content safely
+ * Creates props for dangerouslySetInnerHTML
  */
-export const renderHTML = (html: string) => {
-  return <span dangerouslySetInnerHTML={{ __html: html }} />;
+export const createHTMLProps = (html: string) => {
+  return { __html: html };
 };

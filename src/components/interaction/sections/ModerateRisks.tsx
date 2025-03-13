@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
-import { renderHTML } from "../utils/formatDescription";
+import { createHTMLProps } from "../utils/formatDescription";
 
 interface ModerateRisksProps {
   moderateRisks: string[];
@@ -38,7 +38,7 @@ export function ModerateRisks({ moderateRisks, defaultOpen = false }: ModerateRi
             <tbody>
               {moderateRisks.map((point, index) => (
                 <tr key={index} className="border-b border-yellow-100">
-                  <td className="p-2">{renderHTML(point)}</td>
+                  <td className="p-2" dangerouslySetInnerHTML={createHTMLProps(point)}></td>
                   <td className="p-2">
                     Monitor for side effects. Consult healthcare provider if symptoms occur.
                   </td>
