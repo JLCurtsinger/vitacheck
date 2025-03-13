@@ -26,7 +26,7 @@ export function ResultsHeader({ medications }: ResultsHeaderProps) {
       
       <Button
         onClick={() => navigate("/check")}
-        className="mt-12 mb-4 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all hover:scale-[1.02]"
+        className="mt-12 mb-8 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all hover:scale-[1.02]"
       >
         Check Different Medications
       </Button>

@@ -15,7 +15,7 @@ export default function Results() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6 animate-fade-in">
+    <div className="max-w-3xl mx-auto p-6 pb-16 animate-fade-in">
       <ResultsHeader medications={medications} />
       
       <InteractionsList 

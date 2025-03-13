@@ -28,7 +28,7 @@ export function InteractionsList({ interactions, hasAnyInteraction }: Interactio
   }
   
   return (
-    <div className="space-y-8 mb-8">
+    <div className="space-y-8 mb-12">
       {interactions.map((interaction, index) => (
         <InteractionResult key={index} interaction={interaction} />
       ))}
