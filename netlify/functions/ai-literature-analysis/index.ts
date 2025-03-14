@@ -89,7 +89,11 @@ async function analyzeInteraction(med1: string, med2: string): Promise<{
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
-        temperature: 0.3 // Lower temperature for more consistent, factual responses
+        temperature: 0.1, // Lower temperature ensures consistent, fact-based responses with minimal hallucinations.
+        max_tokens: 1000, // keep responses from being too long
+        top_p: 0.4, // focuses on probable, factual responses 
+        frequency_penalty: 0.3, //reduces repitiion in a single response
+        presence_penalty: 0.0 //allows responses to be the same as previous responses
       })
     });
 
