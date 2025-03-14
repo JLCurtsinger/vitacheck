@@ -23,7 +23,9 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
       "bg-white rounded-xl shadow-lg p-6 transition-transform hover:scale-[1.02] border mb-8",
       severityColorMap[interaction.severity]
     )}>
-      <InteractionHeader interaction={interaction} />
+      <InteractionHeader 
+        interaction={interaction} 
+      />
       <InteractionDescription interaction={interaction} />
       <InteractionFooter interaction={interaction} />
     </div>

@@ -7,7 +7,8 @@ import { InteractionSource } from "../../../types";
 export function formatInteractionResponse(
   sourceName: string,
   severity: "safe" | "minor" | "moderate" | "severe" | "unknown",
-  description: string
+  description: string,
+  confidence: number = 80
 ): {
   sources: InteractionSource[];
   description: string;
@@ -17,7 +18,8 @@ export function formatInteractionResponse(
     sources: [{
       name: sourceName,
       severity: severity,
-      description: description
+      description: description,
+      confidence: confidence
     }],
     description: description,
     severity: severity

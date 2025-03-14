@@ -57,17 +57,36 @@ export async function checkRxNormInteractions(
     if (hasInteractions) {
       // Determine severity based on description keywords
       const severity = detectSeverityFromDescription(description);
-      return formatInteractionResponse("RxNorm", severity, description);
+      
+      const source: InteractionSource = {
+        name: "RxNorm",
+        severity: severity,
+        description: description,
+        confidence: 90 // High confidence for RxNorm
+      };
+      
+      return {
+        sources: [source],
+        description,
+        severity
+      };
     }
     
     // If RxNorm explicitly confirms no interactions
     // This case happens when RxNorm returns a response but with empty interaction data
     if (rxnormInteractions.length === 0) {
-      return formatInteractionResponse(
-        "RxNorm", 
-        "safe", 
-        "No interactions found in RxNorm database. Always consult your healthcare provider."
-      );
+      const source: InteractionSource = {
+        name: "RxNorm",
+        severity: "safe",
+        description: "No interactions found in RxNorm database. Always consult your healthcare provider.",
+        confidence: 90 // High confidence for RxNorm
+      };
+      
+      return {
+        sources: [source],
+        description: "No interactions found in RxNorm database. Always consult your healthcare provider.",
+        severity: "safe"
+      };
     }
     
     // Default case - we don't have clear information

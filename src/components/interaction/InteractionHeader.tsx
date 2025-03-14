@@ -63,21 +63,11 @@ export function InteractionHeader({ interaction }: InteractionHeaderProps) {
   return (
     <div className="flex items-center justify-between gap-2 mb-3 pb-3 border-b">
       <div className="flex items-center gap-2">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger>
-              <SeverityIndicator severity={interaction.severity} />
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Severity level determined from {interaction.sources.length} source(s)</p>
-              {interaction.sources.map((source, index) => (
-                <p key={index} className="text-sm">
-                  {source.name}: {source.severity}
-                </p>
-              ))}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <SeverityIndicator 
+          severity={interaction.severity} 
+          confidenceScore={interaction.confidenceScore}
+          aiValidated={interaction.aiValidated}
+        />
         <h4 className={cn("font-semibold text-lg", getSeverityClass())}>
           {getSeverityTitle()}
         </h4>

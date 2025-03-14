@@ -24,6 +24,7 @@ export interface InteractionSource {
   name: string;
   severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
   description: string;
+  confidence?: number; // Added confidence rating for each source
 }
 
 /**
@@ -50,4 +51,6 @@ export interface InteractionResult {
   evidence?: string; // Added for backward compatibility
   sources: InteractionSource[];
   adverseEvents?: AdverseEventData;
+  confidenceScore?: number; // Added overall confidence score
+  aiValidated?: boolean; // Indicates if AI was used to validate
 }

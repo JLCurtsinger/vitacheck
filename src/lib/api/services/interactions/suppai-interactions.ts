@@ -35,12 +35,26 @@ export async function checkSuppAiInteractions(
       severity = "minor";
     }
     
+    // Base confidence on evidence count
+    let confidence = 50; // Base confidence for SUPP.AI
+    
+    if (suppAiInteraction.evidence_count > 10) {
+      confidence = 70;
+    } else if (suppAiInteraction.evidence_count > 5) {
+      confidence = 65;
+    } else if (suppAiInteraction.evidence_count > 3) {
+      confidence = 60;
+    }
+    
+    const source: InteractionSource = {
+      name: "SUPP.AI",
+      severity: severity,
+      description: description,
+      confidence: confidence
+    };
+    
     return {
-      sources: [{
-        name: "SUPP.AI",
-        severity,
-        description
-      }],
+      sources: [source],
       description,
       severity
     };

@@ -24,14 +24,20 @@ export function checkFDAInteractions(
       moderateKeywords.some(keyword => warning.toLowerCase().includes(keyword))
     );
 
-    return {
-      sources: [{
-        name: "FDA",
-        severity: hasSevereWarning ? "severe" : hasModerateWarning ? "moderate" : "minor",
-        description: relevantWarnings[0]
-      }],
+    const severity = hasSevereWarning ? "severe" : hasModerateWarning ? "moderate" : "minor";
+    const confidence = hasSevereWarning ? 85 : hasModerateWarning ? 80 : 75;
+    
+    const source: InteractionSource = {
+      name: "FDA",
+      severity: severity,
       description: relevantWarnings[0],
-      severity: hasSevereWarning ? "severe" : hasModerateWarning ? "moderate" : "minor"
+      confidence: confidence
+    };
+
+    return {
+      sources: [source],
+      description: relevantWarnings[0],
+      severity: severity
     };
   }
 

@@ -1,11 +1,15 @@
 
 import { CheckCircle, AlertTriangle, XCircle, HelpCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 interface SeverityIndicatorProps {
   severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
+  confidenceScore?: number;
+  aiValidated?: boolean;
 }
 
-export function SeverityIndicator({ severity }: SeverityIndicatorProps) {
+export function SeverityIndicator({ severity, confidenceScore, aiValidated }: SeverityIndicatorProps) {
   const getSeverityColor = (severity: "safe" | "minor" | "moderate" | "severe" | "unknown") => {
     switch (severity) {
       case "safe":
@@ -52,10 +56,55 @@ export function SeverityIndicator({ severity }: SeverityIndicatorProps) {
     }
   };
 
+  const getConfidenceLabel = (score?: number) => {
+    if (score === undefined) return "";
+    
+    if (score >= 90) return "Very High Confidence";
+    if (score >= 75) return "High Confidence";
+    if (score >= 50) return "Medium Confidence";
+    if (score >= 25) return "Low Confidence";
+    return "Very Low Confidence";
+  };
+
   return (
-    <span className={getSeverityColor(severity)}>
-      {getSeverityIcon(severity)}
-      <span className="sr-only">{getSeverityText(severity)}</span>
-    </span>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger className="flex items-center">
+          <span className={getSeverityColor(severity)}>
+            {getSeverityIcon(severity)}
+          </span>
+          
+          {confidenceScore !== undefined && (
+            <div className="ml-2 flex items-center">
+              <div className="h-1.5 w-12 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className={cn(
+                    "h-full rounded-full", 
+                    confidenceScore >= 75 ? "bg-green-500" : 
+                    confidenceScore >= 50 ? "bg-yellow-500" : 
+                    confidenceScore >= 25 ? "bg-orange-500" : 
+                    "bg-red-500"
+                  )}
+                  style={{ width: `${confidenceScore}%` }}
+                />
+              </div>
+              
+              {aiValidated && (
+                <span className="ml-1 text-xs text-blue-500 font-medium">AI</span>
+              )}
+            </div>
+          )}
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="font-medium">{getSeverityText(severity)}</p>
+          {confidenceScore !== undefined && (
+            <p className="text-sm">{getConfidenceLabel(confidenceScore)} ({confidenceScore}%)</p>
+          )}
+          {aiValidated && (
+            <p className="text-xs text-blue-500">Validated with AI literature analysis</p>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

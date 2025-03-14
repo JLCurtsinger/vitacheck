@@ -18,6 +18,7 @@ import { getAdverseEvents } from '../openfda-events';
 import { generateMedicationPairs } from './medication-pairs';
 import { determineFinalSeverity, createDefaultSource } from './severity-processor';
 import { processAdverseEventsSource } from './adverse-events-processor';
+import { queryAiLiteratureAnalysis } from '../services/ai-literature-analysis';
 
 // Re-export generateMedicationPairs for backward compatibility
 export { generateMedicationPairs } from './medication-pairs';
@@ -54,8 +55,11 @@ export async function processMedicationPair(
       sources: [{
         name: "VitaCheck Safety Database",
         severity: "severe" as const,
-        description: highRiskCheck.description
-      }]
+        description: highRiskCheck.description,
+        confidence: 95 // High confidence for known high-risk combinations
+      }],
+      confidenceScore: 95,
+      aiValidated: false
     };
   }
 
@@ -69,7 +73,7 @@ export async function processMedicationPair(
       : Promise.resolve(null),
     checkSuppAiInteractions(med1, med2),
     checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || []),
-    // Add the new OpenFDA Adverse Events check
+    // Add the OpenFDA Adverse Events check
     getAdverseEvents(med1, med2)
   ]);
 
@@ -83,20 +87,68 @@ export async function processMedicationPair(
     adverseEvents: adverseEventsResult ? `Found ${adverseEventsResult.eventCount} events` : 'No data'
   });
 
-  // Merge all sources from different APIs
+  // Merge all sources from different APIs and add confidence values
   const sources = [];
-  if (rxnormResult) sources.push(...rxnormResult.sources);
-  if (suppaiResult) sources.push(...suppaiResult.sources);
-  if (fdaResult) sources.push(...fdaResult.sources);
+  if (rxnormResult) {
+    rxnormResult.sources.forEach(source => {
+      sources.push({
+        ...source,
+        confidence: 90 // High confidence for RxNorm
+      });
+    });
+  }
+  
+  if (suppaiResult) {
+    suppaiResult.sources.forEach(source => {
+      sources.push({
+        ...source,
+        confidence: 60 // Medium confidence for SUPP.AI
+      });
+    });
+  }
+  
+  if (fdaResult) {
+    fdaResult.sources.forEach(source => {
+      sources.push({
+        ...source,
+        confidence: 80 // Medium-high confidence for FDA
+      });
+    });
+  }
   
   // Add adverse events as a source if found
   const adverseEventSource = processAdverseEventsSource(adverseEventsResult);
   if (adverseEventSource) {
-    sources.push(adverseEventSource);
+    sources.push({
+      ...adverseEventSource,
+      confidence: 75 // Medium-high confidence for adverse event data
+    });
+  }
+
+  // If we have limited or conflicting data, use AI literature analysis
+  let aiValidated = false;
+  if (
+    (sources.length < 2) || // Limited data
+    (sources.some(s => s.severity === "severe") && sources.some(s => s.severity === "safe")) // Conflicting data
+  ) {
+    try {
+      const aiResult = await queryAiLiteratureAnalysis(med1, med2);
+      if (aiResult) {
+        sources.push({
+          ...aiResult,
+          confidence: 50 // Medium confidence for AI analysis
+        });
+        aiValidated = true;
+        console.log('Added AI literature analysis:', aiResult);
+      }
+    } catch (error) {
+      console.error('Error in AI literature analysis:', error);
+      // Continue without AI analysis if it fails
+    }
   }
 
   // Determine final severity and description based on all results
-  const { severity, description } = determineFinalSeverity(
+  const { severity, description, confidenceScore } = determineFinalSeverity(
     rxnormResult,
     suppaiResult,
     fdaResult,
@@ -114,6 +166,8 @@ export async function processMedicationPair(
     severity,
     description,
     sources,
-    adverseEvents: adverseEventsResult || undefined
+    adverseEvents: adverseEventsResult || undefined,
+    confidenceScore,
+    aiValidated
   };
 }

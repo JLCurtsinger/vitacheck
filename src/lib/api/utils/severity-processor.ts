@@ -1,3 +1,4 @@
+
 /**
  * Severity Determination Utilities
  * 
@@ -5,11 +6,13 @@
  */
 
 import { InteractionResult, InteractionSource, AdverseEventData } from '../types';
+import { calculateConsensusScore } from './consensus-system';
 
 export type Severity = "safe" | "minor" | "moderate" | "severe" | "unknown";
 
 /**
  * Determines the final severity and description based on all API responses
+ * using the Weighted Multi-Source Consensus System
  */
 export function determineFinalSeverity(
   rxnormResult: any,
@@ -19,89 +22,18 @@ export function determineFinalSeverity(
   sources: InteractionSource[]
 ): {
   severity: Severity,
-  description: string
+  description: string,
+  confidenceScore: number,
+  aiValidated: boolean
 } {
-  // Track interaction statuses across all APIs
-  let hasAnyInteraction = false;
-  let hasExplicitSafety = false;
-  let hasUnknownStatus = false;
-  let mostSevereDescription = "No information found for this combination. Consult a healthcare provider for more details.";
-  let mostSeverity: Severity = "unknown";
-
-  // Analyze results from all APIs to determine overall severity
-  for (const result of [rxnormResult, suppaiResult, fdaResult]) {
-    if (!result) continue;
-    
-    // If any API reports an interaction, we consider there is an interaction
-    if (["minor", "moderate", "severe"].includes(result.severity)) {
-      hasAnyInteraction = true;
-      
-      // Track the most severe interaction and its description
-      const severityOrder = { "severe": 3, "moderate": 2, "minor": 1, "unknown": 0, "safe": -1 };
-      if (severityOrder[result.severity] > severityOrder[mostSeverity]) {
-        mostSeverity = result.severity;
-        mostSevereDescription = result.description;
-      }
-    }
-    
-    // Track if any API explicitly confirms safety
-    if (result.severity === "safe") {
-      hasExplicitSafety = true;
-    }
-    
-    // Track if any API returns unknown status
-    if (result.severity === "unknown") {
-      hasUnknownStatus = true;
-    }
-  }
+  // Use the consensus system to calculate severity and confidence score
+  const consensusResult = calculateConsensusScore(sources, adverseEventsResult);
   
-  // If we have adverse events data, factor it into the severity determination
-  // but don't automatically escalate to severe just based on event count
-  if (adverseEventsResult && adverseEventsResult.eventCount > 0) {
-    hasAnyInteraction = true;
-    
-    // Only escalate to severe if there are verified serious outcomes and multiple reports
-    if (adverseEventsResult.seriousCount > 5) {
-      if (mostSeverity !== "severe") {
-        mostSeverity = "severe";
-        mostSevereDescription = `Real-world data shows ${adverseEventsResult.eventCount} reported adverse events (including ${adverseEventsResult.seriousCount} serious cases) for this combination. Consult a healthcare provider before combining.`;
-      }
-    } 
-    // Moderate if has serious reports but fewer than threshold or many regular reports
-    else if (adverseEventsResult.seriousCount > 0 || adverseEventsResult.eventCount > 10) {
-      if (mostSeverity !== "severe" && mostSeverity !== "moderate") {
-        mostSeverity = "moderate";
-        mostSevereDescription = `Real-world data shows ${adverseEventsResult.eventCount} reported adverse events for this combination. Monitor for side effects and consult a healthcare provider if concerned.`;
-      }
-    } 
-    // Otherwise minor
-    else if (mostSeverity !== "severe" && mostSeverity !== "moderate") {
-      mostSeverity = "minor";
-      mostSevereDescription = `Real-world data shows ${adverseEventsResult.eventCount} reported adverse events for this combination. Generally considered safe but monitor for side effects.`;
-    }
-  }
-
-  // Determine final result based on merged data
-  let finalSeverity: Severity;
-  let finalDescription: string;
-  
-  if (hasAnyInteraction) {
-    // If any API reports an interaction, use the most severe level
-    finalSeverity = mostSeverity;
-    finalDescription = mostSevereDescription;
-  } else if (hasExplicitSafety && !hasAnyInteraction) {
-    // Only mark as safe if at least one API explicitly confirms safety and no API reports interactions
-    finalSeverity = "safe";
-    finalDescription = "Verified safe to take together based on available data. Always consult your healthcare provider.";
-  } else {
-    // Default case - no clear information available
-    finalSeverity = "unknown";
-    finalDescription = "No information found for this combination. Consult a healthcare provider for more details.";
-  }
-
   return {
-    severity: finalSeverity,
-    description: finalDescription
+    severity: consensusResult.severity,
+    description: consensusResult.description,
+    confidenceScore: consensusResult.confidenceScore,
+    aiValidated: consensusResult.aiValidated
   };
 }
 
@@ -112,6 +44,7 @@ export function createDefaultSource(): InteractionSource {
   return {
     name: "No Data Available",
     severity: "unknown",
-    description: "No interaction data available from any source"
+    description: "No interaction data available from any source",
+    confidence: 0
   };
 }
