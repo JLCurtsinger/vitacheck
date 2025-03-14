@@ -7,57 +7,128 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 };
 
-// Mock AI analysis function - in production, this would call GPT-o3-mini
+/**
+ * Extracts the severity level from OpenAI's response text
+ */
+function extractSeverity(responseText: string): "safe" | "minor" | "moderate" | "severe" | "unknown" {
+  const lowerText = responseText.toLowerCase();
+  
+  // Check for explicit severity mentions
+  if (lowerText.includes("severe") || 
+      lowerText.includes("dangerous") || 
+      lowerText.includes("contraindicated") || 
+      lowerText.includes("high risk")) {
+    return "severe";
+  }
+  
+  if (lowerText.includes("moderate") || 
+      lowerText.includes("significant") || 
+      lowerText.includes("caution") || 
+      lowerText.includes("monitor")) {
+    return "moderate";
+  }
+  
+  if (lowerText.includes("minor") || 
+      lowerText.includes("mild") || 
+      lowerText.includes("low risk") || 
+      lowerText.includes("minimal")) {
+    return "minor";
+  }
+  
+  if (lowerText.includes("safe") || 
+      lowerText.includes("no interaction") || 
+      lowerText.includes("no known interaction") || 
+      lowerText.includes("can be taken together")) {
+    return "safe";
+  }
+  
+  return "unknown";
+}
+
+/**
+ * Queries OpenAI's o3-mini model to analyze medication interactions
+ */
 async function analyzeInteraction(med1: string, med2: string): Promise<{
   severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
   description: string;
   evidence: string;
 } | null> {
-  // This is a simplified mock that would be replaced with actual GPT-o3-mini API call
-  console.log(`Analyzing interaction between ${med1} and ${med2}`);
-  
+  console.log(`Querying OpenAI (gpt-4o-mini) for interaction analysis: ${med1} + ${med2}`);
+
   try {
-    // In a real implementation, this would call the LLM API
-    // const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    // ... make API call to GPT-o3-mini ...
-    
-    // For demonstration, we'll return mock data based on medication names
-    const knownInteractions: Record<string, any> = {
-      'ibuprofen+aspirin': {
-        severity: 'moderate',
-        description: 'Combining NSAIDs like ibuprofen and aspirin may increase risk of gastrointestinal bleeding.',
-        evidence: 'Multiple clinical studies have demonstrated increased GI bleeding risk when NSAIDs are combined.'
-      },
-      'warfarin+aspirin': {
-        severity: 'severe',
-        description: 'This combination significantly increases bleeding risk and should be avoided unless medically supervised.',
-        evidence: 'Clinical data shows substantially elevated INR values and bleeding events when these medications are combined.'
-      },
-      'lisinopril+potassium': {
-        severity: 'moderate',
-        description: 'ACE inhibitors like lisinopril can cause potassium retention; additional supplementation may lead to hyperkalemia.',
-        evidence: 'Case reports and physiological mechanism support this interaction.'
-      }
-    };
-    
-    // Create a key by combining medication names (both orders)
-    const key1 = `${med1.toLowerCase()}+${med2.toLowerCase()}`;
-    const key2 = `${med2.toLowerCase()}+${med1.toLowerCase()}`;
-    
-    if (knownInteractions[key1]) {
-      return knownInteractions[key1];
-    } else if (knownInteractions[key2]) {
-      return knownInteractions[key2];
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) {
+      console.error("Missing OpenAI API Key in environment variables");
+      return null;
     }
+
+    const systemPrompt = `You are an AI assistant specializing in pharmaceutical interactions. 
+    Analyze the two medications provided and determine their interaction severity based on medical literature.
+    Be thorough and clinical in your assessment.`;
+
+    const userPrompt = `Analyze the potential interaction between ${med1} and ${med2} based on medical literature.
+    Consider mechanism of action, pharmacokinetics, and clinical evidence.
     
-    // Default response if no specific interaction is known
+    In your response:
+    1. Clearly state the severity level as one of: safe, minor, moderate, severe, or unknown
+    2. Provide a concise explanation of the interaction mechanism
+    3. Mention any specific risk factors or patient populations of concern
+    4. Cite evidence from medical literature where possible
+    
+    Format your response to be clear, clinical, and actionable.`;
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${openaiApiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",  // Using the correct model name format
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        temperature: 0.3 // Lower temperature for more consistent, factual responses
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`OpenAI API error (${response.status}): ${errorText}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const aiResponse = data.choices?.[0]?.message?.content;
+    
+    if (!aiResponse) {
+      console.error("No valid content in OpenAI response");
+      return null;
+    }
+
+    console.log("AI response received:", aiResponse.substring(0, 100) + "...");
+    
+    // Extract the severity level from the AI response
+    const severity = extractSeverity(aiResponse);
+    
+    // Find evidence section if available
+    let evidence = "Based on AI analysis of medical literature";
+    if (aiResponse.toLowerCase().includes("evidence:")) {
+      const evidenceParts = aiResponse.split(/evidence:?/i);
+      if (evidenceParts.length > 1) {
+        evidence = evidenceParts[1].split('\n')[0].trim();
+      }
+    }
+
     return {
-      severity: 'unknown',
-      description: 'Limited literature data available for this combination.',
-      evidence: 'AI analysis found insufficient clinical evidence to determine interaction severity.'
+      severity,
+      description: aiResponse,
+      evidence
     };
+
   } catch (error) {
-    console.error('Error in mock LLM analysis:', error);
+    console.error("Error in OpenAI API call:", error);
     return null;
   }
 }
