@@ -84,7 +84,7 @@ async function analyzeInteraction(med1: string, med2: string): Promise<{
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "o3-mini",  // Using the correct model name format
+        model: "gpt-4o-mini",  // Using the correct model name format
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }

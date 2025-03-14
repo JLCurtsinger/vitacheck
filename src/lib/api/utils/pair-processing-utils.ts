@@ -74,17 +74,20 @@ export async function processMedicationPair(
     checkSuppAiInteractions(med1, med2),
     checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || []),
     // Add the OpenFDA Adverse Events check
-    getAdverseEvents(med1, med2)
+    getAdverseEvents(med1, med2),
+    // ALWAYS query AI Literature Analysis for verification regardless of other API results
+    queryAiLiteratureAnalysis(med1, med2)
   ]);
 
-  // Destructure results for clarity
-  const [rxnormResult, suppaiResult, fdaResult, adverseEventsResult] = results;
+  // Destructure results for clarity, now including AI Literature Analysis
+  const [rxnormResult, suppaiResult, fdaResult, adverseEventsResult, aiAnalysisResult] = results;
   
   console.log('API Results:', {
     rxnorm: rxnormResult ? `Found: ${rxnormResult.severity}` : 'No data',
     suppai: suppaiResult ? `Found: ${suppaiResult.severity}` : 'No data',
     fda: fdaResult ? `Found: ${fdaResult.severity}` : 'No data',
-    adverseEvents: adverseEventsResult ? `Found ${adverseEventsResult.eventCount} events` : 'No data'
+    adverseEvents: adverseEventsResult ? `Found ${adverseEventsResult.eventCount} events` : 'No data',
+    aiAnalysis: aiAnalysisResult ? `Found: ${aiAnalysisResult.severity}` : 'No data'
   });
 
   // Merge all sources from different APIs and add confidence values
@@ -125,26 +128,15 @@ export async function processMedicationPair(
     });
   }
 
-  // If we have limited or conflicting data, use AI literature analysis
+  // Always add AI Literature Analysis result if available (now in every case)
   let aiValidated = false;
-  if (
-    (sources.length < 2) || // Limited data
-    (sources.some(s => s.severity === "severe") && sources.some(s => s.severity === "safe")) // Conflicting data
-  ) {
-    try {
-      const aiResult = await queryAiLiteratureAnalysis(med1, med2);
-      if (aiResult) {
-        sources.push({
-          ...aiResult,
-          confidence: 50 // Medium confidence for AI analysis
-        });
-        aiValidated = true;
-        console.log('Added AI literature analysis:', aiResult);
-      }
-    } catch (error) {
-      console.error('Error in AI literature analysis:', error);
-      // Continue without AI analysis if it fails
-    }
+  if (aiAnalysisResult) {
+    sources.push({
+      ...aiAnalysisResult,
+      confidence: 50 // Medium confidence for AI analysis
+    });
+    aiValidated = true;
+    console.log('Added AI literature analysis:', aiAnalysisResult);
   }
 
   // Determine final severity and description based on all results
