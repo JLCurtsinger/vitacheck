@@ -13,6 +13,7 @@ export interface MedicationLookupResult {
   name: string;
   source: string;
   status: "found" | "not_found" | "pending";
+  found?: boolean; // Added for backward compatibility
   warnings?: string[];
 }
 
@@ -46,6 +47,7 @@ export interface InteractionResult {
   medications: string[];
   severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
   description: string;
+  evidence?: string; // Added for backward compatibility
   sources: InteractionSource[];
   adverseEvents?: AdverseEventData;
 }

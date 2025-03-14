@@ -1,3 +1,4 @@
+
 import { MedicationLookupResult } from '../types';
 import { lookupMedication } from '../services/medication-lookup';
 
@@ -26,7 +27,7 @@ export function validateMedicationPair(
     };
   }
   
-  if (!med1Status.found || !med2Status.found) {
+  if (med1Status.status !== 'found' || med2Status.status !== 'found') {
     return { 
       isValid: false, 
       error: 'One or more medications not found in available databases' 

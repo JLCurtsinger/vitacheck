@@ -8,14 +8,18 @@ export async function lookupMedication(medication: string): Promise<MedicationLo
   console.log(`🔍 [Medication Lookup] Starting lookup for: ${medication}`);
   
   // Create a result object to collect data from all sources
-  const result: MedicationLookupResult = { found: false };
+  const result: MedicationLookupResult = { 
+    name: medication,
+    source: '',
+    status: 'not_found'
+  };
   
   // Check RxNorm
   try {
     console.log(`⚙️ [Medication Lookup] Checking RxNorm for: ${medication}`);
     const rxCUI = await getRxCUI(medication);
     if (rxCUI) {
-      result.found = true;
+      result.status = 'found';
       result.source = 'RxNorm';
       result.id = rxCUI;
       console.log(`✅ [Medication Lookup] Found in RxNorm: ${medication} (${rxCUI})`);
@@ -31,7 +35,7 @@ export async function lookupMedication(medication: string): Promise<MedicationLo
     console.log(`⚙️ [Medication Lookup] Checking SUPP.AI for: ${medication}`);
     const suppAiResult = await getSupplementInteractions(medication);
     if (suppAiResult && suppAiResult.length > 0) {
-      result.found = true;
+      result.status = 'found';
       // Only override source if RxNorm didn't find anything
       if (!result.source) {
         result.source = 'SUPP.AI';
@@ -49,7 +53,7 @@ export async function lookupMedication(medication: string): Promise<MedicationLo
     console.log(`⚙️ [Medication Lookup] Checking FDA for: ${medication}`);
     const fdaResult = await getFDAWarnings(medication);
     if (fdaResult && fdaResult.results && fdaResult.results.length > 0) {
-      result.found = true;
+      result.status = 'found';
       // Only override source if no previous source was set
       if (!result.source) {
         result.source = 'FDA';
@@ -63,6 +67,9 @@ export async function lookupMedication(medication: string): Promise<MedicationLo
   } catch (error) {
     console.error('❌ [Medication Lookup] FDA lookup failed:', error);
   }
+
+  // Set found property for backward compatibility
+  result.found = result.status === 'found';
 
   console.log(`✅ [Medication Lookup] Final result for ${medication}:`, result);
   return result;
