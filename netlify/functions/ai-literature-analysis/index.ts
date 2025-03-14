@@ -46,14 +46,14 @@ function extractSeverity(responseText: string): "safe" | "minor" | "moderate" | 
 }
 
 /**
- * Queries OpenAI's o3-mini model to analyze medication interactions
+ * Queries OpenAI's gpt-4o-mini model to analyze medication interactions
  */
 async function analyzeInteraction(med1: string, med2: string): Promise<{
   severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
   description: string;
   evidence: string;
 } | null> {
-  console.log(`Querying OpenAI (o3-mini) for interaction analysis: ${med1} + ${med2}`);
+  console.log(`Querying OpenAI (gpt-4o-mini) for interaction analysis: ${med1} + ${med2}`);
 
   try {
     const openaiApiKey = process.env.OPENAI_API_KEY;
@@ -84,7 +84,7 @@ async function analyzeInteraction(med1: string, med2: string): Promise<{
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "o3-mini",  // Using the correct model name format
+        model: "gpt-4o-mini",  // Using the correct model name format
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
