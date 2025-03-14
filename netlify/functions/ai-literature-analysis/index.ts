@@ -53,7 +53,7 @@ async function analyzeInteraction(med1: string, med2: string): Promise<{
   description: string;
   evidence: string;
 } | null> {
-  console.log(`Querying OpenAI (gpt-4o-mini) for interaction analysis: ${med1} + ${med2}`);
+  console.log(`Querying OpenAI (o3-mini) for interaction analysis: ${med1} + ${med2}`);
 
   try {
     const openaiApiKey = process.env.OPENAI_API_KEY;
