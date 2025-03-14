@@ -75,23 +75,28 @@ export function SeverityIndicator({ severity, confidenceScore, aiValidated }: Se
           </span>
           
           {confidenceScore !== undefined && (
-            <div className="ml-2 flex items-center">
-              <div className="h-1.5 w-12 bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className={cn(
-                    "h-full rounded-full", 
-                    confidenceScore >= 75 ? "bg-green-500" : 
-                    confidenceScore >= 50 ? "bg-yellow-500" : 
-                    confidenceScore >= 25 ? "bg-orange-500" : 
-                    "bg-red-500"
-                  )}
-                  style={{ width: `${confidenceScore}%` }}
-                />
+            <div className="ml-2 flex flex-col">
+              <div className="text-xs text-gray-600 font-medium mb-0.5">Confidence Rating:</div>
+              <div className="flex items-center">
+                <div className="h-1.5 w-16 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className={cn(
+                      "h-full rounded-full", 
+                      confidenceScore >= 75 ? "bg-green-500" : 
+                      confidenceScore >= 50 ? "bg-yellow-500" : 
+                      confidenceScore >= 25 ? "bg-orange-500" : 
+                      "bg-red-500"
+                    )}
+                    style={{ width: `${confidenceScore}%` }}
+                  />
+                </div>
+                <span className="ml-1 text-xs font-medium">
+                  {confidenceScore}%
+                </span>
+                {aiValidated && (
+                  <span className="ml-1 text-xs text-blue-500 font-medium">AI</span>
+                )}
               </div>
-              
-              {aiValidated && (
-                <span className="ml-1 text-xs text-blue-500 font-medium">AI</span>
-              )}
             </div>
           )}
         </TooltipTrigger>
