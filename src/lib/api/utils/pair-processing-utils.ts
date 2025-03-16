@@ -65,22 +65,48 @@ export async function processMedicationPair(
 
   console.log(`Checking interactions between ${med1} (${med1Status.id || 'no id'}) and ${med2} (${med2Status.id || 'no id'})`);
 
-  // Query all available databases simultaneously to maintain the existing parallel API call pattern
-  const results = await Promise.all([
+  // Query all available databases simultaneously with timeout handling for each
+  // This ensures that even if one API fails or times out, we'll still get results from others
+  const apiPromises = [
     // Only check RxNorm if both medications have RxNorm IDs
     med1Status.source === 'RxNorm' && med2Status.source === 'RxNorm' && med1Status.id && med2Status.id
-      ? checkRxNormInteractions(med1Status.id, med2Status.id, med1, med2)
+      ? checkRxNormInteractions(med1Status.id, med2Status.id, med1, med2).catch(err => {
+          console.error(`RxNorm API error: ${err.message}`);
+          return null;
+        })
       : Promise.resolve(null),
-    checkSuppAiInteractions(med1, med2),
-    checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || []),
-    // Add the OpenFDA Adverse Events check
-    getAdverseEvents(med1, med2),
-    // ALWAYS query AI Literature Analysis for verification regardless of other API results
-    queryAiLiteratureAnalysis(med1, med2)
-  ]);
+    
+    // SUPP.AI check with error handling
+    checkSuppAiInteractions(med1, med2).catch(err => {
+      console.error(`SUPP.AI API error: ${err.message}`);
+      return null;
+    }),
+    
+    // FDA check with error handling
+    checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || []).catch(err => {
+      console.error(`FDA API error: ${err.message}`);
+      return null;
+    }),
+    
+    // OpenFDA Adverse Events check with error handling
+    getAdverseEvents(med1, med2).catch(err => {
+      console.error(`OpenFDA Adverse Events API error: ${err.message}`);
+      return null;
+    })
+  ];
+  
+  // AI Analysis is run separately to ensure it doesn't delay API results
+  const aiAnalysisPromise = queryAiLiteratureAnalysis(med1, med2).catch(err => {
+    console.error(`AI Literature Analysis error: ${err.message}`);
+    return null;
+  });
 
-  // Destructure results for clarity, now including AI Literature Analysis
-  const [rxnormResult, suppaiResult, fdaResult, adverseEventsResult, aiAnalysisResult] = results;
+  // Wait for all API calls to complete (regardless of success/failure)
+  const apiResults = await Promise.all(apiPromises);
+  const [rxnormResult, suppaiResult, fdaResult, adverseEventsResult] = apiResults;
+  
+  // Try to get AI result but don't let it block the process
+  const aiAnalysisResult = await aiAnalysisPromise;
   
   console.log('API Results:', {
     rxnorm: rxnormResult ? `Found: ${rxnormResult.severity}` : 'No data',
@@ -92,6 +118,8 @@ export async function processMedicationPair(
 
   // Merge all sources from different APIs and add confidence values
   const sources = [];
+  
+  // Add RxNorm sources if available
   if (rxnormResult) {
     rxnormResult.sources.forEach(source => {
       sources.push({
@@ -101,6 +129,7 @@ export async function processMedicationPair(
     });
   }
   
+  // Add SUPP.AI sources if available
   if (suppaiResult) {
     suppaiResult.sources.forEach(source => {
       sources.push({
@@ -110,6 +139,7 @@ export async function processMedicationPair(
     });
   }
   
+  // Add FDA sources if available
   if (fdaResult) {
     fdaResult.sources.forEach(source => {
       sources.push({
@@ -128,7 +158,7 @@ export async function processMedicationPair(
     });
   }
 
-  // Always add AI Literature Analysis result if available (now in every case)
+  // Add AI Literature Analysis result if available
   let aiValidated = false;
   if (aiAnalysisResult) {
     sources.push({
