@@ -1,12 +1,6 @@
-
-/**
- * Severity extraction and processing utilities
- */
-
-/**
- * Extracts the severity level from OpenAI's response text
- * Improved to prioritize explicit severity statements and avoid false positives
- */
+// Severity extraction and processing utilities
+// Extracts the severity level from OpenAI's response text
+// Improved to prioritize explicit severity statements and avoid false positives
 export function extractSeverity(responseText: string): "safe" | "minor" | "moderate" | "severe" | "unknown" {
   if (!responseText) return "unknown";
   
