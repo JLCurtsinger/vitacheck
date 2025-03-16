@@ -83,10 +83,7 @@ export async function processMedicationPair(
     }),
     
     // FDA check with error handling
-    checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || []).catch(err => {
-      console.error(`FDA API error: ${err.message}`);
-      return null;
-    }),
+    checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || []),
     
     // OpenFDA Adverse Events check with error handling
     getAdverseEvents(med1, med2).catch(err => {
@@ -96,6 +93,7 @@ export async function processMedicationPair(
   ];
   
   // AI Analysis is run separately to ensure it doesn't delay API results
+  // Fixed: Removed incorrect .catch() from non-Promise object
   const aiAnalysisPromise = queryAiLiteratureAnalysis(med1, med2).catch(err => {
     console.error(`AI Literature Analysis error: ${err.message}`);
     return null;
