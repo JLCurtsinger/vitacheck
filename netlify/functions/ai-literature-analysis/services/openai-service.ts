@@ -1,13 +1,8 @@
-
-/**
- * OpenAI interaction service
- */
+// OpenAI interaction service
 
 import { extractSeverity, extractEvidence, selectModelForQuery } from "../utils/severity-utils";
 
-/**
- * Queries OpenAI to analyze medication interactions with improved reliability and timeout handling
- */
+// Queries OpenAI to analyze medication interactions with improved reliability and timeout handling
 export async function analyzeInteraction(med1: string, med2: string): Promise<{
   severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
   description: string;
@@ -62,7 +57,8 @@ export async function analyzeInteraction(med1: string, med2: string): Promise<{
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt }
           ],
-          max_tokens: 300, // Reduced from 500 to 300 to speed up responses
+          max_tokens: 350, // Reduced from 500 to 350 to speed up responses
+          stream: true, // allows response to begin processing immediately as soon as OpenAI starts x
           temperature: 0.1 // Lower temperature for more consistent, fact-based responses
         }),
         signal: controller.signal // Enable timeout
