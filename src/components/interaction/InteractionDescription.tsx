@@ -10,6 +10,7 @@ import { ModerateRisks } from "./sections/ModerateRisks";
 import { GeneralInfo } from "./sections/GeneralInfo";
 import { AdverseEvents } from "./sections/AdverseEvents";
 import { SafeCombination } from "./sections/SafeCombination";
+import { SeverityBreakdown } from "./sections/SeverityBreakdown";
 
 interface InteractionDescriptionProps {
   interaction: InteractionResult;
@@ -111,6 +112,12 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
           </div>
         )}
       </div>
+      
+      {/* Severity Breakdown Table - NEW COMPONENT */}
+      <SeverityBreakdown 
+        sources={interaction.sources} 
+        confidenceScore={interaction.confidenceScore}
+      />
       
       {hasAdverseEvents && (
         <AdverseEvents adverseEvents={interaction.adverseEvents} />
