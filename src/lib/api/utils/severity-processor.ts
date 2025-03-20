@@ -26,8 +26,20 @@ export function determineFinalSeverity(
   confidenceScore: number,
   aiValidated: boolean
 } {
+  // Log input to help debug severity determination
+  console.log('Determining final severity based on:', {
+    rxnorm: rxnormResult ? `Found: ${rxnormResult.severity}` : 'No data',
+    suppai: suppaiResult ? `Found: ${suppaiResult.severity}` : 'No data',
+    fda: fdaResult ? `Found: ${fdaResult.severity}` : 'No data',
+    adverseEvents: adverseEventsResult ? `Found ${adverseEventsResult.eventCount} events` : 'No data',
+    sourceCount: sources.length
+  });
+  
   // Use the consensus system to calculate severity and confidence score
   const consensusResult = calculateConsensusScore(sources, adverseEventsResult);
+  
+  // Log output to help debug severity determination
+  console.log('Consensus result:', consensusResult);
   
   return {
     severity: consensusResult.severity,
