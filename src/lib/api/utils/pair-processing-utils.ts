@@ -1,3 +1,4 @@
+
 /**
  * Medication Pair Processing Utilities
  * 
@@ -66,8 +67,8 @@ export async function processMedicationPair(
         confidence: highRiskCheck.confidence || 90
       }],
       confidenceScore: highRiskCheck.confidence || 90,
-      aiValidated: false,
-      searchId: searchId // Add search ID for troubleshooting
+      aiValidated: false
+      // Removed searchId property as it's not part of the InteractionResult type
     };
   }
 
@@ -207,7 +208,7 @@ export async function processMedicationPair(
     sources,
     adverseEvents: adverseEventsResult || undefined,
     confidenceScore,
-    aiValidated,
-    searchId: searchId // Add search ID for troubleshooting
+    aiValidated
+    // Removed searchId property as it's not part of the InteractionResult type
   };
 }
