@@ -10,17 +10,22 @@ export default function Results() {
   const location = useLocation();
   const medications = location.state?.medications || [];
   
-  // Add key to force complete re-render when medications change
-  const medicationsKey = medications.join('-');
+  // Create a unique key based on the medications to force re-renders
+  const searchKey = `${medications.join('-')}-${Date.now()}`;
   
   const { loading, interactions, hasAnyInteraction, requestId } = useInteractions(medications);
 
-  // Log when component renders with new data
+  // Enhanced logging for debugging confidence score issues
   useEffect(() => {
     console.log(`Results component rendering with request ID: ${requestId}`);
     console.log('Current medications:', medications);
     console.log('Has interactions:', hasAnyInteraction);
-  }, [medications, hasAnyInteraction, requestId]);
+    console.log('Interactions detail:', interactions.map(int => ({
+      meds: int.medications.join('+'),
+      severity: int.severity,
+      confidenceScore: int.confidenceScore
+    })));
+  }, [medications, hasAnyInteraction, requestId, interactions]);
 
   if (loading) {
     return <LoadingIndicator />;
@@ -31,7 +36,7 @@ export default function Results() {
       <ResultsHeader medications={medications} />
       
       <InteractionsList 
-        key={medicationsKey} // Add key to force fresh render
+        key={searchKey} // Add unique key with timestamp to force complete re-render
         interactions={interactions} 
         hasAnyInteraction={hasAnyInteraction} 
       />

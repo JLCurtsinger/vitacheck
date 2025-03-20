@@ -10,11 +10,15 @@ interface InteractionsListProps {
 }
 
 export function InteractionsList({ interactions, hasAnyInteraction }: InteractionsListProps) {
-  // Log component render state
+  // Enhanced logging for debugging confidence scores
   useEffect(() => {
     console.log('InteractionsList rendering with:', {
       interactionsCount: interactions.length,
-      hasAnyInteraction
+      hasAnyInteraction,
+      confidenceScores: interactions.map(int => ({
+        meds: int.medications.join('+'),
+        confidenceScore: int.confidenceScore
+      }))
     });
   }, [interactions, hasAnyInteraction]);
   
@@ -39,8 +43,8 @@ export function InteractionsList({ interactions, hasAnyInteraction }: Interactio
   return (
     <div className="space-y-8 mb-12">
       {interactions.map((interaction, index) => {
-        // Create a unique key for each interaction to ensure proper re-renders
-        const interactionKey = `${interaction.medications.join('-')}-${interaction.severity}-${index}`;
+        // Create a more robust unique key for each interaction
+        const interactionKey = `${interaction.medications.join('-')}-${interaction.severity}-${interaction.confidenceScore}-${index}`;
         
         return (
           <InteractionResult 

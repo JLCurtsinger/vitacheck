@@ -13,11 +13,16 @@ export function useInteractions(medications: string[]) {
   const [requestId, setRequestId] = useState<string>(`req-${Date.now()}`);
 
   useEffect(() => {
+    // Generate a truly unique request ID for each new search
+    const newRequestId = `req-${Date.now()}-${medications.join('-')}`;
+    
     // Reset state for each new medication list
     setLoading(true);
     setInteractions([]);
     setHasAnyInteraction(false);
-    setRequestId(`req-${Date.now()}-${medications.join('-')}`);
+    setRequestId(newRequestId);
+    
+    console.log(`[${newRequestId}] Starting new interaction search for medications:`, medications);
     
     if (!medications.length) {
       navigate("/check");
@@ -26,11 +31,17 @@ export function useInteractions(medications: string[]) {
 
     const fetchInteractions = async () => {
       try {
-        console.log(`[${requestId}] Fetching interactions for medications:`, medications);
+        console.log(`[${newRequestId}] Fetching interactions for medications:`, medications);
         const results = await checkInteractions(medications);
         
-        // Verify we're not updating with stale data from a previous request
-        console.log(`[${requestId}] Received interaction results:`, results.length);
+        // Log the results to help debug confidence score issues
+        console.log(`[${newRequestId}] Received interaction results:`, 
+          results.map(r => ({
+            meds: r.medications.join('+'), 
+            severity: r.severity, 
+            confidenceScore: r.confidenceScore
+          }))
+        );
         
         // Sort interactions by severity (severe -> moderate -> minor -> unknown -> safe)
         const severityOrder = {
@@ -52,12 +63,13 @@ export function useInteractions(medications: string[]) {
           result.severity === "moderate" || result.severity === "severe" || result.severity === "minor"
         ));
         
-        console.log(`[${requestId}] Interaction processing complete:`, {
+        console.log(`[${newRequestId}] Interaction processing complete:`, {
           count: results.length,
-          hasInteractions: results.some(r => r.severity !== "safe" && r.severity !== "unknown")
+          hasInteractions: results.some(r => r.severity !== "safe" && r.severity !== "unknown"),
+          confidenceScores: results.map(r => r.confidenceScore)
         });
       } catch (error) {
-        console.error(`[${requestId}] Error checking interactions:`, error);
+        console.error(`[${newRequestId}] Error checking interactions:`, error);
         toast({
           variant: "destructive",
           title: "Error",
@@ -69,7 +81,7 @@ export function useInteractions(medications: string[]) {
     };
 
     fetchInteractions();
-  }, [medications, navigate, toast]); // Added requestId as a dependency to ensure useEffect runs for each new medication list
+  }, [medications, navigate, toast]); // Removed requestId dependency to prevent infinite loops
 
   return {
     loading,
