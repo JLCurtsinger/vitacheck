@@ -1,3 +1,4 @@
+
 // OpenAI interaction service
 
 import { extractSeverity, extractEvidence, selectModelForQuery } from "../utils/severity-utils";
@@ -58,7 +59,6 @@ export async function analyzeInteraction(med1: string, med2: string): Promise<{
             { role: "user", content: userPrompt }
           ],
           max_tokens: 350, // Reduced from 500 to 350 to speed up responses
-          stream: true, // allows response to begin processing immediately as soon as OpenAI starts x
           temperature: 0.1 // Lower temperature for more consistent, fact-based responses
         }),
         signal: controller.signal // Enable timeout
@@ -67,18 +67,46 @@ export async function analyzeInteraction(med1: string, med2: string): Promise<{
       // Clear timeout since we got a response
       clearTimeout(timeoutId);
 
+      // First check if the response is OK
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`OpenAI API error (${response.status}): ${errorText}`);
         return {
           severity: "unknown",
           description: "Error occurred while analyzing interaction",
-          evidence: "AI analysis failed"
+          evidence: `AI analysis failed: ${response.status} error`
         };
       }
 
-      const data = await response.json();
-      const aiResponse = data.choices?.[0]?.message?.content;
+      // Get the raw response text first
+      const rawResponse = await response.text();
+      console.log("Raw OpenAI response (first 300 chars):", rawResponse.substring(0, 300) + "...");
+      
+      // Try to parse the response as JSON
+      let data;
+      try {
+        data = JSON.parse(rawResponse);
+      } catch (error) {
+        console.error("Failed to parse AI response as JSON:", error.message);
+        console.error("Raw response that failed parsing:", rawResponse);
+        return {
+          severity: "unknown",
+          description: "The AI response could not be processed correctly.",
+          evidence: "Invalid JSON response from OpenAI"
+        };
+      }
+      
+      // Validate the response structure
+      if (!data || !data.choices || !data.choices[0] || !data.choices[0].message) {
+        console.error("Unexpected AI response format:", data);
+        return {
+          severity: "unknown",
+          description: "Unexpected AI response format. Please rely on other data sources.",
+          evidence: "AI response was not in expected format"
+        };
+      }
+      
+      const aiResponse = data.choices[0].message.content;
       
       if (!aiResponse) {
         console.error("No valid content in OpenAI response");
