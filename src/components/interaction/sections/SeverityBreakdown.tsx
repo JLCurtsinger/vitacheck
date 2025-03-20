@@ -18,35 +18,29 @@ export function SeverityBreakdown({ sources, confidenceScore }: SeverityBreakdow
   // If no valid sources, don't render anything
   if (validSources.length === 0) return null;
 
-  // Calculate statistics for each source based on actual confidence values
+  // Calculate statistics for each source
   const sourceStats = validSources.map(source => {
-    // Calculate total cases based on confidence value (higher confidence = more data)
-    // Scale is exponential to better represent real-world data distributions
-    const confidenceValue = source.confidence || 50;
-    const totalCases = Math.round(Math.pow(10, confidenceValue / 20)); // Exponential scale based on confidence
-    
+    // These are placeholder values since we don't have actual case numbers
+    // In a real implementation, these would come from the API
+    const totalCases = source.confidence ? Math.round(source.confidence * 100) : 0;
     let severeCases = 0;
     let moderateCases = 0;
     let minorCases = 0;
     
     // Estimate case distribution based on severity
     if (source.severity === "severe") {
-      severeCases = Math.round(totalCases * 0.03); // 3% are severe
-      moderateCases = Math.round(totalCases * 0.27); // 27% are moderate
-      minorCases = totalCases - severeCases - moderateCases; // The rest are minor
+      severeCases = Math.round(totalCases * 0.6);
+      moderateCases = Math.round(totalCases * 0.3);
+      minorCases = totalCases - severeCases - moderateCases;
     } else if (source.severity === "moderate") {
-      severeCases = Math.round(totalCases * 0.007); // 0.7% are severe
-      moderateCases = Math.round(totalCases * 0.15); // 15% are moderate
+      severeCases = Math.round(totalCases * 0.05);
+      moderateCases = Math.round(totalCases * 0.65);
       minorCases = totalCases - severeCases - moderateCases;
     } else if (source.severity === "minor") {
-      severeCases = Math.round(totalCases * 0.001); // 0.1% are severe
-      moderateCases = Math.round(totalCases * 0.05); // 5% are moderate
+      severeCases = Math.round(totalCases * 0.01);
+      moderateCases = Math.round(totalCases * 0.19);
       minorCases = totalCases - severeCases - moderateCases;
     } else if (source.severity === "safe") {
-      severeCases = 0;
-      moderateCases = Math.round(totalCases * 0.005); // 0.5% are moderate (false positives)
-      minorCases = totalCases - moderateCases;
-    } else { // unknown
       severeCases = 0;
       moderateCases = 0;
       minorCases = totalCases;
@@ -61,18 +55,9 @@ export function SeverityBreakdown({ sources, confidenceScore }: SeverityBreakdow
       severeCases,
       moderateCases,
       minorCases,
-      severePercent,
-      // Add a random factor to ensure numbers differ between searches
-      randomFactor: 0.9 + (Math.random() * 0.2) // 0.9-1.1 random factor
+      severePercent
     };
-  }).map(stat => ({
-    ...stat,
-    // Apply the random factor to case numbers to ensure variation between searches
-    totalCases: Math.round(stat.totalCases * stat.randomFactor),
-    severeCases: Math.round(stat.severeCases * stat.randomFactor),
-    moderateCases: Math.round(stat.moderateCases * stat.randomFactor),
-    minorCases: Math.round(stat.minorCases * stat.randomFactor),
-  }));
+  });
   
   // Calculate combined statistics
   const combinedStats = {
@@ -80,12 +65,9 @@ export function SeverityBreakdown({ sources, confidenceScore }: SeverityBreakdow
     totalCases: sourceStats.reduce((sum, stat) => sum + stat.totalCases, 0),
     severeCases: sourceStats.reduce((sum, stat) => sum + stat.severeCases, 0),
     moderateCases: sourceStats.reduce((sum, stat) => sum + stat.moderateCases, 0),
-    minorCases: 0, // Will calculate after subtracting severe and moderate
+    minorCases: sourceStats.reduce((sum, stat) => sum + stat.minorCases, 0),
     severePercent: 0
   };
-  
-  // Calculate minor cases as remainder
-  combinedStats.minorCases = combinedStats.totalCases - combinedStats.severeCases - combinedStats.moderateCases;
   
   // Calculate combined severe percentage
   if (combinedStats.totalCases > 0) {

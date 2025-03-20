@@ -45,34 +45,25 @@ export async function processMedicationPair(
   const med1Status = medicationStatuses.get(med1)!;
   const med2Status = medicationStatuses.get(med2)!;
   
-  // Generate a unique search ID for logging/debugging
-  const searchId = `${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-  console.log(`[${searchId}] Starting interaction check: ${med1} + ${med2}`);
-  
   // First check for known high-risk combinations
   const highRiskCheck = checkHighRiskCombination(med1, med2);
-  
-  // Only use high-risk check as the sole result if forceOverride is true
-  // Otherwise, we'll still check APIs and possibly incorporate this as one source
-  if (highRiskCheck.isHighRisk && highRiskCheck.forceOverride) {
-    console.log(`[${searchId}] HIGH RISK OVERRIDE: ${med1} + ${med2} is a known high-risk combination`);
+  if (highRiskCheck.isHighRisk) {
     return {
       medications: [med1, med2],
-      severity: highRiskCheck.severity as "severe" | "moderate" | "minor" | "safe" | "unknown",
+      severity: "severe" as const,
       description: highRiskCheck.description || "High risk combination detected",
       sources: [{
         name: "VitaCheck Safety Database",
-        severity: highRiskCheck.severity as "severe" | "moderate" | "minor" | "safe" | "unknown",
-        description: highRiskCheck.description || "",
-        confidence: highRiskCheck.confidence || 90
+        severity: "severe" as const,
+        description: highRiskCheck.description,
+        confidence: 95 // High confidence for known high-risk combinations
       }],
-      confidenceScore: highRiskCheck.confidence || 90,
+      confidenceScore: 95,
       aiValidated: false
-      // Removed searchId property as it's not part of the InteractionResult type
     };
   }
 
-  console.log(`[${searchId}] Checking interactions between ${med1} (${med1Status.id || 'no id'}) and ${med2} (${med2Status.id || 'no id'})`);
+  console.log(`Checking interactions between ${med1} (${med1Status.id || 'no id'}) and ${med2} (${med2Status.id || 'no id'})`);
 
   // Query all available databases simultaneously with timeout handling for each
   // This ensures that even if one API fails or times out, we'll still get results from others
@@ -80,14 +71,14 @@ export async function processMedicationPair(
     // Only check RxNorm if both medications have RxNorm IDs
     med1Status.source === 'RxNorm' && med2Status.source === 'RxNorm' && med1Status.id && med2Status.id
       ? checkRxNormInteractions(med1Status.id, med2Status.id, med1, med2).catch(err => {
-          console.error(`[${searchId}] RxNorm API error: ${err.message}`);
+          console.error(`RxNorm API error: ${err.message}`);
           return null;
         })
       : Promise.resolve(null),
     
     // SUPP.AI check with error handling
     checkSuppAiInteractions(med1, med2).catch(err => {
-      console.error(`[${searchId}] SUPP.AI API error: ${err.message}`);
+      console.error(`SUPP.AI API error: ${err.message}`);
       return null;
     }),
     
@@ -96,14 +87,15 @@ export async function processMedicationPair(
     
     // OpenFDA Adverse Events check with error handling
     getAdverseEvents(med1, med2).catch(err => {
-      console.error(`[${searchId}] OpenFDA Adverse Events API error: ${err.message}`);
+      console.error(`OpenFDA Adverse Events API error: ${err.message}`);
       return null;
     })
   ];
   
   // AI Analysis is run separately to ensure it doesn't delay API results
+  // Fixed: Removed incorrect .catch() from non-Promise object
   const aiAnalysisPromise = queryAiLiteratureAnalysis(med1, med2).catch(err => {
-    console.error(`[${searchId}] AI Literature Analysis error: ${err.message}`);
+    console.error(`AI Literature Analysis error: ${err.message}`);
     return null;
   });
 
@@ -114,7 +106,7 @@ export async function processMedicationPair(
   // Try to get AI result but don't let it block the process
   const aiAnalysisResult = await aiAnalysisPromise;
   
-  console.log(`[${searchId}] API Results:`, {
+  console.log('API Results:', {
     rxnorm: rxnormResult ? `Found: ${rxnormResult.severity}` : 'No data',
     suppai: suppaiResult ? `Found: ${suppaiResult.severity}` : 'No data',
     fda: fdaResult ? `Found: ${fdaResult.severity}` : 'No data',
@@ -124,16 +116,6 @@ export async function processMedicationPair(
 
   // Merge all sources from different APIs and add confidence values
   const sources = [];
-  
-  // Add high-risk check as a source if it was found but not forced to override
-  if (highRiskCheck.isHighRisk && !highRiskCheck.forceOverride) {
-    sources.push({
-      name: "VitaCheck Safety Database",
-      severity: highRiskCheck.severity as "severe" | "moderate" | "minor" | "safe" | "unknown",
-      description: highRiskCheck.description || "High risk combination detected",
-      confidence: highRiskCheck.confidence || 90
-    });
-  }
   
   // Add RxNorm sources if available
   if (rxnormResult) {
@@ -150,7 +132,7 @@ export async function processMedicationPair(
     suppaiResult.sources.forEach(source => {
       sources.push({
         ...source,
-        confidence: 65 // Medium confidence for SUPP.AI (slightly increased)
+        confidence: 60 // Medium confidence for SUPP.AI
       });
     });
   }
@@ -170,7 +152,7 @@ export async function processMedicationPair(
   if (adverseEventSource) {
     sources.push({
       ...adverseEventSource,
-      confidence: 70 // Medium-high confidence for adverse event data (slightly reduced)
+      confidence: 75 // Medium-high confidence for adverse event data
     });
   }
 
@@ -179,10 +161,10 @@ export async function processMedicationPair(
   if (aiAnalysisResult) {
     sources.push({
       ...aiAnalysisResult,
-      confidence: 55 // Medium confidence for AI analysis (slightly increased)
+      confidence: 50 // Medium confidence for AI analysis
     });
     aiValidated = true;
-    console.log(`[${searchId}] Added AI literature analysis:`, aiAnalysisResult);
+    console.log('Added AI literature analysis:', aiAnalysisResult);
   }
 
   // Determine final severity and description based on all results
@@ -199,8 +181,6 @@ export async function processMedicationPair(
     sources.push(createDefaultSource());
   }
 
-  console.log(`[${searchId}] Final determination: ${severity} (${confidenceScore}% confidence)`);
-
   return {
     medications: [med1, med2],
     severity,
@@ -209,6 +189,5 @@ export async function processMedicationPair(
     adverseEvents: adverseEventsResult || undefined,
     confidenceScore,
     aiValidated
-    // Removed searchId property as it's not part of the InteractionResult type
   };
 }

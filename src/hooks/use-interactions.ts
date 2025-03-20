@@ -10,7 +10,6 @@ export function useInteractions(medications: string[]) {
   const [loading, setLoading] = useState(true);
   const [interactions, setInteractions] = useState<InteractionResult[]>([]);
   const [hasAnyInteraction, setHasAnyInteraction] = useState(false);
-  const [requestId, setRequestId] = useState<string>(`req-${Date.now()}`); // Track request ID to prevent stale results
 
   useEffect(() => {
     if (!medications.length) {
@@ -18,72 +17,47 @@ export function useInteractions(medications: string[]) {
       return;
     }
 
-    // Generate new request ID for this specific search
-    const currentRequestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-    setRequestId(currentRequestId);
-    
     const fetchInteractions = async () => {
       try {
-        console.log(`[${currentRequestId}] Fetching interactions for medications:`, medications);
-        setLoading(true);
-        
+        console.log('Fetching interactions for medications:', medications);
         const results = await checkInteractions(medications);
         
-        // Ensure we're not processing stale results from a previous request
-        if (requestId !== currentRequestId) {
-          console.log(`[${currentRequestId}] Ignoring stale results for previous request ${requestId}`);
-          return;
-        }
-        
-        // Sort interactions by severity (severe -> moderate -> minor -> unknown -> safe)
-        const severityOrder = {
-          "severe": 0,
-          "moderate": 1,
-          "minor": 2, 
-          "unknown": 3,
-          "safe": 4
-        };
-        
+        // Sort interactions by severity (severe -> minor -> unknown -> safe)
         const sortedResults = [...results].sort((a, b) => {
+          const severityOrder = {
+            "severe": 0,
+            "minor": 1, 
+            "unknown": 2,
+            "safe": 3
+          };
           return severityOrder[a.severity] - severityOrder[b.severity];
         });
         
-        console.log(`[${currentRequestId}] Sorted ${sortedResults.length} interaction results by severity`);
-        
         setInteractions(sortedResults);
         
-        // Check if any significant interaction was found (severe or moderate)
+        // Check if any interaction was found
         setHasAnyInteraction(results.some(result => 
-          result.severity === "minor" || 
-          result.severity === "moderate" || 
-          result.severity === "severe"
+          result.severity === "minor" || result.severity === "severe"
         ));
         
-        console.log(`[${currentRequestId}] Interaction results:`, {
+        console.log('Interaction results:', {
           count: results.length,
-          hasInteractions: results.some(r => 
-            r.severity === "minor" || 
-            r.severity === "moderate" || 
-            r.severity === "severe"
-          ),
-          severities: results.map(r => r.severity).join(', ')
+          hasInteractions: results.some(r => r.severity === "minor" || r.severity === "severe")
         });
       } catch (error) {
-        console.error(`[${currentRequestId}] Error checking interactions:`, error);
+        console.error('Error checking interactions:', error);
         toast({
           variant: "destructive",
           title: "Error",
           description: "Failed to check interactions. Please try again later."
         });
       } finally {
-        if (requestId === currentRequestId) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 
     fetchInteractions();
-  }, [medications, navigate, toast, requestId]);
+  }, [medications, navigate, toast]);
 
   return {
     loading,
