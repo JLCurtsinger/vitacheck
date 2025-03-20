@@ -26,8 +26,28 @@ export function determineFinalSeverity(
   confidenceScore: number,
   aiValidated: boolean
 } {
+  // Log all inputs for debugging
+  console.log("determineFinalSeverity inputs:", {
+    rxnorm: rxnormResult ? "present" : "null",
+    suppai: suppaiResult ? "present" : "null",
+    fda: fdaResult ? "present" : "null",
+    adverseEvents: adverseEventsResult ? `${adverseEventsResult.eventCount} events` : "null",
+    sources: sources.length
+  });
+  
+  // Verify that sources aren't duplicated (which can bias results)
+  const sourceNames = sources.map(s => s.name);
+  const uniqueSourceNames = new Set(sourceNames);
+  
+  if (sourceNames.length !== uniqueSourceNames.size) {
+    console.warn("WARNING: Duplicate sources detected which may bias results", 
+      sourceNames.filter((name, index) => sourceNames.indexOf(name) !== index));
+  }
+
   // Use the consensus system to calculate severity and confidence score
   const consensusResult = calculateConsensusScore(sources, adverseEventsResult);
+  
+  console.log("Consensus calculation result:", consensusResult);
   
   return {
     severity: consensusResult.severity,
