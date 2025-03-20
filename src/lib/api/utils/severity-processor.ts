@@ -33,7 +33,8 @@ export function determineFinalSeverity(
     fda: fdaResult ? `Found: ${fdaResult.severity}` : 'No data',
     adverseEvents: adverseEventsResult ? `Found ${adverseEventsResult.eventCount} events` : 'No data',
     sourceCount: sources.length,
-    medicationPair: sources.length > 0 && sources[0].medications ? sources[0].medications.join('+') : 'unknown'
+    // Fixed: Removed the incorrect access to the medications property which doesn't exist on InteractionSource
+    medicationPair: 'See pair-processing-utils for medication pairs'
   });
   
   // Use the consensus system to calculate severity and confidence score
