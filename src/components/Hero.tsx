@@ -165,7 +165,6 @@ Get instant, clear results!</p>
                   value={medication}
                   onChange={(e) => updateMedication(index, e.target.value)}
                   onSelectSuggestion={(value) => handleSelectSuggestion(index, value)}
-                  showRecent={index === 0} // Only show recent searches for the first input
                   placeholder="Enter medication or supplement name"
                 />
                 {medications.length > 1 && (

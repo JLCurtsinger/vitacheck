@@ -42,6 +42,10 @@ export default function AutocompleteInput({
       const results = await getMedicationSuggestions(inputValue);
       setSuggestions(results);
       setShowDropdown(true);
+      // Hide recents when we have actual suggestions
+      if (results.length > 0) {
+        setShowRecents(false);
+      }
     } catch (error) {
       console.error("Error fetching suggestions:", error);
       setSuggestions([]);
@@ -65,6 +69,12 @@ export default function AutocompleteInput({
     if (inputValue.trim().length < 2) {
       setSuggestions([]);
       setShowDropdown(false);
+      
+      // If we have recent searches, show them on focus
+      if (showRecent && recentSearches.length > 0 && inputRef.current === document.activeElement) {
+        setShowRecents(true);
+        setShowDropdown(true);
+      }
       return;
     }
     
@@ -75,6 +85,7 @@ export default function AutocompleteInput({
   const handleSelectSuggestion = (suggestion: string) => {
     onSelectSuggestion(suggestion);
     setShowDropdown(false);
+    setShowRecents(false);
     setFocusedIndex(-1);
     
     // Return focus to input after selection
@@ -114,9 +125,11 @@ export default function AutocompleteInput({
   
   // Handle input focus
   const handleFocus = () => {
+    // Load recent searches on focus
     if (showRecent) {
-      setRecentSearches(getRecentSearches());
-      if (getRecentSearches().length > 0) {
+      const recentItems = getRecentSearches();
+      setRecentSearches(recentItems);
+      if (recentItems.length > 0) {
         setShowRecents(true);
         setShowDropdown(true);
       }
