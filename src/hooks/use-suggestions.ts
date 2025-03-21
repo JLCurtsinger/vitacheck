@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { 
   MedicationSuggestion, 
@@ -85,6 +86,12 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
     setShowRecents(false);
   };
 
+  // Add a new function to handle selection
+  const handleSelection = () => {
+    setShowDropdown(false);
+    setShowRecents(false);
+  };
+
   return {
     suggestions,
     loading,
@@ -93,6 +100,7 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
     showDropdown,
     setShowDropdown,
     handleFocus,
-    closeDropdown
+    closeDropdown,
+    handleSelection
   };
 }

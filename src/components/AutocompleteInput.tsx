@@ -30,7 +30,8 @@ export default function AutocompleteInput({
     showRecents,
     showDropdown,
     handleFocus: onFocusHandler,
-    closeDropdown
+    closeDropdown,
+    handleSelection
   } = useSuggestions(value as string, showRecent);
   
   // Handle input change
@@ -44,7 +45,7 @@ export default function AutocompleteInput({
   // Handle suggestion selection
   const handleSelectSuggestion = (suggestion: string) => {
     onSelectSuggestion(suggestion);
-    closeDropdown();
+    handleSelection(); // Close dropdown immediately after selection
     setFocusedIndex(-1);
     
     // Return focus to input after selection
