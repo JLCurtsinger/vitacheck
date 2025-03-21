@@ -1,6 +1,10 @@
-
 import { useState, useEffect } from "react";
-import { MedicationSuggestion, getMedicationSuggestions, debounce, getRecentSearches } from "@/services/medication-suggestions";
+import { 
+  MedicationSuggestion, 
+  getMedicationSuggestions, 
+  debounce, 
+  getRecentSearches 
+} from "@/services/medication-suggestions";
 
 export function useSuggestions(inputValue: string, showRecent: boolean = false) {
   const [suggestions, setSuggestions] = useState<MedicationSuggestion[]>([]);
