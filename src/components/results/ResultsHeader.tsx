@@ -4,9 +4,10 @@ import { useNavigate } from "react-router-dom";
 
 interface ResultsHeaderProps {
   medications: string[];
+  hasInteractions?: boolean;
 }
 
-export function ResultsHeader({ medications }: ResultsHeaderProps) {
+export function ResultsHeader({ medications, hasInteractions }: ResultsHeaderProps) {
   const navigate = useNavigate();
   
   return (

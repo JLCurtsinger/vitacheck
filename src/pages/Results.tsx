@@ -2,9 +2,9 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useInteractions } from '@/hooks/use-interactions';
-import ResultsHeader from '@/components/results/ResultsHeader';
-import LoadingIndicator from '@/components/results/LoadingIndicator';
-import InteractionsList from '@/components/results/InteractionsList';
+import { ResultsHeader } from '@/components/results/ResultsHeader';
+import { LoadingIndicator } from '@/components/results/LoadingIndicator';
+import { InteractionsList } from '@/components/results/InteractionsList';
 import Footer from '@/components/Footer';
 
 export default function Results() {
