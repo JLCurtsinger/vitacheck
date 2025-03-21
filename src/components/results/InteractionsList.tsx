@@ -26,24 +26,28 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
   
   if (interactions.length === 0) {
     return (
-      <ErrorMessage
-        title="No Medications to Compare"
-        description="Please select at least two medications to check for interactions."
-      />
+      <div className="max-w-3xl mx-auto">
+        <ErrorMessage
+          title="No Medications to Compare"
+          description="Please select at least two medications to check for interactions."
+        />
+      </div>
     );
   }
   
   if (!hasAnyInteraction) {
     return (
-      <ErrorMessage
-        title="No Interactions Found"
-        description="No information found for this combination. Consult a healthcare provider for more details."
-      />
+      <div className="max-w-3xl mx-auto">
+        <ErrorMessage
+          title="No Interactions Found"
+          description="No information found for this combination. Consult a healthcare provider for more details."
+        />
+      </div>
     );
   }
   
   return (
-    <div className="space-y-8 mb-12">
+    <div className="space-y-8 mb-12 max-w-3xl mx-auto">
       {interactions.map((interaction, index) => {
         // Create a more robust unique key for each interaction
         const interactionKey = `${interaction.medications.join('-')}-${interaction.severity}-${interaction.confidenceScore}-${index}`;

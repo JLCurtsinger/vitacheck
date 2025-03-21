@@ -28,25 +28,27 @@ export default function Results() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <ResultsHeader 
-        medications={displayNames} // Use display names for UI
-        hasInteractions={hasAnyInteraction} 
-      />
-      
       <main className="container mx-auto py-8 px-4">
-        {loading ? (
-          <LoadingIndicator 
+        <div className="max-w-3xl mx-auto">
+          <ResultsHeader 
             medications={displayNames} // Use display names for UI
-            requestId={requestId}
+            hasInteractions={hasAnyInteraction} 
           />
-        ) : (
-          <InteractionsList 
-            interactions={interactions}
-            hasAnyInteraction={hasAnyInteraction}
-            medications={displayNames} // Pass display names to InteractionsList
-            key={searchKey} // Force re-render on new search
-          />
-        )}
+          
+          {loading ? (
+            <LoadingIndicator 
+              medications={displayNames} // Use display names for UI
+              requestId={requestId}
+            />
+          ) : (
+            <InteractionsList 
+              interactions={interactions}
+              hasAnyInteraction={hasAnyInteraction}
+              medications={displayNames} // Pass display names to InteractionsList
+              key={searchKey} // Force re-render on new search
+            />
+          )}
+        </div>
       </main>
       
       <Footer />
