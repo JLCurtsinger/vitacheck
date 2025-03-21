@@ -6,21 +6,23 @@ import { useEffect } from "react";
 
 interface InteractionsListProps {
   interactions: InteractionResultType[];
-  hasAnyInteraction: boolean;
+  hasAnyInteraction?: boolean;
+  medications?: string[]; // Add medications prop to match how it's being used
 }
 
-export function InteractionsList({ interactions, hasAnyInteraction }: InteractionsListProps) {
+export function InteractionsList({ interactions, hasAnyInteraction, medications }: InteractionsListProps) {
   // Enhanced logging for debugging confidence scores
   useEffect(() => {
     console.log('InteractionsList rendering with:', {
       interactionsCount: interactions.length,
       hasAnyInteraction,
+      medications,
       confidenceScores: interactions.map(int => ({
         meds: int.medications.join('+'),
         confidenceScore: int.confidenceScore
       }))
     });
-  }, [interactions, hasAnyInteraction]);
+  }, [interactions, hasAnyInteraction, medications]);
   
   if (interactions.length === 0) {
     return (

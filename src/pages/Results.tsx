@@ -42,7 +42,8 @@ export default function Results() {
         ) : (
           <InteractionsList 
             interactions={interactions}
-            medications={displayNames} // Use display names for UI
+            hasAnyInteraction={hasAnyInteraction}
+            medications={displayNames} // Pass display names to InteractionsList
             key={searchKey} // Force re-render on new search
           />
         )}
