@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils";
 import { InteractionSource } from "@/lib/api-utils";
 import { useEffect } from "react";
+import { Progress } from "@/components/ui/progress";
 
 interface SeverityBreakdownProps {
   sources: InteractionSource[];
@@ -65,7 +66,11 @@ export function SeverityBreakdown({ sources, confidenceScore }: SeverityBreakdow
       moderateCases,
       minorCases,
       severePercent,
-      confidence // Store original confidence value
+      confidence, // Store original confidence value
+      // Calculate percentages for the bar graph
+      severeWidth: totalCases > 0 ? (severeCases / totalCases) * 100 : 0,
+      moderateWidth: totalCases > 0 ? (moderateCases / totalCases) * 100 : 0,
+      minorWidth: totalCases > 0 ? (minorCases / totalCases) * 100 : 0
     };
   });
   
@@ -86,8 +91,22 @@ export function SeverityBreakdown({ sources, confidenceScore }: SeverityBreakdow
     weightedStats.severePercent = (weightedStats.severeCases / weightedStats.totalCases) * 100;
   }
   
-  // Add combined stats to the array
-  const allStats = [...sourceStats, weightedStats];
+  // Add bar graph percentages for combined stats
+  const combinedTotalCases = weightedStats.totalCases;
+  const combinedSevereWidth = combinedTotalCases > 0 ? (weightedStats.severeCases / combinedTotalCases) * 100 : 0;
+  const combinedModerateWidth = combinedTotalCases > 0 ? (weightedStats.moderateCases / combinedTotalCases) * 100 : 0;
+  const combinedMinorWidth = combinedTotalCases > 0 ? (weightedStats.minorCases / combinedTotalCases) * 100 : 0;
+  
+  // Add combined stats with bar graph data to the array
+  const allStats = [
+    ...sourceStats, 
+    {
+      ...weightedStats,
+      severeWidth: combinedSevereWidth,
+      moderateWidth: combinedModerateWidth,
+      minorWidth: combinedMinorWidth
+    }
+  ];
   
   // Helper function to get severity class based on percentage
   const getSeverityClass = (percent: number): string => {
@@ -111,12 +130,13 @@ export function SeverityBreakdown({ sources, confidenceScore }: SeverityBreakdow
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-1/5">Source</TableHead>
+              <TableHead className="w-1/6">Source</TableHead>
               <TableHead className="text-right">Total Cases</TableHead>
               <TableHead className="text-right">Severe Cases</TableHead>
               <TableHead className="text-right">Moderate Cases</TableHead>
               <TableHead className="text-right">Minor Cases</TableHead>
               <TableHead className="text-right">% Severe</TableHead>
+              <TableHead className="w-1/5">Distribution</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -131,6 +151,31 @@ export function SeverityBreakdown({ sources, confidenceScore }: SeverityBreakdow
                 <TableCell className="text-right text-green-700">{stat.minorCases.toLocaleString()}</TableCell>
                 <TableCell className={cn("text-right font-medium", getSeverityClass(stat.severePercent))}>
                   {stat.severePercent.toFixed(2)}%
+                </TableCell>
+                <TableCell>
+                  <div className="flex h-4 w-full overflow-hidden rounded-full bg-gray-200" title={`Severe: ${stat.severeWidth.toFixed(1)}%, Moderate: ${stat.moderateWidth.toFixed(1)}%, Minor: ${stat.minorWidth.toFixed(1)}%`}>
+                    {stat.severeWidth > 0 && (
+                      <div 
+                        className="h-full bg-red-600" 
+                        style={{ width: `${stat.severeWidth}%` }}
+                        aria-label={`Severe cases: ${stat.severeWidth.toFixed(1)}%`}
+                      ></div>
+                    )}
+                    {stat.moderateWidth > 0 && (
+                      <div 
+                        className="h-full bg-yellow-500" 
+                        style={{ width: `${stat.moderateWidth}%` }}
+                        aria-label={`Moderate cases: ${stat.moderateWidth.toFixed(1)}%`}
+                      ></div>
+                    )}
+                    {stat.minorWidth > 0 && (
+                      <div 
+                        className="h-full bg-green-600" 
+                        style={{ width: `${stat.minorWidth}%` }}
+                        aria-label={`Minor cases: ${stat.minorWidth.toFixed(1)}%`}
+                      ></div>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
