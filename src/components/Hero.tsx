@@ -1,10 +1,12 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useNavigate, Link, useLocation } from "react-router-dom";
 import { Plus, X, Menu, LogOut } from "lucide-react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import AutocompleteInput from "./AutocompleteInput";
+import { saveToRecentSearches } from "@/services/medication-suggestions";
 
 export default function Hero() {
   const { logout } = useAuth();
@@ -67,10 +69,7 @@ export default function Hero() {
       return;
     }
     for (const med of validMedications) {
-      const {
-        isValid,
-        error
-      } = validateMedication(med);
+      const { isValid, error } = validateMedication(med);
       if (!isValid) {
         toast({
           variant: "destructive",
@@ -79,12 +78,20 @@ export default function Hero() {
         });
         return;
       }
+      
+      // Save to recent searches for autocomplete history
+      saveToRecentSearches(med);
     }
     navigate("/results", {
       state: {
         medications: validMedications
       }
     });
+  };
+
+  // Handle selection from autocomplete dropdown
+  const handleSelectSuggestion = (index: number, value: string) => {
+    updateMedication(index, value);
   };
 
   return <div className="relative isolate px-6 pt-14 lg:px-8 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
@@ -145,21 +152,46 @@ export default function Hero() {
 Get instant, clear results!</p>
           
           <form onSubmit={handleSubmit} className="mt-10 space-y-4 max-w-xl mx-auto">
-            {medications.map((medication, index) => <div key={index} className="flex gap-2">
-                <Input value={medication} onChange={e => updateMedication(index, e.target.value)} placeholder="Enter medication or supplement name" className="flex-1 h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white rounded-md" />
-                {medications.length > 1 && <Button type="button" variant="outline" size="icon" onClick={() => removeMedication(index)} className="hover:bg-red-50 hover:text-red-600 transition-colors">
+            {medications.map((medication, index) => (
+              <div key={index} className="flex gap-2">
+                <AutocompleteInput
+                  value={medication}
+                  onChange={(e) => updateMedication(index, e.target.value)}
+                  onSelectSuggestion={(value) => handleSelectSuggestion(index, value)}
+                  showRecent={index === 0} // Only show recent searches for the first input
+                  placeholder="Enter medication or supplement name"
+                />
+                {medications.length > 1 && (
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={() => removeMedication(index)} 
+                    className="hover:bg-red-50 hover:text-red-600 transition-colors"
+                  >
                     <X className="h-4 w-4" />
-                  </Button>}
-              </div>)}
+                  </Button>
+                )}
+              </div>
+            ))}
             
             <div className="flex gap-2 justify-center">
-              <Button type="button" variant="outline" onClick={addMedication} className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white border-0 transition-all hover:scale-105">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={addMedication} 
+                className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white border-0 transition-all hover:scale-105"
+              >
                 <Plus className="h-4 w-4" />
                 Add Another
               </Button>
             </div>
 
-            <Button type="submit" className="w-full mt-6 h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100" disabled={medications.every(med => med.trim() === "")}>
+            <Button 
+              type="submit" 
+              className="w-full mt-6 h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100" 
+              disabled={medications.every(med => med.trim() === "")}
+            >
               Check Interactions
             </Button>
           </form>

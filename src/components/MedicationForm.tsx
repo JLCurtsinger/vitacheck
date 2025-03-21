@@ -1,9 +1,11 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Plus, X, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import AutocompleteInput from "./AutocompleteInput";
+import { saveToRecentSearches } from "@/services/medication-suggestions";
 
 /**
  * MedicationForm Component
@@ -86,6 +88,9 @@ export default function MedicationForm() {
         });
         return;
       }
+      
+      // Save to recent searches
+      saveToRecentSearches(med);
     }
     
     navigate("/results", { state: { medications: validMedications } });
@@ -93,6 +98,11 @@ export default function MedicationForm() {
 
   const clearAll = () => {
     setMedications([""]);
+  };
+  
+  // Handle selection from autocomplete
+  const handleSelectSuggestion = (index: number, value: string) => {
+    updateMedication(index, value);
   };
 
   return (
@@ -114,11 +124,12 @@ export default function MedicationForm() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {medications.map((medication, index) => (
               <div key={index} className="flex gap-2">
-                <Input
+                <AutocompleteInput
                   value={medication}
                   onChange={(e) => updateMedication(index, e.target.value)}
+                  onSelectSuggestion={(value) => handleSelectSuggestion(index, value)}
+                  showRecent={index === 0} // Only show recent searches for the first input
                   placeholder="Enter medication or supplement name"
-                  className="flex-1 h-12 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
                 />
                 {medications.length > 1 && (
                   <Button

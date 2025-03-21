@@ -51,6 +51,54 @@ async function fetchRxCUIByName(name: string): Promise<string | null> {
   }
 }
 
+/**
+ * Fetches autocomplete suggestions from RxTerms API
+ * @param term - Search term to get suggestions for
+ */
+async function fetchRxTermsSuggestions(term: string): Promise<any> {
+  console.log(`🔍 RxNorm: Fetching suggestions for term: ${term}`);
+  
+  // Build URL for RxTerms API call (optimized for autocomplete)
+  const suggestUrl = `https://clinicaltables.nlm.nih.gov/api/rxterms/v3/search?terms=${encodeURIComponent(term.trim())}&maxList=10`;
+  console.log(`🌐 RxNorm: Making suggestions API request to: ${suggestUrl}`);
+  
+  try {
+    const response = await fetch(suggestUrl, {
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      console.error(`❌ RxNorm: Error fetching suggestions (${response.status})`);
+      return null;
+    }
+    
+    const data = await response.json();
+    console.log(`⚙️ RxNorm: Suggestions response:`, data);
+    
+    // Format the response
+    const [count, strings, suggestions, values] = data;
+    
+    // Transform into more usable format
+    const results = strings.map((name: string, index: number) => {
+      return {
+        displayName: name,
+        rxcui: values?.[index]?.[1] || null,
+        displayTermType: values?.[index]?.[2] || '0'
+      };
+    });
+    
+    return {
+      count,
+      results
+    };
+  } catch (error) {
+    console.error(`❌ RxNorm: Failed to fetch suggestions for ${term}:`, error);
+    return null;
+  }
+}
+
 const handler: Handler = async (event, context) => {
   // Handle CORS preflight requests
   if (event.httpMethod === 'OPTIONS') {
@@ -74,7 +122,7 @@ const handler: Handler = async (event, context) => {
       };
     }
     
-    const { operation, name, rxcui, rxcuis } = JSON.parse(event.body);
+    const { operation, name, rxcui, rxcuis, term } = JSON.parse(event.body);
     
     // Support both rxcui and rxcuis parameters for better compatibility
     let resolvedRxcui = rxcui || rxcuis;
@@ -82,6 +130,7 @@ const handler: Handler = async (event, context) => {
     console.log(`🔍 RxNorm: Processing ${operation} request:`, { 
       name, 
       rxcui: resolvedRxcui,
+      term,
       body: event.body
     });
     
@@ -98,6 +147,7 @@ const handler: Handler = async (event, context) => {
     }
     
     let apiUrl = '';
+    let result = null;
     
     // Handle different operation types
     switch (operation) {
@@ -152,6 +202,42 @@ const handler: Handler = async (event, context) => {
         apiUrl = `https://rxnav.nlm.nih.gov/REST/interaction/interaction.json?rxcui=${resolvedRxcui}`;
         break;
         
+      case 'suggest':
+        if (!term) {
+          return {
+            statusCode: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              error: 'Term parameter is required for suggest operation',
+              status: 'error'
+            })
+          };
+        }
+        
+        // Use the dedicated function for suggestions
+        result = await fetchRxTermsSuggestions(term);
+        
+        if (!result) {
+          return {
+            statusCode: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              error: 'Failed to fetch suggestions',
+              status: 'error',
+              term
+            })
+          };
+        }
+        
+        return {
+          statusCode: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...result,
+            status: 'success'
+          })
+        };
+        
       default:
         return {
           statusCode: 400,
@@ -163,42 +249,45 @@ const handler: Handler = async (event, context) => {
         };
     }
     
-    console.log(`🌐 RxNorm: Making API request to: ${apiUrl}`);
-    
-    // Make request to RxNorm API
-    const response = await fetch(apiUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
+    // For operations that need a direct API call (not suggest)
+    if (apiUrl) {
+      console.log(`🌐 RxNorm: Making API request to: ${apiUrl}`);
+      
+      // Make request to RxNorm API
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ RxNorm: API error (${response.status}):`, errorText);
+        
+        return {
+          statusCode: response.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            error: `RxNorm API error (${response.status})`,
+            details: errorText || response.statusText,
+            status: 'error'
+          })
+        };
       }
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`❌ RxNorm: API error (${response.status}):`, errorText);
+      
+      const data = await response.json();
+      console.log(`✅ RxNorm: API response for ${operation}:`, JSON.stringify(data).substring(0, 200) + '...');
       
       return {
-        statusCode: response.status,
+        statusCode: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          error: `RxNorm API error (${response.status})`,
-          details: errorText || response.statusText,
-          status: 'error'
+        body: JSON.stringify({
+          ...data,
+          status: 'success'
         })
       };
     }
-    
-    const data = await response.json();
-    console.log(`✅ RxNorm: API response for ${operation}:`, JSON.stringify(data).substring(0, 200) + '...');
-    
-    return {
-      statusCode: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...data,
-        status: 'success'
-      })
-    };
     
   } catch (error) {
     console.error('❌ RxNorm: Error in proxy:', error);
