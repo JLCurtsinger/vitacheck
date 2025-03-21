@@ -14,6 +14,8 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
   const [showRecents, setShowRecents] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const selectionMadeRef = useRef(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Load recent searches
   useEffect(() => {
@@ -23,11 +25,30 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
     }
   }, [showRecent]);
   
+  // Handle clicks outside the dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // If the click is outside both dropdown and input, close dropdown
+      if (
+        dropdownRef.current && 
+        !dropdownRef.current.contains(event.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(event.target as Node)
+      ) {
+        closeDropdown();
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+  
   // Fetch suggestions when input changes
   const fetchSuggestions = async (query: string) => {
     // Don't fetch if a selection was just made
     if (selectionMadeRef.current) {
-      selectionMadeRef.current = false;
       return;
     }
     
@@ -83,7 +104,6 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
   const handleFocus = () => {
     // Don't show dropdown on focus if a selection was just made
     if (selectionMadeRef.current) {
-      selectionMadeRef.current = false;
       return;
     }
     
@@ -99,16 +119,17 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
     setShowRecents(false);
   };
 
-  // Improved function to handle selection
+  // Improved function to handle selection with longer delay
   const handleSelection = () => {
     setShowDropdown(false);
     setShowRecents(false);
     selectionMadeRef.current = true;
     
-    // Use a small delay to ensure the selection is processed before allowing new suggestions
+    // Use a longer delay (500ms) to ensure the selection is processed 
+    // before allowing new suggestions
     setTimeout(() => {
       selectionMadeRef.current = false;
-    }, 300);
+    }, 500);
   };
 
   return {
@@ -120,6 +141,8 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
     setShowDropdown,
     handleFocus,
     closeDropdown,
-    handleSelection
+    handleSelection,
+    dropdownRef,
+    inputRef
   };
 }

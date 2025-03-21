@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, KeyboardEvent } from "react";
+import React, { useState, KeyboardEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, Loader2, X } from "lucide-react";
 import { useSuggestions } from "@/hooks/use-suggestions";
@@ -20,7 +20,6 @@ export default function AutocompleteInput({
   ...props
 }: AutocompleteInputProps) {
   const [focusedIndex, setFocusedIndex] = useState(-1);
-  const inputRef = useRef<HTMLInputElement>(null);
   
   // Use our custom hook for suggestions
   const {
@@ -31,7 +30,9 @@ export default function AutocompleteInput({
     showDropdown,
     handleFocus: onFocusHandler,
     closeDropdown,
-    handleSelection
+    handleSelection,
+    dropdownRef,
+    inputRef
   } = useSuggestions(value as string, showRecent);
   
   // Handle input change
@@ -141,6 +142,7 @@ export default function AutocompleteInput({
         focusedIndex={focusedIndex}
         onSelectSuggestion={handleSelectSuggestion}
         visible={showDropdown}
+        ref={dropdownRef}
       />
     </div>
   );

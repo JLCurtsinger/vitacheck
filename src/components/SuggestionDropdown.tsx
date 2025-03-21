@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect } from "react";
+import React, { forwardRef } from "react";
 import { Clock } from "lucide-react";
 import { MedicationSuggestion } from "@/services/medication-suggestions";
 
@@ -12,39 +12,19 @@ interface SuggestionDropdownProps {
   visible: boolean;
 }
 
-export function SuggestionDropdown({
+export const SuggestionDropdown = forwardRef<HTMLDivElement, SuggestionDropdownProps>(({
   suggestions,
   recentSearches,
   showRecents,
   focusedIndex,
   onSelectSuggestion,
   visible
-}: SuggestionDropdownProps) {
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Handle click outside to close dropdown
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current && 
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        // We don't close the dropdown here because we need the parent component
-        // to be aware of the state change for the input focus handling
-      }
-    };
-    
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
+}, ref) => {
   if (!visible) return null;
 
   return (
     <div 
-      ref={dropdownRef}
+      ref={ref}
       className="absolute z-50 w-full bg-white mt-1 border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto"
     >
       {showRecents && recentSearches.length > 0 ? (
@@ -77,4 +57,6 @@ export function SuggestionDropdown({
       )}
     </div>
   );
-}
+});
+
+SuggestionDropdown.displayName = "SuggestionDropdown";
