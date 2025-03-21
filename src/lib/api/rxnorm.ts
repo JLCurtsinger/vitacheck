@@ -49,36 +49,77 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export async function getRxCUI(medication: string): Promise<string | null> {
   console.log(`🔍 [RxNorm Client] Attempting to get RxCUI for medication: ${medication}`);
   
-  const response = await fetch('/.netlify/functions/rxnorm', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ 
-      operation: 'rxcui',
-      name: medication.trim()
-    })
-  });
+  // Try with original input
+  let rxcui = await tryGetRxCUI(medication);
   
-  if (!response.ok) {
-    console.error('❌ [RxNorm Client] API error:', {
-      status: response.status,
-      medication
-    });
-    return null;
+  // If not found, try some alternate formats
+  if (!rxcui) {
+    // Try lowercase
+    rxcui = await tryGetRxCUI(medication.toLowerCase());
+    
+    if (!rxcui) {
+      // Try uppercase first letter
+      const capitalized = medication.charAt(0).toUpperCase() + medication.slice(1).toLowerCase();
+      rxcui = await tryGetRxCUI(capitalized);
+      
+      if (!rxcui) {
+        // Try all uppercase
+        rxcui = await tryGetRxCUI(medication.toUpperCase());
+      }
+    }
   }
   
-  const data: RxNormResponse = await response.json();
-  console.log('⚙️ [RxNorm Client] API raw response:', data);
-  
-  if (data.status === 'error' || data.message === "No data found") {
-    console.log('⚠️ [RxNorm Client] No RxCUI found for medication:', medication);
-    return null;
+  if (rxcui) {
+    console.log(`✅ [RxNorm Client] Finally found RxCUI for ${medication}: ${rxcui}`);
+  } else {
+    console.log(`⚠️ [RxNorm Client] Could not find RxCUI for ${medication} after trying multiple formats`);
   }
   
-  const rxcui = data.data?.idGroup?.rxnormId?.[0] || null;
-  console.log(`✅ [RxNorm Client] Retrieved RxCUI for ${medication}:`, rxcui);
   return rxcui;
+}
+
+/**
+ * Helper function to attempt RxCUI lookup with a specific format
+ */
+async function tryGetRxCUI(formattedMedication: string): Promise<string | null> {
+  try {
+    console.log(`🔍 [RxNorm Client] Trying format: "${formattedMedication}"`);
+    
+    const response = await fetch('/.netlify/functions/rxnorm', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        operation: 'rxcui',
+        name: formattedMedication.trim()
+      })
+    });
+    
+    if (!response.ok) {
+      console.error('❌ [RxNorm Client] API error:', {
+        status: response.status,
+        medication: formattedMedication
+      });
+      return null;
+    }
+    
+    const data: RxNormResponse = await response.json();
+    
+    if (data.status === 'error' || data.message === "No data found") {
+      console.log(`⚠️ [RxNorm Client] No RxCUI found for format: ${formattedMedication}`);
+      return null;
+    }
+    
+    const rxcui = data.data?.idGroup?.rxnormId?.[0] || null;
+    if (rxcui) {
+      console.log(`✅ [RxNorm Client] RxCUI found with format "${formattedMedication}": ${rxcui}`);
+    }
+    return rxcui;
+  } catch (error) {
+    console.error(`❌ [RxNorm Client] Error trying format "${formattedMedication}":`, error);
+    return null;
+  }
 }
 
 /**

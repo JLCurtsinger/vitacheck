@@ -1,6 +1,7 @@
 
 import { getSupplementInteractions } from '../../suppai';
 import { InteractionSource } from '../../types';
+import { prepareMedicationNameForApi } from '@/utils/medication-formatter';
 
 export async function checkSuppAiInteractions(
   med1: string,
@@ -10,10 +11,25 @@ export async function checkSuppAiInteractions(
   description: string;
   severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
 } | null> {
-  const suppAiResults = await getSupplementInteractions(med1);
+  // Format medication names for API
+  const formattedMed1 = prepareMedicationNameForApi(med1);
+  const formattedMed2 = prepareMedicationNameForApi(med2);
+  
+  console.log(`[SUPP.AI] Checking interactions between "${formattedMed1}" and "${formattedMed2}"`);
+  console.log(`[SUPP.AI] Original names: "${med1}" and "${med2}"`);
+  
+  const suppAiResults = await getSupplementInteractions(formattedMed1);
+  
+  // Function to check if medication names match accounting for formatting differences
+  const matchesMedication = (apiMed: string, inputMed: string) => {
+    const formattedApiMed = prepareMedicationNameForApi(apiMed);
+    const formattedInputMed = prepareMedicationNameForApi(inputMed);
+    return formattedApiMed.toLowerCase() === formattedInputMed.toLowerCase();
+  };
+  
   const suppAiInteraction = suppAiResults.find(
-    int => int.drug1.toLowerCase() === med2.toLowerCase() || 
-           int.drug2.toLowerCase() === med2.toLowerCase()
+    int => matchesMedication(int.drug1, formattedMed2) || 
+           matchesMedication(int.drug2, formattedMed2)
   );
 
   if (suppAiInteraction) {

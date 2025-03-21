@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, X, Menu, LogOut } from "lucide-react";
@@ -7,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import AutocompleteInput from "./AutocompleteInput";
 import { saveToRecentSearches } from "@/services/medication-suggestions";
+import { prepareMedicationNameForApi } from "@/utils/medication-formatter";
 
 export default function Hero() {
   const { logout } = useAuth();
@@ -82,9 +82,16 @@ export default function Hero() {
       // Save to recent searches for autocomplete history
       saveToRecentSearches(med);
     }
+    
+    // Format medication names for API calls but keep display names
+    const formattedMedications = validMedications.map(med => prepareMedicationNameForApi(med));
+    console.log('Original medications:', validMedications);
+    console.log('Formatted medications for API:', formattedMedications);
+    
     navigate("/results", {
       state: {
-        medications: validMedications
+        medications: formattedMedications,
+        displayNames: validMedications // Keep original names for display
       }
     });
   };

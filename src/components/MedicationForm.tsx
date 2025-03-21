@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, X, ArrowLeft } from "lucide-react";
@@ -6,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import AutocompleteInput from "./AutocompleteInput";
 import { saveToRecentSearches } from "@/services/medication-suggestions";
+import { prepareMedicationNameForApi } from "@/utils/medication-formatter";
 
 /**
  * MedicationForm Component
@@ -93,7 +93,15 @@ export default function MedicationForm() {
       saveToRecentSearches(med);
     }
     
-    navigate("/results", { state: { medications: validMedications } });
+    // Format medication names for API calls
+    const formattedMedications = validMedications.map(med => prepareMedicationNameForApi(med));
+    console.log('Original medications:', validMedications);
+    console.log('Formatted medications for API:', formattedMedications);
+    
+    navigate("/results", { state: { 
+      medications: formattedMedications,
+      displayNames: validMedications // Keep original names for display
+    }});
   };
 
   const clearAll = () => {

@@ -1,8 +1,8 @@
-
 /**
  * FDA API Integration Module
  * Handles interactions with the openFDA API for medication warnings and adverse effects.
  */
+import { prepareMedicationNameForApi } from '@/utils/medication-formatter';
 
 export interface FDAResponse {
   results?: Array<{
@@ -22,12 +22,16 @@ const RETRY_DELAY = 1000; // milliseconds
 export async function getFDAWarnings(medication: string): Promise<FDAResponse> {
   let attempts = 0;
   
+  // Format medication name properly for FDA API
+  const formattedMedication = prepareMedicationNameForApi(medication);
+  
   console.log(`🔍 [FDA Client] Fetching warnings for: ${medication}`);
+  console.log(`🔍 [FDA Client] Using formatted name: ${formattedMedication}`);
   
   while (attempts < MAX_RETRIES) {
     try {
       // Expand search to include both brand and generic names using OR
-      const encodedMedication = encodeURIComponent(medication.trim());
+      const encodedMedication = encodeURIComponent(formattedMedication.trim());
       const searchQuery = `openfda.brand_name:"${encodedMedication}"+OR+openfda.generic_name:"${encodedMedication}"`;
       const url = `https://api.fda.gov/drug/label.json?search=${searchQuery}`;
       
@@ -37,7 +41,7 @@ export async function getFDAWarnings(medication: string): Promise<FDAResponse> {
       
       if (!response.ok) {
         if (response.status === 404) {
-          console.warn('⚠️ [FDA Client] No FDA data found for medication:', medication);
+          console.warn('⚠️ [FDA Client] No FDA data found for medication:', formattedMedication);
           return { results: [] };
         }
         console.error(`❌ [FDA Client] API error (${response.status}): ${response.statusText}`);
@@ -45,9 +49,8 @@ export async function getFDAWarnings(medication: string): Promise<FDAResponse> {
       }
       
       const data: FDAResponse = await response.json();
-      console.log(`✅ [FDA Client] Received data for ${medication}:`, 
+      console.log(`✅ [FDA Client] Received data for ${formattedMedication}:`, 
         data.results ? `Found ${data.results.length} results` : 'No results');
-      console.log(`⚙️ [FDA Client] Raw response:`, data);
       
       return data;
       
@@ -60,7 +63,7 @@ export async function getFDAWarnings(medication: string): Promise<FDAResponse> {
         continue;
       }
       
-      console.error('❌ [FDA Client] All lookup attempts failed for medication:', medication);
+      console.error('❌ [FDA Client] All lookup attempts failed for medication:', formattedMedication);
       return { results: [] };
     }
   }

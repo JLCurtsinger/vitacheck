@@ -1,4 +1,3 @@
-
 import { Handler } from "@netlify/functions";
 
 // CORS headers for cross-origin requests
@@ -9,14 +8,31 @@ const corsHeaders = {
 };
 
 /**
+ * Basic formatting for medication names
+ */
+function formatMedicationName(name: string): string {
+  if (!name) return "";
+  
+  // Remove text in parentheses
+  const withoutParentheses = name.replace(/\s*\([^)]*\)/g, "").trim();
+  
+  // Proper case (first letter uppercase, rest lowercase)
+  return withoutParentheses.charAt(0).toUpperCase() + withoutParentheses.slice(1).toLowerCase();
+}
+
+/**
  * Fetches RxCUI (RxNorm Concept Unique Identifier) for a medication name
  * @param name - Medication name to look up
  */
 async function fetchRxCUIByName(name: string): Promise<string | null> {
   console.log(`🔍 RxNorm: Fetching RxCUI for medication name: ${name}`);
   
+  // Format the name for better API matching
+  const formattedName = formatMedicationName(name);
+  console.log(`🔍 RxNorm: Using formatted name: ${formattedName}`);
+  
   // Build URL for RxNorm API call
-  const rxcuiLookupUrl = `https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(name.trim())}`;
+  const rxcuiLookupUrl = `https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(formattedName)}`;
   console.log(`🌐 RxNorm: Making API request to: ${rxcuiLookupUrl}`);
   
   try {
@@ -39,14 +55,14 @@ async function fetchRxCUIByName(name: string): Promise<string | null> {
     const rxcui = data?.idGroup?.rxnormId?.[0] || null;
     
     if (rxcui) {
-      console.log(`✅ RxNorm: Found RxCUI for ${name}: ${rxcui}`);
+      console.log(`✅ RxNorm: Found RxCUI for ${formattedName}: ${rxcui}`);
     } else {
-      console.log(`⚠️ RxNorm: No RxCUI found for ${name}`);
+      console.log(`⚠️ RxNorm: No RxCUI found for ${formattedName}`);
     }
     
     return rxcui;
   } catch (error) {
-    console.error(`❌ RxNorm: Failed to fetch RxCUI for ${name}:`, error);
+    console.error(`❌ RxNorm: Failed to fetch RxCUI for ${formattedName}:`, error);
     return null;
   }
 }

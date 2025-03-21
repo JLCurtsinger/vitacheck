@@ -3,6 +3,7 @@ import { getRxCUI } from '../rxnorm';
 import { getSupplementInteractions } from '../suppai';
 import { getFDAWarnings } from '../fda';
 import { MedicationLookupResult } from '../types';
+import { prepareMedicationNameForApi } from '@/utils/medication-formatter';
 
 export async function lookupMedication(medication: string): Promise<MedicationLookupResult> {
   console.log(`🔍 [Medication Lookup] Starting lookup for: ${medication}`);
