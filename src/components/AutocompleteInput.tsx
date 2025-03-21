@@ -45,7 +45,8 @@ export default function AutocompleteInput({
   // Handle suggestion selection
   const handleSelectSuggestion = (suggestion: string) => {
     onSelectSuggestion(suggestion);
-    handleSelection(); // Close dropdown immediately after selection
+    // Call handleSelection to prevent dropdown from reopening
+    handleSelection();
     setFocusedIndex(-1);
     
     // Return focus to input after selection

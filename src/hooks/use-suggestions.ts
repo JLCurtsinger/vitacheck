@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   MedicationSuggestion, 
   getMedicationSuggestions, 
@@ -13,6 +13,7 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [showRecents, setShowRecents] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const selectionMadeRef = useRef(false);
 
   // Load recent searches
   useEffect(() => {
@@ -24,6 +25,12 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
   
   // Fetch suggestions when input changes
   const fetchSuggestions = async (query: string) => {
+    // Don't fetch if a selection was just made
+    if (selectionMadeRef.current) {
+      selectionMadeRef.current = false;
+      return;
+    }
+    
     if (!query || query.trim().length < 2) {
       setSuggestions([]);
       setLoading(false);
@@ -74,6 +81,12 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
   }, [inputValue]);
 
   const handleFocus = () => {
+    // Don't show dropdown on focus if a selection was just made
+    if (selectionMadeRef.current) {
+      selectionMadeRef.current = false;
+      return;
+    }
+    
     // Show recent searches on focus if applicable
     if (showRecent && recentSearches.length > 0 && (!inputValue || inputValue.trim().length < 2)) {
       setShowRecents(true);
@@ -86,10 +99,16 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
     setShowRecents(false);
   };
 
-  // Add a new function to handle selection
+  // Improved function to handle selection
   const handleSelection = () => {
     setShowDropdown(false);
     setShowRecents(false);
+    selectionMadeRef.current = true;
+    
+    // Use a small delay to ensure the selection is processed before allowing new suggestions
+    setTimeout(() => {
+      selectionMadeRef.current = false;
+    }, 300);
   };
 
   return {
