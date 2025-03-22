@@ -25,6 +25,11 @@ export interface InteractionSource {
   severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
   description: string;
   confidence?: number; // Added confidence rating for each source
+  eventData?: {
+    totalEvents: number;
+    seriousEvents: number;
+    nonSeriousEvents: number;
+  };
 }
 
 /**
