@@ -62,6 +62,12 @@ export function processAdverseEventsSource(
     name: "OpenFDA Adverse Events",
     severity,
     description,
-    confidence
+    confidence,
+    // Add detailed event counts for the breakdown table
+    eventData: {
+      totalEvents: adverseEvents.eventCount,
+      seriousEvents: adverseEvents.seriousCount,
+      nonSeriousEvents: adverseEvents.eventCount - adverseEvents.seriousCount
+    }
   };
 }

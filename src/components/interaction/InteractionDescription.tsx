@@ -113,10 +113,11 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
         )}
       </div>
       
-      {/* Severity Breakdown Table - NEW COMPONENT */}
+      {/* Severity Breakdown Table - Pass adverseEvents data */}
       <SeverityBreakdown 
         sources={interaction.sources} 
         confidenceScore={interaction.confidenceScore}
+        adverseEvents={interaction.adverseEvents}
       />
       
       {hasAdverseEvents && (
