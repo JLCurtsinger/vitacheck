@@ -1,3 +1,4 @@
+
 /**
  * API Types
  * 
@@ -59,5 +60,8 @@ export interface InteractionResult {
   aiValidated?: boolean; // Indicates if AI was used to validate
 }
 
-// Export the types
+// Export the types and functions
 export * from './api/types';
+
+// Export the checkInteractions function
+export { checkInteractions } from './api/services/interaction-checker';
