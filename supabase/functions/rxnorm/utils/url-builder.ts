@@ -14,16 +14,9 @@ export interface RxNormEndpoint {
  */
 export function buildRxNormUrl(endpoint: RxNormEndpoint): string {
   const baseUrl = "https://rxnav.nlm.nih.gov/REST";
-  const apiKey = Deno.env.get("RXNORM_API_KEY");
   
-  if (!apiKey) {
-    throw new Error("RxNorm API key not found in environment variables");
-  }
-  
-  const queryParams = new URLSearchParams({
-    ...endpoint.params,
-    apiKey
-  });
+  // Convert params to URL query string
+  const queryParams = new URLSearchParams(endpoint.params);
   
   return `${baseUrl}${endpoint.path}?${queryParams.toString()}`;
 }
