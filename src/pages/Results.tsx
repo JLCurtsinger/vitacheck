@@ -16,7 +16,7 @@ export default function Results() {
   // Generate a key for the component based on medications and timestamp
   const searchKey = `${medications.join('-')}-${Date.now()}`;
   
-  // Load interactions data
+  // Load interactions data for all medication combinations
   const { loading, interactions, hasAnyInteraction, requestId } = useInteractions(medications);
   
   // If no medications were passed, redirect to the check page
