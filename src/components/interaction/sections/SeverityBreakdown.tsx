@@ -3,7 +3,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils";
 import { InteractionSource, AdverseEventData } from "@/lib/api-utils";
 import { useEffect } from "react";
-import { Progress } from "@/components/ui/progress";
 
 interface SeverityBreakdownProps {
   sources: InteractionSource[];
@@ -53,6 +52,12 @@ export function SeverityBreakdown({ sources, confidenceScore, adverseEvents }: S
       const nonSevereCases = totalCases - severeCases;
       moderateCases = Math.round(nonSevereCases * 0.3); // Estimate 30% of non-severe as moderate
       minorCases = nonSevereCases - moderateCases;
+    } else if (source.eventData) {
+      // Use source-specific event data if available (from merged sources)
+      totalCases = source.eventData.totalEvents;
+      severeCases = source.eventData.seriousEvents;
+      moderateCases = Math.round((totalCases - severeCases) * 0.3);
+      minorCases = totalCases - severeCases - moderateCases;
     } else {
       // For other sources, use confidence as a proxy for data quality
       // but scale based on severity to make more realistic estimates

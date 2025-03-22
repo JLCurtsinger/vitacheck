@@ -56,16 +56,67 @@ export function processCombinedSeverity(interactions: InteractionResult[]) {
   const combinedConfidenceScore = totalWeight > 0 
     ? Math.round(totalWeightedConfidence / totalWeight)
     : 50; // Default if no confidence scores available
+
+  // =========== IMPROVED SOURCE DEDUPLICATION ===========
+  // Group sources by name to handle deduplication properly
+  const sourceGroups = new Map<string, InteractionSource[]>();
   
-  // Collect all sources from all interactions
-  const allSources: InteractionSource[] = [];
+  // Collect all sources from all interactions and group them by name
   interactions.forEach(interaction => {
     interaction.sources.forEach(source => {
-      // Only add unique sources (prevent duplicates)
-      if (!allSources.some(s => s.name === source.name && s.description === source.description)) {
-        allSources.push(source);
+      if (!sourceGroups.has(source.name)) {
+        sourceGroups.set(source.name, []);
       }
+      sourceGroups.get(source.name)!.push(source);
     });
+  });
+  
+  // Merge sources from the same origin (e.g., FDA, OpenFDA, etc.)
+  const mergedSources: InteractionSource[] = [];
+  
+  sourceGroups.forEach((sources, sourceName) => {
+    // Skip sources with no data
+    if (sourceName === "No Data Available" || sourceName === "Unknown") {
+      return;
+    }
+    
+    // If we only have one source of this type, add it directly
+    if (sources.length === 1) {
+      mergedSources.push(sources[0]);
+      return;
+    }
+    
+    // When we have multiple sources of the same type, merge them
+    const mergedSource: InteractionSource = {
+      name: sourceName,
+      // Take the highest severity as the overall severity for this source
+      severity: getMostSevereSeverity(sources.map(s => s.severity)),
+      // Create a combined description or use the first one
+      description: sources[0].description,
+      // Average the confidence values if available
+      confidence: sources.reduce((sum, s) => sum + (s.confidence || 0), 0) / sources.length
+    };
+    
+    // Add event data if available (from OpenFDA Adverse Events)
+    if (sources.some(s => s.eventData)) {
+      const eventData = {
+        totalEvents: 0,
+        seriousEvents: 0,
+        nonSeriousEvents: 0
+      };
+      
+      sources.forEach(s => {
+        if (s.eventData) {
+          eventData.totalEvents += s.eventData.totalEvents || 0;
+          eventData.seriousEvents += s.eventData.seriousEvents || 0;
+          eventData.nonSeriousEvents += s.eventData.nonSeriousEvents || 0;
+        }
+      });
+      
+      mergedSource.eventData = eventData;
+    }
+    
+    mergedSources.push(mergedSource);
   });
   
   // Extract key warnings from all interactions
@@ -91,7 +142,7 @@ export function processCombinedSeverity(interactions: InteractionResult[]) {
     severity: combinedSeverity,
     description,
     confidenceScore: combinedConfidenceScore,
-    sources: allSources,
+    sources: mergedSources,
     combinedWarnings: allWarnings
   };
 }
@@ -139,6 +190,17 @@ function extractMainWarning(description: string, medications: string[]): string 
   }
   
   return warning;
+}
+
+/**
+ * Determines the most severe severity level from an array of severities
+ */
+function getMostSevereSeverity(severities: ("safe" | "minor" | "moderate" | "severe" | "unknown")[]): "safe" | "minor" | "moderate" | "severe" | "unknown" {
+  if (severities.includes("severe")) return "severe";
+  if (severities.includes("moderate")) return "moderate";
+  if (severities.includes("minor")) return "minor";
+  if (severities.includes("safe")) return "safe";
+  return "unknown";
 }
 
 /**
