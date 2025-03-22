@@ -1,73 +1,69 @@
 
-/**
- * Adverse Events Data Processor
- * 
- * This module handles processing adverse event data from OpenFDA
- * into a format that can be used for interaction checking.
- */
-
-import { AdverseEventData, InteractionSource } from '../types';
+import { InteractionSource, AdverseEventData } from '../types';
 
 /**
- * Processes adverse event data into a source object for interactions
- * 
- * @param adverseEvents - Adverse event data from OpenFDA
- * @returns InteractionSource object or null if no data
+ * Create a deterministic source entry from adverse events data for consistent ratings
  */
-export function processAdverseEventsSource(
-  adverseEvents: AdverseEventData | null
-): InteractionSource | null {
-  if (!adverseEvents || adverseEvents.eventCount === 0) {
+export function processAdverseEventsSource(adverseEventsData: AdverseEventData | null | undefined): InteractionSource | null {
+  if (!adverseEventsData || adverseEventsData.eventCount === 0) {
     return null;
   }
+
+  // Calculate severity based on ratio of serious to total events
+  // Using fixed thresholds for deterministic results
+  const seriousRatio = adverseEventsData.seriousCount / adverseEventsData.eventCount;
   
-  // Calculate the percentage of serious events
-  const seriousPercentage = adverseEvents.seriousCount / adverseEvents.eventCount;
-  let severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
+  let severity: "safe" | "minor" | "moderate" | "severe" | "unknown" = "unknown";
   let confidence = 75; // Base confidence for adverse event data
   
-  // Determine the severity based on data
-  if (seriousPercentage >= 0.05 && adverseEvents.seriousCount > 5) {
-    // More than 5% serious events and at least 5 serious cases
+  if (seriousRatio >= 0.05) { // 5% or more serious events
     severity = "severe";
-    confidence = 85;
-  } else if (adverseEvents.seriousCount > 0) {
-    // At least one serious event but below threshold
+  } else if (seriousRatio >= 0.01) { // 1-5% serious events
     severity = "moderate";
-    confidence = 80;
-  } else if (adverseEvents.eventCount > 10) {
-    // Many non-serious events
+  } else if (adverseEventsData.seriousCount > 0) { // Any serious events
     severity = "minor";
-    confidence = 75;
+  } else if (adverseEventsData.eventCount > 50) { // Many events but none serious
+    severity = "minor";
+    confidence = 60;
   } else {
-    // Few non-serious events
-    severity = "minor";
-    confidence = 65;
+    severity = "safe";
+    confidence = 60;
   }
   
-  // Format the description based on the data
-  let description = `${adverseEvents.eventCount} adverse events reported (`;
+  // Ensure consistent description based on event counts
+  const description = getEventDescription(adverseEventsData, severity);
   
-  if (adverseEvents.seriousCount > 0) {
-    description += `including ${adverseEvents.seriousCount} serious cases, `;
-  }
-  
-  description += `${Math.round(seriousPercentage * 100)}% serious). `;
-  
-  if (adverseEvents.commonReactions && adverseEvents.commonReactions.length > 0) {
-    description += `Common reactions include: ${adverseEvents.commonReactions.slice(0, 3).join(', ')}.`;
-  }
-  
+  // Create source with event data for the severity calculation table
   return {
     name: "OpenFDA Adverse Events",
     severity,
     description,
     confidence,
-    // Add detailed event counts for the breakdown table
     eventData: {
-      totalEvents: adverseEvents.eventCount,
-      seriousEvents: adverseEvents.seriousCount,
-      nonSeriousEvents: adverseEvents.eventCount - adverseEvents.seriousCount
+      totalEvents: adverseEventsData.eventCount,
+      seriousEvents: adverseEventsData.seriousCount,
+      nonSeriousEvents: adverseEventsData.eventCount - adverseEventsData.seriousCount
     }
   };
+}
+
+/**
+ * Generate a deterministic description based on event data and severity
+ */
+function getEventDescription(data: AdverseEventData, severity: "safe" | "minor" | "moderate" | "severe" | "unknown"): string {
+  const { eventCount, seriousCount } = data;
+  const nonSeriousCount = eventCount - seriousCount;
+  
+  switch (severity) {
+    case "severe":
+      return `FDA database contains ${eventCount} reported adverse events, including ${seriousCount} serious cases (${Math.round((seriousCount/eventCount)*100)}%).`;
+    case "moderate":
+      return `FDA database contains ${eventCount} reported adverse events, with ${seriousCount} serious cases. Monitor closely.`;
+    case "minor":
+      return `FDA database contains ${eventCount} reported events, with ${seriousCount} serious cases. Generally considered manageable.`;
+    case "safe":
+      return `FDA database contains ${eventCount} reported events, none classified as serious.`;
+    default:
+      return `FDA database contains ${eventCount} reported events. Significance unclear.`;
+  }
 }

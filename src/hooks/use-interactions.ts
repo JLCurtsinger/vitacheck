@@ -1,8 +1,11 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { checkInteractions, InteractionResult } from "@/lib/api-utils";
+import { checkInteractions, InteractionResult } from "@/lib/api/medication-service";
+
+// Cache for storing interaction results
+const interactionCache = new Map<string, InteractionResult[]>();
 
 export function useInteractions(medications: string[]) {
   const navigate = useNavigate();
@@ -12,8 +15,13 @@ export function useInteractions(medications: string[]) {
   const [hasAnyInteraction, setHasAnyInteraction] = useState(false);
   const [requestId, setRequestId] = useState<string>(`req-${Date.now()}`);
 
+  // Create a cache key based on medications (sorted to ensure consistent key regardless of order)
+  const getCacheKey = useCallback((meds: string[]) => {
+    return [...meds].sort().join('|');
+  }, []);
+
   useEffect(() => {
-    // Generate a truly unique request ID for each new search
+    // Generate a unique request ID for each new search
     const newRequestId = `req-${Date.now()}-${medications.join('-')}`;
     
     // Reset state for each new medication list
@@ -31,6 +39,24 @@ export function useInteractions(medications: string[]) {
 
     const fetchInteractions = async () => {
       try {
+        const cacheKey = getCacheKey(medications);
+
+        // Check if we already have cached results for this exact set of medications
+        if (interactionCache.has(cacheKey)) {
+          console.log(`[${newRequestId}] Using cached interaction results for:`, medications);
+          const cachedResults = interactionCache.get(cacheKey)!;
+          
+          setInteractions(cachedResults);
+          
+          // Check if any interaction was found with severity moderate or severe
+          setHasAnyInteraction(cachedResults.some(result => 
+            result.severity === "moderate" || result.severity === "severe" || result.severity === "minor"
+          ));
+          
+          setLoading(false);
+          return;
+        }
+        
         console.log(`[${newRequestId}] Fetching interactions for medications:`, medications);
         const results = await checkInteractions(medications);
         
@@ -55,6 +81,9 @@ export function useInteractions(medications: string[]) {
         const sortedResults = [...results].sort((a, b) => {
           return severityOrder[a.severity] - severityOrder[b.severity];
         });
+        
+        // Store results in cache
+        interactionCache.set(cacheKey, sortedResults);
         
         setInteractions(sortedResults);
         
@@ -81,7 +110,7 @@ export function useInteractions(medications: string[]) {
     };
 
     fetchInteractions();
-  }, [medications, navigate, toast]); // Removed requestId dependency to prevent infinite loops
+  }, [medications, navigate, toast, getCacheKey]); 
 
   return {
     loading,

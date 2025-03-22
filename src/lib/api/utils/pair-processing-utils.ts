@@ -20,8 +20,19 @@ import { determineFinalSeverity, createDefaultSource } from './severity-processo
 import { processAdverseEventsSource } from './adverse-events-processor';
 import { queryAiLiteratureAnalysis } from '../services/ai-literature-analysis';
 
+// Cache for medication pair processing to ensure consistent results
+const pairProcessingCache = new Map<string, InteractionResult>();
+
 // Re-export generateMedicationPairs for backward compatibility
 export { generateMedicationPairs } from './medication-pairs';
+
+/**
+ * Get a unique key for caching medication pair results
+ */
+function getPairCacheKey(med1: string, med2: string): string {
+  // Sort medications for consistent key regardless of order
+  return [med1.toLowerCase(), med2.toLowerCase()].sort().join('|');
+}
 
 /**
  * Processes a pair of medications to determine potential interactions
@@ -42,13 +53,22 @@ export async function processMedicationPair(
   med2: string,
   medicationStatuses: Map<string, MedicationLookupResult>
 ): Promise<InteractionResult> {
+  // Generate cache key for this medication pair
+  const cacheKey = getPairCacheKey(med1, med2);
+  
+  // Check if we already have cached results
+  if (pairProcessingCache.has(cacheKey)) {
+    console.log(`Using cached interaction data for ${med1} + ${med2}`);
+    return pairProcessingCache.get(cacheKey)!;
+  }
+  
   const med1Status = medicationStatuses.get(med1)!;
   const med2Status = medicationStatuses.get(med2)!;
   
   // First check for known high-risk combinations
   const highRiskCheck = checkHighRiskCombination(med1, med2);
   if (highRiskCheck.isHighRisk) {
-    return {
+    const result = {
       medications: [med1, med2],
       severity: "severe" as const,
       description: highRiskCheck.description || "High risk combination detected",
@@ -61,6 +81,10 @@ export async function processMedicationPair(
       confidenceScore: 95,
       aiValidated: false
     };
+    
+    // Cache the result
+    pairProcessingCache.set(cacheKey, result);
+    return result;
   }
 
   console.log(`Checking interactions between ${med1} (${med1Status.id || 'no id'}) and ${med2} (${med2Status.id || 'no id'})`);
@@ -93,7 +117,6 @@ export async function processMedicationPair(
   ];
   
   // AI Analysis is run separately to ensure it doesn't delay API results
-  // Fixed: Removed incorrect .catch() from non-Promise object
   const aiAnalysisPromise = queryAiLiteratureAnalysis(med1, med2).catch(err => {
     console.error(`AI Literature Analysis error: ${err.message}`);
     return null;
@@ -181,7 +204,7 @@ export async function processMedicationPair(
     sources.push(createDefaultSource());
   }
 
-  return {
+  const result = {
     medications: [med1, med2],
     severity,
     description,
@@ -190,4 +213,9 @@ export async function processMedicationPair(
     confidenceScore,
     aiValidated
   };
+  
+  // Cache the result for future lookups
+  pairProcessingCache.set(cacheKey, result);
+
+  return result;
 }

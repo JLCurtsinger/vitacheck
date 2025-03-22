@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useInteractions } from '@/hooks/use-interactions';
 import { ResultsHeader } from '@/components/results/ResultsHeader';
@@ -13,8 +13,12 @@ export default function Results() {
   const medications = location.state?.medications || [];
   const displayNames = location.state?.displayNames || medications; // Use display names if available, otherwise use formatted names
   
-  // Generate a key for the component based on medications and timestamp
-  const searchKey = `${medications.join('-')}-${Date.now()}`;
+  // Generate a stable key for the component based on medications
+  // Sort medications for consistency regardless of input order
+  const searchKey = useMemo(() => {
+    const sortedMeds = [...medications].sort().join('-');
+    return `interactions-${sortedMeds}`;
+  }, [medications]);
   
   // Load interactions data for all medication combinations
   const { loading, interactions, hasAnyInteraction, requestId } = useInteractions(medications);
@@ -45,7 +49,7 @@ export default function Results() {
               interactions={interactions}
               hasAnyInteraction={hasAnyInteraction}
               medications={displayNames} // Pass display names to InteractionsList
-              key={searchKey} // Force re-render on new search
+              key={searchKey} // Use consistent key for re-renders
             />
           )}
         </div>

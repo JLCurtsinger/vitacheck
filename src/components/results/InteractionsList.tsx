@@ -1,7 +1,7 @@
-import { InteractionResult as InteractionResultType } from "@/lib/api-utils";
+import { InteractionResult as InteractionResultType } from "@/lib/api/types";
 import { InteractionResult } from "../interaction/InteractionResult";
 import { ErrorMessage } from "../interaction/ErrorMessage";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { CombinedInteractionResult } from "../interaction/CombinedInteractionResult";
 import { ChevronDown } from "lucide-react";
@@ -16,6 +16,14 @@ interface InteractionsListProps {
 export function InteractionsList({ interactions, hasAnyInteraction, medications }: InteractionsListProps) {
   // Add state to track which sections are open
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  
+  // Create stable interaction keys using useMemo
+  const interactionKeys = useMemo(() => {
+    return interactions.map((interaction, index) => ({
+      id: `${interaction.medications.sort().join('-')}-${index}`,
+      interaction
+    }));
+  }, [interactions]);
   
   // Enhanced logging for debugging confidence scores
   useEffect(() => {
@@ -39,21 +47,18 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
       initialState["combined"] = true;
       
       // Keep individual pairs collapsed by default when combined view is present
-      interactions.forEach((interaction, index) => {
-        const interactionKey = `${interaction.medications.join('-')}-${interaction.severity}-${interaction.confidenceScore}-${index}`;
-        initialState[interactionKey] = false;
+      interactionKeys.forEach(({ id }) => {
+        initialState[id] = false;
       });
     } else {
       // If no combined interaction, open the first interaction by default
-      if (interactions.length > 0) {
-        const firstInteraction = interactions[0];
-        const firstKey = `${firstInteraction.medications.join('-')}-${firstInteraction.severity}-${firstInteraction.confidenceScore}-0`;
-        initialState[firstKey] = true;
+      if (interactionKeys.length > 0) {
+        initialState[interactionKeys[0].id] = true;
       }
     }
     
     setOpenSections(initialState);
-  }, [interactions, medications]);
+  }, [interactionKeys, medications]);
   
   // Handler for toggling sections
   const toggleSection = (key: string) => {
@@ -112,47 +117,44 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
             <CombinedInteractionResult 
               medications={medications} 
               interactions={interactions}
+              key={`combined-${medications.sort().join('-')}`}
             />
           </CollapsibleContent>
         </Collapsible>
       )}
       
       {/* Individual Interaction Sections */}
-      {interactions.map((interaction, index) => {
-        // Create a more robust unique key for each interaction
-        const interactionKey = `${interaction.medications.join('-')}-${interaction.severity}-${interaction.confidenceScore}-${index}`;
-        
-        return (
-          <Collapsible 
-            key={interactionKey}
-            open={openSections[interactionKey]} 
-            onOpenChange={() => toggleSection(interactionKey)}
-            className="rounded-xl bg-white border shadow-lg"
-          >
-            <CollapsibleTrigger className="flex w-full justify-between items-center p-4 rounded-t-xl hover:bg-gray-50">
-              <span className="text-lg font-medium">
-                {interaction.severity === "severe" && "🚨 Severe Interaction: "}
-                {interaction.severity === "moderate" && "⚠️ Moderate Interaction: "}
-                {interaction.severity === "minor" && "ℹ️ Minor Interaction: "}
-                {interaction.severity === "safe" && "✅ Safe Combination: "}
-                {interaction.severity === "unknown" && "ℹ️ Unknown Interaction: "}
-                {interaction.medications.join(' + ')}
-              </span>
-              <ChevronDown 
-                className={cn(
-                  "h-5 w-5 transition-transform duration-200",
-                  openSections[interactionKey] ? "transform rotate-180" : ""
-                )} 
-              />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="px-1">
-              <InteractionResult 
-                interaction={interaction}
-              />
-            </CollapsibleContent>
-          </Collapsible>
-        );
-      })}
+      {interactionKeys.map(({ id, interaction }) => (
+        <Collapsible 
+          key={id}
+          open={openSections[id]} 
+          onOpenChange={() => toggleSection(id)}
+          className="rounded-xl bg-white border shadow-lg"
+        >
+          <CollapsibleTrigger className="flex w-full justify-between items-center p-4 rounded-t-xl hover:bg-gray-50">
+            <span className="text-lg font-medium">
+              {interaction.severity === "severe" && "🚨 Severe Interaction: "}
+              {interaction.severity === "moderate" && "⚠️ Moderate Interaction: "}
+              {interaction.severity === "minor" && "ℹ️ Minor Interaction: "}
+              {interaction.severity === "safe" && "✅ Safe Combination: "}
+              {interaction.severity === "unknown" && "ℹ️ Unknown Interaction: "}
+              {interaction.medications.join(' + ')}
+            </span>
+            <ChevronDown 
+              className={cn(
+                "h-5 w-5 transition-transform duration-200",
+                openSections[id] ? "transform rotate-180" : ""
+              )} 
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="px-1">
+            <InteractionResult 
+              interaction={interaction}
+              key={id}
+            />
+          </CollapsibleContent>
+        </Collapsible>
+      ))}
     </div>
   );
 }

@@ -18,8 +18,15 @@ export function processCombinedSeverity(interactions: InteractionResult[]) {
     unknown: 0
   };
   
+  // Sort interactions by medication names for deterministic processing
+  const sortedInteractions = [...interactions].sort((a, b) => {
+    const nameA = a.medications.join('+');
+    const nameB = b.medications.join('+');
+    return nameA.localeCompare(nameB);
+  });
+  
   // Count occurrences of each severity level
-  interactions.forEach(interaction => {
+  sortedInteractions.forEach(interaction => {
     severityCounts[interaction.severity]++;
   });
   
@@ -45,7 +52,7 @@ export function processCombinedSeverity(interactions: InteractionResult[]) {
   let totalWeightedConfidence = 0;
   let totalWeight = 0;
   
-  interactions.forEach(interaction => {
+  sortedInteractions.forEach(interaction => {
     const weight = getConfidenceWeight(interaction.severity);
     if (interaction.confidenceScore !== undefined) {
       totalWeightedConfidence += interaction.confidenceScore * weight;
@@ -57,13 +64,15 @@ export function processCombinedSeverity(interactions: InteractionResult[]) {
     ? Math.round(totalWeightedConfidence / totalWeight)
     : 50; // Default if no confidence scores available
 
-  // =========== IMPROVED SOURCE DEDUPLICATION ===========
   // Group sources by name to handle deduplication properly
   const sourceGroups = new Map<string, InteractionSource[]>();
   
   // Collect all sources from all interactions and group them by name
-  interactions.forEach(interaction => {
-    interaction.sources.forEach(source => {
+  sortedInteractions.forEach(interaction => {
+    // Sort sources by name for deterministic processing
+    const sortedSources = [...interaction.sources].sort((a, b) => a.name.localeCompare(b.name));
+    
+    sortedSources.forEach(source => {
       if (!sourceGroups.has(source.name)) {
         sourceGroups.set(source.name, []);
       }
@@ -74,16 +83,21 @@ export function processCombinedSeverity(interactions: InteractionResult[]) {
   // Merge sources from the same origin (e.g., FDA, OpenFDA, etc.)
   const mergedSources: InteractionSource[] = [];
   
-  sourceGroups.forEach((sources, sourceName) => {
+  // Process source groups in alphabetical order for consistency
+  const sortedSourceNames = Array.from(sourceGroups.keys()).sort();
+  
+  for (const sourceName of sortedSourceNames) {
     // Skip sources with no data
     if (sourceName === "No Data Available" || sourceName === "Unknown") {
-      return;
+      continue;
     }
+    
+    const sources = sourceGroups.get(sourceName)!;
     
     // If we only have one source of this type, add it directly
     if (sources.length === 1) {
       mergedSources.push(sources[0]);
-      return;
+      continue;
     }
     
     // When we have multiple sources of the same type, merge them
@@ -94,7 +108,7 @@ export function processCombinedSeverity(interactions: InteractionResult[]) {
       // Create a combined description or use the first one
       description: sources[0].description,
       // Average the confidence values if available
-      confidence: sources.reduce((sum, s) => sum + (s.confidence || 0), 0) / sources.length
+      confidence: Math.round(sources.reduce((sum, s) => sum + (s.confidence || 0), 0) / sources.length)
     };
     
     // Add event data if available (from OpenFDA Adverse Events)
@@ -117,11 +131,11 @@ export function processCombinedSeverity(interactions: InteractionResult[]) {
     }
     
     mergedSources.push(mergedSource);
-  });
+  }
   
   // Extract key warnings from all interactions
   const allWarnings: string[] = [];
-  interactions.forEach(interaction => {
+  sortedInteractions.forEach(interaction => {
     if (interaction.severity === "severe" || interaction.severity === "moderate") {
       // Extract first sentence or up to 100 chars from description
       const mainWarning = extractMainWarning(interaction.description, interaction.medications);
@@ -131,10 +145,13 @@ export function processCombinedSeverity(interactions: InteractionResult[]) {
     }
   });
   
+  // Sort warnings alphabetically for consistency
+  allWarnings.sort();
+  
   // Generate a description based on the combined severity
   const description = generateCombinedDescription(
     combinedSeverity, 
-    interactions.length, 
+    sortedInteractions.length, 
     severityCounts
   );
   

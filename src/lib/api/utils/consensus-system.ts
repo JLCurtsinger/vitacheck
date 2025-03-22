@@ -7,7 +7,7 @@
 
 import { InteractionSource, AdverseEventData } from '../types';
 
-// Source confidence weights
+// Fixed source confidence weights for deterministic results
 const SOURCE_WEIGHTS = {
   'RxNorm': 0.9, // 90% confidence
   'FDA': 0.8,    // 80% confidence
@@ -66,9 +66,12 @@ export function calculateConsensusScore(
 
   let totalWeight = 0;
   let aiValidated = false;
+  
+  // Sort sources by name for deterministic processing order
+  const sortedSources = [...sources].sort((a, b) => a.name.localeCompare(b.name));
 
-  // Process each source
-  sources.forEach(source => {
+  // Process each source in deterministic order
+  sortedSources.forEach(source => {
     // Get the weight for this source
     const weight = SOURCE_WEIGHTS[source.name] || 0.3; // Default to 30% if unknown source
     
@@ -120,22 +123,25 @@ export function calculateConsensusScore(
     finalSeverity = "severe";
   } else {
     // Otherwise determine by highest weighted vote
-    (Object.keys(severityVotes) as Array<keyof typeof severityVotes>).forEach(severity => {
+    // Process severity keys in a fixed order for deterministic results
+    const severityKeys: (keyof typeof severityVotes)[] = ["severe", "moderate", "minor", "safe", "unknown"];
+    
+    for (const severity of severityKeys) {
       if (severityVotes[severity] > maxVote) {
         maxVote = severityVotes[severity];
         finalSeverity = severity;
       }
-    });
+    }
   }
 
-  // Calculate confidence score (0-100%)
+  // Calculate confidence score (0-100%) - with fixed rounding for consistency
   let confidenceScore = 0;
   if (totalWeight > 0) {
     // Base confidence on agreement between sources
     const primaryVote = severityVotes[finalSeverity!];
     confidenceScore = Math.min(100, Math.round((primaryVote / totalWeight) * 100));
     
-    // Adjust confidence based on number of sources
+    // Apply fixed confidence adjustments rather than dynamic ones
     if (sources.length >= 3) {
       confidenceScore = Math.min(100, confidenceScore + 10);
     }
@@ -146,14 +152,14 @@ export function calculateConsensusScore(
       confidenceScore = Math.min(100, confidenceScore + 15);
     }
     
-    // AI validation can add confidence if it confirms other sources
+    // AI validation adjustment
     if (aiValidated && severityCounts[finalSeverity!] > 1) {
       confidenceScore = Math.min(100, confidenceScore + 10);
     }
   }
 
   // Generate a description that explains the consensus
-  let description = determineConsensusDescription(finalSeverity!, confidenceScore, sources, adverseEvents);
+  let description = determineConsensusDescription(finalSeverity!, confidenceScore, sortedSources, adverseEvents);
 
   return {
     severity: finalSeverity!,
@@ -172,7 +178,11 @@ function determineConsensusDescription(
   sources: InteractionSource[],
   adverseEvents: AdverseEventData | null | undefined
 ): string {
-  const sourceList = sources.map(s => s.name).filter(name => name !== 'No Data Available');
+  // Get source names in a deterministic way (sorted alphabetically)
+  const sourceList = sources
+    .map(s => s.name)
+    .filter(name => name !== 'No Data Available')
+    .sort();
   
   // Base description on severity and confidence
   if (severity === "severe") {

@@ -10,7 +10,8 @@
 import { InteractionSource } from '../types';
 
 /**
- * Result cache to prevent redundant API calls
+ * Result cache to prevent redundant API calls and ensure consistent results
+ * for the same medication pairs.
  */
 const analysisCache = new Map<string, InteractionSource>();
 
@@ -35,7 +36,7 @@ export async function queryAiLiteratureAnalysis(
   med2: string
 ): Promise<InteractionSource | null> {
   try {
-    // Check cache first to prevent redundant API calls
+    // Check cache first to prevent redundant API calls and ensure consistency
     const cacheKey = getCacheKey(med1, med2);
     if (analysisCache.has(cacheKey)) {
       console.log(`Using cached AI literature analysis for ${med1} + ${med2}`);
@@ -79,7 +80,8 @@ export async function queryAiLiteratureAnalysis(
     const result: InteractionSource = {
       name: 'AI Literature Analysis',
       severity: data.result.severity,
-      description: data.result.description
+      description: data.result.description,
+      confidence: 50 // Set consistent default confidence for AI analysis
     };
     
     // Cache the result to prevent redundant API calls
