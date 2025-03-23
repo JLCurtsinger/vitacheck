@@ -128,13 +128,7 @@ export function SourceDetailsModal({ isOpen, onClose, source }: SourceDetailsMod
                 <h3 className="font-medium mb-2">Reported Adverse Events</h3>
                 <p className="text-sm mb-2">Total events: {data[0].adverseEvents.eventCount}</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {data[0].adverseEvents.events ? (
-                    data[0].adverseEvents.events.slice(0, 8).map((event, idx) => (
-                      <div key={idx} className="bg-gray-50 p-2 rounded text-sm">
-                        {event.term} ({event.count})
-                      </div>
-                    ))
-                  ) : data[0].adverseEvents.commonReactions ? (
+                  {data[0].adverseEvents.commonReactions && data[0].adverseEvents.commonReactions.length > 0 ? (
                     data[0].adverseEvents.commonReactions.slice(0, 8).map((reaction, idx) => (
                       <div key={idx} className="bg-gray-50 p-2 rounded text-sm">
                         {reaction}
