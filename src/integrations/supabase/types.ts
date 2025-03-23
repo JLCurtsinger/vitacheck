@@ -39,6 +39,30 @@ export type Database = {
         }
         Relationships: []
       }
+      nutrient_depletions: {
+        Row: {
+          created_at: string
+          depleted_nutrient: string
+          id: string
+          medication_name: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          depleted_nutrient: string
+          id?: string
+          medication_name: string
+          source: string
+        }
+        Update: {
+          created_at?: string
+          depleted_nutrient?: string
+          id?: string
+          medication_name?: string
+          source?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

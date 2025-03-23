@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { SeverityBreakdown } from "./sections/SeverityBreakdown";
 import { CheckCircle, AlertTriangle, XCircle, Info } from "lucide-react";
 import { processCombinedSeverity } from "@/lib/api/utils/combined-severity-utils";
+import { NutrientDepletions } from "./sections/NutrientDepletions";
+import { NutrientDepletion, analyzeNutrientDepletions } from "@/lib/api/utils/nutrient-depletion-utils";
 
 interface CombinedInteractionResultProps {
   medications: string[];
@@ -20,6 +22,9 @@ export function CombinedInteractionResult({ medications, interactions }: Combine
     sources: InteractionResultType["sources"];
     combinedWarnings: string[];
   } | null>(null);
+  
+  // State for nutrient depletions
+  const [nutrientDepletions, setNutrientDepletions] = useState<NutrientDepletion[]>([]);
 
   // Process the combined severity based on all interactions
   useEffect(() => {
@@ -35,6 +40,39 @@ export function CombinedInteractionResult({ medications, interactions }: Combine
       });
     }
   }, [interactions]);
+  
+  // Load nutrient depletion data
+  useEffect(() => {
+    const fetchNutrientDepletions = async () => {
+      // Extract FDA warnings from all interactions
+      const fdaWarnings: Record<string, string[]> = {};
+      
+      medications.forEach(med => {
+        fdaWarnings[med] = [];
+      });
+      
+      // Collect FDA warnings from all interactions
+      interactions.forEach(interaction => {
+        interaction.sources.forEach(source => {
+          if (source.name === "FDA" && source.description) {
+            // Since this is a combined view, add warnings to the related medications
+            interaction.medications.forEach(med => {
+              if (medications.includes(med) && !fdaWarnings[med].includes(source.description)) {
+                fdaWarnings[med].push(source.description);
+              }
+            });
+          }
+        });
+      });
+      
+      const depletions = await analyzeNutrientDepletions(medications, fdaWarnings);
+      setNutrientDepletions(depletions);
+    };
+    
+    if (medications && medications.length > 0) {
+      fetchNutrientDepletions();
+    }
+  }, [medications, interactions]);
 
   if (!combinedResult) {
     return <div className="p-6">Processing combined interaction data...</div>;
@@ -160,6 +198,9 @@ export function CombinedInteractionResult({ medications, interactions }: Combine
         sources={combinedResult.sources}
         confidenceScore={combinedResult.confidenceScore}
       />
+
+      {/* Nutrient Depletions Section */}
+      <NutrientDepletions depletions={nutrientDepletions} />
 
       {/* Advice Section */}
       <div className="mt-6">

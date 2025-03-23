@@ -11,6 +11,8 @@ import { GeneralInfo } from "./sections/GeneralInfo";
 import { AdverseEvents } from "./sections/AdverseEvents";
 import { SafeCombination } from "./sections/SafeCombination";
 import { SeverityBreakdown } from "./sections/SeverityBreakdown";
+import { NutrientDepletions } from "./sections/NutrientDepletions";
+import { NutrientDepletion, analyzeNutrientDepletions } from "@/lib/api/utils/nutrient-depletion-utils";
 
 interface InteractionDescriptionProps {
   interaction: InteractionResult;
@@ -45,6 +47,36 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
   // Generate a unique identifier for this interaction if id doesn't exist
   const interactionKey = interaction.id || 
     `${interaction.medications[0]}-${interaction.medications[1]}-${interaction.severity}`;
+  
+  // State for nutrient depletions
+  const [nutrientDepletions, setNutrientDepletions] = useState<NutrientDepletion[]>([]);
+  
+  // Load nutrient depletion data
+  useEffect(() => {
+    const fetchNutrientDepletions = async () => {
+      // Extract FDA warnings from sources
+      const fdaWarnings: Record<string, string[]> = {};
+      
+      interaction.medications.forEach(med => {
+        fdaWarnings[med] = [];
+      });
+      
+      // Look for FDA warnings in the sources
+      interaction.sources.forEach(source => {
+        if (source.name === "FDA" && source.description) {
+          // For pair interactions, just add to both medications for simplicity
+          interaction.medications.forEach(med => {
+            fdaWarnings[med].push(source.description);
+          });
+        }
+      });
+      
+      const depletions = await analyzeNutrientDepletions(interaction.medications, fdaWarnings);
+      setNutrientDepletions(depletions);
+    };
+    
+    fetchNutrientDepletions();
+  }, [interaction.medications, interaction.sources]);
   
   // Set the highest priority section to be open initially
   useEffect(() => {
@@ -129,6 +161,9 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
         isSafe={interaction.severity === "safe"} 
         hasAdverseEvents={hasAdverseEvents} 
       />
+      
+      {/* Nutrient Depletions Section */}
+      <NutrientDepletions depletions={nutrientDepletions} />
       
       {/* Sources information */}
       {interaction.sources.length > 1 && (
