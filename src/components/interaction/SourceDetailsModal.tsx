@@ -8,16 +8,21 @@ import {
   DialogDescription
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { InteractionSource } from "@/lib/api/types";
+import { InteractionSource, AdverseEventData } from "@/lib/api/types";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle, HelpCircle, XCircle } from "lucide-react";
+
+// We need to define a custom type to handle the special case for adverse events
+interface SourceData extends InteractionSource {
+  adverseEvents?: AdverseEventData;
+}
 
 interface SourceDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   source: {
     name: string;
-    data: InteractionSource[];
+    data: SourceData[]; // Updated type to our custom interface
     medications: string[];
   } | null;
 }
@@ -123,11 +128,23 @@ export function SourceDetailsModal({ isOpen, onClose, source }: SourceDetailsMod
                 <h3 className="font-medium mb-2">Reported Adverse Events</h3>
                 <p className="text-sm mb-2">Total events: {data[0].adverseEvents.eventCount}</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {data[0].adverseEvents.events.slice(0, 8).map((event, idx) => (
-                    <div key={idx} className="bg-gray-50 p-2 rounded text-sm">
-                      {event.term} ({event.count})
+                  {data[0].adverseEvents.events ? (
+                    data[0].adverseEvents.events.slice(0, 8).map((event, idx) => (
+                      <div key={idx} className="bg-gray-50 p-2 rounded text-sm">
+                        {event.term} ({event.count})
+                      </div>
+                    ))
+                  ) : data[0].adverseEvents.commonReactions ? (
+                    data[0].adverseEvents.commonReactions.slice(0, 8).map((reaction, idx) => (
+                      <div key={idx} className="bg-gray-50 p-2 rounded text-sm">
+                        {reaction}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-2 text-gray-500 text-sm">
+                      No detailed event information available
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             )}

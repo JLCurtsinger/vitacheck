@@ -2,7 +2,7 @@
 import { useCallback, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Database, FileText, TestTube, AlertTriangle, BookOpen, BarChart } from "lucide-react";
-import { InteractionResult } from "@/lib/api/types";
+import { InteractionResult, AdverseEventData } from "@/lib/api/types";
 import { SourceDetailsModal } from "./SourceDetailsModal";
 
 interface SourceAttributionProps {
@@ -79,7 +79,7 @@ export function SourceAttribution({ sources, interaction }: SourceAttributionPro
     if (sourceName.toUpperCase().includes("ADVERSE") && interaction.adverseEvents) {
       const adverseEventSource = {
         name: "OpenFDA Adverse Events",
-        severity: interaction.adverseEvents.severity || "unknown",
+        severity: interaction.adverseEvents ? "unknown" : "unknown", // Fixed: Don't access severity on adverseEvents
         description: `${interaction.adverseEvents.eventCount} adverse events reported for this combination`,
         adverseEvents: interaction.adverseEvents
       };
