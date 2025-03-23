@@ -1,4 +1,3 @@
-
 import { InteractionResult as InteractionResultType } from "@/lib/api/types";
 import { InteractionResult } from "../interaction/InteractionResult";
 import { ErrorMessage } from "../interaction/ErrorMessage";
@@ -7,7 +6,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { CombinedInteractionResult } from "../interaction/CombinedInteractionResult";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NutrientDepletions } from "../interaction/sections/NutrientDepletions";
 import { useNutrientDepletions } from "@/hooks/use-nutrient-depletions";
 
 interface InteractionsListProps {
@@ -164,13 +162,6 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
           </CollapsibleContent>
         </Collapsible>
       ))}
-      
-      {/* Show nutrient depletions section at the page level if not shown in combined view */}
-      {!hasCombinedInteraction && allMedicationsDepletions.length > 0 && (
-        <div className="p-6 bg-white border rounded-xl shadow-lg">
-          <NutrientDepletions depletions={allMedicationsDepletions} />
-        </div>
-      )}
     </div>
   );
 }
