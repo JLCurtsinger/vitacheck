@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -184,7 +183,7 @@ export async function getDatabaseNutrientDepletions(medicationName: string): Pro
 }
 
 /**
- * Save newly discovered nutrient depletions to Supabase
+ * Save newly discovered nutrient depletions via Edge Function
  */
 export async function saveNutrientDepletions(depletions: NutrientDepletion[]): Promise<void> {
   try {
@@ -193,23 +192,33 @@ export async function saveNutrientDepletions(depletions: NutrientDepletion[]): P
         // Only use the first source for simplicity
         const source = depletion.sources[0] || 'Unknown';
         
-        const { error } = await supabase
-          .from('nutrient_depletions')
-          .upsert({
-            medication_name: depletion.medication.toLowerCase(),
-            depleted_nutrient: nutrient,
-            source: source
-          }, { 
-            onConflict: 'medication_name, depleted_nutrient'
+        try {
+          // Call the Edge Function instead of direct database insert
+          const response = await fetch('/.netlify/functions/logNutrientDepletion', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              medication_name: depletion.medication.toLowerCase(),
+              depleted_nutrient: nutrient,
+              source: source
+            })
           });
-        
-        if (error) {
-          console.error('Error saving nutrient depletion:', error);
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Error saving nutrient depletion via Edge Function:', errorData);
+          }
+        } catch (error) {
+          console.error('Error calling logNutrientDepletion Edge Function:', error);
+          // Continue with the loop even if one request fails
         }
       }
     }
   } catch (error) {
     console.error('Error in saveNutrientDepletions:', error);
+    // Don't throw the error - just log it to prevent UI breakage
   }
 }
 
