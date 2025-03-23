@@ -54,8 +54,30 @@ const handler: Handler = async (event) => {
 
     // Call the Supabase Edge Function to handle the actual database operation
     const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_KEY;
+    
     if (!supabaseUrl) {
-      throw new Error('SUPABASE_URL environment variable is not defined');
+      console.error('SUPABASE_URL environment variable is not defined');
+      return {
+        statusCode: 500,
+        headers: corsHeaders,
+        body: JSON.stringify({ 
+          error: "SUPABASE_URL environment variable is not defined",
+          status: "error"
+        })
+      };
+    }
+    
+    if (!supabaseKey) {
+      console.error('SUPABASE_KEY environment variable is not defined');
+      return {
+        statusCode: 500,
+        headers: corsHeaders,
+        body: JSON.stringify({ 
+          error: "SUPABASE_KEY (service role key) environment variable is not defined",
+          status: "error"
+        })
+      };
     }
 
     const edgeFunctionUrl = `${supabaseUrl}/functions/v1/logNutrientDepletion`;
@@ -64,7 +86,7 @@ const handler: Handler = async (event) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // No authorization headers needed here as the Edge Function uses the service role key
+        'Authorization': `Bearer ${supabaseKey}`
       },
       body: JSON.stringify({
         medication_name: requestData.medication_name,
