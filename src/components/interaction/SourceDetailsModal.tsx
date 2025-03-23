@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useMemo } from "react";
 import { 
   Dialog, 
   DialogContent, 
@@ -10,7 +10,10 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { InteractionSource, AdverseEventData } from "@/lib/api/types";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle, HelpCircle, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle, HelpCircle, Info, XCircle } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { formatDescriptionText, categorizeBulletPoints, createHTMLProps } from "./utils/formatDescription";
 
 // We need to define a custom type to handle the special case for adverse events
 interface SourceData extends InteractionSource {
@@ -31,6 +34,22 @@ export function SourceDetailsModal({ isOpen, onClose, source }: SourceDetailsMod
   if (!source) return null;
   
   const { name, data, medications } = source;
+  
+  // Use useMemo to format description text into bullet points when the source changes
+  const formattedContent = useMemo(() => {
+    if (!data || data.length === 0) return { bulletPoints: [], categories: { severeRisks: [], moderateRisks: [], generalInfo: [] }};
+    
+    // Process all descriptions from all source items
+    const allDescriptions = data.map(item => item.description).filter(Boolean).join(". ");
+    
+    // Format the text into bullet points
+    const bulletPoints = formatDescriptionText(allDescriptions, medications);
+    
+    // Categorize bullet points
+    const categories = categorizeBulletPoints(bulletPoints);
+    
+    return { bulletPoints, categories };
+  }, [data, medications]);
   
   // Get the appropriate color class for the source header
   const getSourceColorClass = (sourceName: string) => {
@@ -68,9 +87,158 @@ export function SourceDetailsModal({ isOpen, onClose, source }: SourceDetailsMod
     }
   };
   
+  // Determine if we should show the source-specific UI based on the source name
+  const renderSourceSpecificUI = () => {
+    if (data.length === 0) {
+      return (
+        <div className="p-6 text-center">
+          <p className="text-gray-600">No detailed information available for this source.</p>
+        </div>
+      );
+    }
+    
+    // Standard severity and confidence table for all sources
+    const standardTable = (
+      <div className="rounded-md border mb-4">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Severity</TableHead>
+              <TableHead>Confidence</TableHead>
+              <TableHead>Details</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((item, idx) => (
+              <TableRow key={idx}>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    {getSeverityIcon(item.severity)}
+                    <span className="capitalize">{item.severity}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {item.confidence ? (
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                      {item.confidence}%
+                    </Badge>
+                  ) : "N/A"}
+                </TableCell>
+                <TableCell className="max-w-xs">
+                  {item.description || "No detailed description available"}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
+    
+    // Source-specific UI components based on source type
+    if (name.toUpperCase().includes("ADVERSE")) {
+      return (
+        <>
+          {standardTable}
+          
+          {data[0]?.adverseEvents && (
+            <div className="rounded-md border p-4 mb-4">
+              <h3 className="font-medium mb-2">Reported Adverse Events</h3>
+              <p className="text-sm mb-2">Total events: {data[0].adverseEvents.eventCount}</p>
+              <div className="grid grid-cols-2 gap-2">
+                {data[0].adverseEvents.commonReactions && data[0].adverseEvents.commonReactions.length > 0 ? (
+                  data[0].adverseEvents.commonReactions.slice(0, 8).map((reaction, idx) => (
+                    <div key={idx} className="bg-gray-50 p-2 rounded text-sm">
+                      {reaction}
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-2 text-gray-500 text-sm">
+                    No detailed event information available
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      );
+    } else if (name.toUpperCase().includes("FDA")) {
+      return (
+        <>
+          {standardTable}
+          
+          {/* Categorized FDA content sections */}
+          {formattedContent.categories.severeRisks.length > 0 && (
+            <div className="rounded-md border mb-4 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                <h3 className="font-medium text-red-600">Critical Warnings</h3>
+              </div>
+              <div className="space-y-2">
+                {formattedContent.categories.severeRisks.map((point, idx) => (
+                  <p key={idx} className="text-sm" dangerouslySetInnerHTML={createHTMLProps(point)} />
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {formattedContent.categories.moderateRisks.length > 0 && (
+            <div className="rounded-md border mb-4 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Info className="h-5 w-5 text-yellow-600" />
+                <h3 className="font-medium text-yellow-600">Precautions</h3>
+              </div>
+              <div className="space-y-2">
+                {formattedContent.categories.moderateRisks.map((point, idx) => (
+                  <p key={idx} className="text-sm" dangerouslySetInnerHTML={createHTMLProps(point)} />
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {formattedContent.categories.generalInfo.length > 0 && (
+            <div className="rounded-md border mb-4 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Info className="h-5 w-5 text-blue-600" />
+                <h3 className="font-medium text-blue-600">General Information</h3>
+              </div>
+              <div className="space-y-2">
+                {formattedContent.categories.generalInfo.map((point, idx) => (
+                  <p key={idx} className="text-sm" dangerouslySetInnerHTML={createHTMLProps(point)} />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      );
+    } else if (name.toUpperCase().includes("AI") || name.toUpperCase().includes("LITERATURE")) {
+      return (
+        <>
+          {standardTable}
+          
+          {/* Literature Analysis Summary */}
+          <div className="rounded-md border mb-4 p-4">
+            <h3 className="font-medium mb-2">Literature Analysis</h3>
+            <div className="space-y-2">
+              {formattedContent.bulletPoints.length > 0 ? (
+                formattedContent.bulletPoints.map((point, idx) => (
+                  <p key={idx} className="text-sm" dangerouslySetInnerHTML={createHTMLProps(point)} />
+                ))
+              ) : (
+                <p className="text-sm text-gray-500">No detailed analysis available.</p>
+              )}
+            </div>
+          </div>
+        </>
+      );
+    }
+    
+    // Default UI for other sources
+    return standardTable;
+  };
+  
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <div className={`rounded-lg px-3 py-1 inline-block ${getSourceColorClass(name)}`}>
             {name} Data Source
@@ -83,72 +251,16 @@ export function SourceDetailsModal({ isOpen, onClose, source }: SourceDetailsMod
           </DialogDescription>
         </DialogHeader>
         
-        {data.length === 0 ? (
-          <div className="p-6 text-center">
-            <p className="text-gray-600">No detailed information available for this source.</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Severity</TableHead>
-                    <TableHead>Confidence</TableHead>
-                    <TableHead>Details</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.map((item, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          {getSeverityIcon(item.severity)}
-                          <span className="capitalize">{item.severity}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {item.confidence ? (
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                            {item.confidence}%
-                          </Badge>
-                        ) : "N/A"}
-                      </TableCell>
-                      <TableCell className="max-w-xs">
-                        {item.description || "No detailed description available"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            
-            {name === "OpenFDA Adverse Events" && data[0]?.adverseEvents && (
-              <div className="rounded-md border p-4">
-                <h3 className="font-medium mb-2">Reported Adverse Events</h3>
-                <p className="text-sm mb-2">Total events: {data[0].adverseEvents.eventCount}</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {data[0].adverseEvents.commonReactions && data[0].adverseEvents.commonReactions.length > 0 ? (
-                    data[0].adverseEvents.commonReactions.slice(0, 8).map((reaction, idx) => (
-                      <div key={idx} className="bg-gray-50 p-2 rounded text-sm">
-                        {reaction}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="col-span-2 text-gray-500 text-sm">
-                      No detailed event information available
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+        <ScrollArea className="max-h-[calc(90vh-10rem)] pr-4">
+          <div className="space-y-4 pb-4">
+            {renderSourceSpecificUI()}
             
             <div className="text-sm text-gray-500 italic">
               Note: This data is sourced directly from the {name} database and represents 
               their assessment of this interaction.
             </div>
           </div>
-        )}
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
