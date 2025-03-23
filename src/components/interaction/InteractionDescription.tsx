@@ -24,6 +24,13 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
     name !== "No Data Available" && name !== "Unknown"
   );
   
+  // Add adverse events source if available
+  if (interaction.adverseEvents && interaction.adverseEvents.eventCount > 0) {
+    if (!sourceNames.includes("OpenFDA Adverse Events")) {
+      sourceNames.push("OpenFDA Adverse Events");
+    }
+  }
+  
   // Format the description into bullet points
   const bulletPoints = formatDescriptionText(interaction.description, interaction.medications);
   
@@ -96,7 +103,7 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
   
   return (
     <div className="mb-6 space-y-4">
-      {sourceNames.length > 0 && <SourceAttribution sources={sourceNames} />}
+      {sourceNames.length > 0 && <SourceAttribution sources={sourceNames} interaction={interaction} />}
 
       {/* Clinical Interaction Description Section */}
       <div className={cn(
