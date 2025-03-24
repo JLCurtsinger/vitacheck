@@ -1,4 +1,3 @@
-
 /**
  * Weighted Multi-Source Consensus System
  * 
@@ -6,121 +5,13 @@
  * by weighing multiple data sources according to their reliability.
  */
 
-import { InteractionSource, AdverseEventData } from '../types';
+import { InteractionSource, AdverseEventData } from '../../types';
+import { determineSourceWeight } from './source-weight';
+import { hasValidInteractionEvidence } from './source-validation';
+import { determineConsensusDescription } from './description-generator';
 
 // Threshold for considering a severe adverse event rate significant
 const SEVERE_EVENT_THRESHOLD = 0.05; // 5% of total events
-
-/**
- * Determines the weight of a source based on evidence quality
- */
-function determineSourceWeight(source: InteractionSource): number {
-  if (!source.description || source.severity === 'unknown') return 0;
-
-  const desc = source.description.toLowerCase();
-
-  const highEvidencePhrases = [
-    'adverse event', 'case report', 'study found', 'research shows',
-    'clinical trial', 'reported', 'contraindicated', 'observed', 'bleeding risk',
-    'statistical', 'increased risk', 'evidence indicates', 'trial'
-  ];
-
-  const lowEvidencePhrases = [
-    'no interaction', 'no known', 'monitor', 'may cause', 'use caution',
-    'general information', 'labeling only', 'could not find any interaction',
-    'no interactions found', 'no interaction data', 'no evidence of interaction'
-  ];
-
-  // VitaCheck Safety Database always has high weight as it contains verified high-risk combinations
-  if (source.name === 'VitaCheck Safety Database') {
-    return 0.95;
-  }
-
-  // OpenFDA: only count if it has event data
-  if (source.name === 'OpenFDA Adverse Events') {
-    // Fix: Use totalEvents instead of eventCount
-    return source.eventData?.totalEvents > 0 ? 0.95 : 0;
-  }
-
-  if (source.name === 'AI Literature Analysis') {
-    return /study|research|evidence|trial/.test(desc) ? 0.6 : 0.45;
-  }
-
-  // RxNorm tends to have high-quality data when it reports an interaction
-  if (source.name === 'RxNorm' && source.severity !== 'unknown' && source.severity !== 'safe') {
-    return highEvidencePhrases.some(p => desc.includes(p)) ? 0.85 : 0.7;
-  }
-
-  // FDA data is also quite reliable when it comes from black box warnings
-  if (source.name === 'FDA' && desc.includes('box warning')) {
-    return 0.85;
-  }
-
-  if (highEvidencePhrases.some(p => desc.includes(p))) return 0.7;
-  if (lowEvidencePhrases.some(p => desc.includes(p))) return 0.4;
-
-  return 0.5; // Default mid confidence if not matched
-}
-
-/**
- * Determines if a source contains meaningful interaction evidence
- * and should be included in confidence calculations
- */
-function hasValidInteractionEvidence(source: InteractionSource): boolean {
-  // Sources with no descriptions or "no data available" aren't valid
-  if (!source.description || 
-      source.name === 'No Data Available' || 
-      source.severity === 'unknown') {
-    return false;
-  }
-  
-  // "No known interaction" responses should not affect confidence
-  const noInteractionPhrases = [
-    'no known interaction',
-    'no interactions found',
-    'no interaction data',
-    'no evidence of interaction',
-    'could not find any interaction'
-  ];
-  
-  if (noInteractionPhrases.some(phrase => 
-      source.description.toLowerCase().includes(phrase))) {
-    return false;
-  }
-  
-  // If source explicitly indicates safety without evidence, don't count it
-  if (source.severity === 'safe' && 
-      !source.description.toLowerCase().includes('evidence') &&
-      !source.description.toLowerCase().includes('study')) {
-    return false;
-  }
-  
-  // Always include sources with actual adverse event data
-  if (source.eventData && source.eventData.totalEvents > 0) {
-    return true;
-  }
-  
-  // Always include high-quality sources that identify specific interactions
-  const interactionEvidencePhrases = [
-    'adverse event',
-    'clinical',
-    'case report',
-    'study found',
-    'research shows',
-    'trial',
-    'evidence indicates',
-    'reported',
-    'interaction risk',
-    'contraindicated',
-    'statistical',
-    'increased risk',
-    'observed'
-  ];
-  
-  // Check if description contains evidence of actual interaction data
-  return interactionEvidencePhrases.some(phrase => 
-    source.description.toLowerCase().includes(phrase));
-}
 
 /**
  * Calculates a weighted severity score based on multiple sources
@@ -282,31 +173,9 @@ export function calculateConsensusScore(
   };
 }
 
-/**
- * Generates a description explaining how the consensus was reached
- */
-function determineConsensusDescription(
-  severity: "safe" | "minor" | "moderate" | "severe" | "unknown",
-  confidenceScore: number,
-  sources: InteractionSource[],
-  adverseEvents: AdverseEventData | null | undefined
-): string {
-  // Get source names in a deterministic way (sorted alphabetically)
-  const sourceList = sources
-    .map(s => s.name)
-    .filter(name => name !== 'No Data Available')
-    .sort();
-  
-  // Base description on severity and confidence
-  if (severity === "severe") {
-    return `Severe interaction risk identified with ${confidenceScore}% confidence based on ${sourceList.join(', ')}. ${adverseEvents?.seriousCount ? `Real-world data shows ${adverseEvents.seriousCount} serious adverse events.` : ''}`;
-  } else if (severity === "moderate") {
-    return `Moderate interaction risk identified with ${confidenceScore}% confidence based on ${sourceList.join(', ')}. Monitor closely and consult a healthcare professional.`;
-  } else if (severity === "minor") {
-    return `Minor interaction potential with ${confidenceScore}% confidence based on ${sourceList.join(', ')}. Generally considered manageable.`;
-  } else if (severity === "safe") {
-    return `Verified safe to take together with ${confidenceScore}% confidence based on ${sourceList.length ? sourceList.join(', ') : 'available data'}.`;
-  } else {
-    return `Interaction status is uncertain (${confidenceScore}% confidence). Limited data available. Consult a healthcare professional.`;
-  }
-}
+// Re-export the utility functions for potential direct use
+export {
+  determineSourceWeight,
+  hasValidInteractionEvidence,
+  determineConsensusDescription
+};

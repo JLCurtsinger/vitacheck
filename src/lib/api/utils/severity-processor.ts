@@ -1,69 +1,40 @@
 
 /**
- * Severity Determination Utilities
+ * Severity Processor
  * 
- * This module handles severity determination and result processing for medication interactions.
+ * This module processes severity data from various sources to determine a final
+ * interaction severity rating.
  */
 
-import { InteractionResult, InteractionSource, AdverseEventData } from '../types';
+import { InteractionSource, AdverseEventData } from '../types';
 import { calculateConsensusScore } from './consensus-system';
 
-export type Severity = "safe" | "minor" | "moderate" | "severe" | "unknown";
-
 /**
- * Determines the final severity and description based on all API responses
- * using the Weighted Multi-Source Consensus System
- */
-export function determineFinalSeverity(
-  rxnormResult: any,
-  suppaiResult: any,
-  fdaResult: any,
-  adverseEventsResult: AdverseEventData | null,
-  sources: InteractionSource[]
-): {
-  severity: Severity,
-  description: string,
-  confidenceScore: number,
-  aiValidated: boolean
-} {
-  // Enhanced logging to help debug confidence score calculation
-  console.log('Determining final severity based on:', {
-    rxnorm: rxnormResult ? `Found: ${rxnormResult.severity}` : 'No data',
-    suppai: suppaiResult ? `Found: ${suppaiResult.severity}` : 'No data',
-    fda: fdaResult ? `Found: ${fdaResult.severity}` : 'No data',
-    adverseEvents: adverseEventsResult ? `Found ${adverseEventsResult.eventCount} events` : 'No data',
-    sourceCount: sources.length,
-    // Fixed: Removed the incorrect access to the medications property which doesn't exist on InteractionSource
-    medicationPair: 'See pair-processing-utils for medication pairs'
-  });
-  
-  // Use the consensus system to calculate severity and confidence score
-  const consensusResult = calculateConsensusScore(sources, adverseEventsResult);
-  
-  // Log consensus calculation result for debugging
-  console.log('Consensus result for current query:', {
-    severity: consensusResult.severity,
-    confidenceScore: consensusResult.confidenceScore,
-    aiValidated: consensusResult.aiValidated,
-    description: consensusResult.description.substring(0, 50) + '...'
-  });
-  
-  return {
-    severity: consensusResult.severity,
-    description: consensusResult.description,
-    confidenceScore: consensusResult.confidenceScore,
-    aiValidated: consensusResult.aiValidated
-  };
-}
-
-/**
- * Creates a default source if no sources are available
+ * Creates a default source when no data is available
  */
 export function createDefaultSource(): InteractionSource {
   return {
     name: "No Data Available",
     severity: "unknown",
-    description: "No interaction data available from any source",
-    confidence: 0
+    description: "No interaction data available for this medication combination."
   };
+}
+
+/**
+ * Determines the final severity rating based on multiple data sources
+ */
+export function determineFinalSeverity(
+  rxnormResult: any | null,
+  suppaiResult: any | null,
+  fdaResult: any | null,
+  adverseEventsResult: AdverseEventData | null,
+  sources: InteractionSource[]
+): {
+  severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
+  description: string;
+  confidenceScore: number;
+  aiValidated: boolean;
+} {
+  // Use the consensus-based approach to calculate the final severity
+  return calculateConsensusScore(sources, adverseEventsResult);
 }
