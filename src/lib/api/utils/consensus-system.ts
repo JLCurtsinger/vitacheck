@@ -38,7 +38,8 @@ function determineSourceWeight(source: InteractionSource): number {
 
   // OpenFDA: only count if it has event data
   if (source.name === 'OpenFDA Adverse Events') {
-    return source.eventData?.eventCount > 0 ? 0.95 : 0;
+    // Fix: Use totalEvents instead of eventCount
+    return source.eventData?.totalEvents > 0 ? 0.95 : 0;
   }
 
   if (source.name === 'AI Literature Analysis') {
@@ -224,7 +225,7 @@ export function calculateConsensusScore(
   }
 
   // Determine the final severity based on weighted votes
-  let finalSeverity: "safe" | "minor" | "moderate" | "severe" | "unknown";
+  let finalSeverity: "safe" | "minor" | "moderate" | "severe" | "unknown" = "unknown";
   let maxVote = 0;
 
   // First check if we have any "severe" votes from high-confidence sources
@@ -250,7 +251,7 @@ export function calculateConsensusScore(
   let confidenceScore = 0;
   if (totalWeight > 0) {
     // Base confidence on agreement between sources
-    const primaryVote = severityVotes[finalSeverity!];
+    const primaryVote = severityVotes[finalSeverity];
     confidenceScore = Math.min(100, Math.round((primaryVote / totalWeight) * 100));
     
     // Apply fixed confidence adjustments rather than dynamic ones
@@ -265,16 +266,16 @@ export function calculateConsensusScore(
     }
     
     // AI validation adjustment
-    if (aiValidated && severityCounts[finalSeverity!] > 1) {
+    if (aiValidated && severityCounts[finalSeverity] > 1) {
       confidenceScore = Math.min(100, confidenceScore + 10);
     }
   }
 
   // Generate a description that explains the consensus
-  let description = determineConsensusDescription(finalSeverity!, confidenceScore, sourcesToProcess, adverseEvents);
+  let description = determineConsensusDescription(finalSeverity, confidenceScore, sourcesToProcess, adverseEvents);
 
   return {
-    severity: finalSeverity!,
+    severity: finalSeverity,
     confidenceScore,
     description,
     aiValidated
