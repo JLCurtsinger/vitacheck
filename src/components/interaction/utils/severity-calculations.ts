@@ -23,6 +23,7 @@ export const calculateSourceStats = (source: {
     totalEvents: number;
     seriousEvents: number;
     nonSeriousEvents: number;
+    seriousPercentage?: number;
   };
 }) => {
   // Default values if data not available
@@ -129,20 +130,38 @@ export const calculateCombinedStats = (sourceStats: Array<ReturnType<typeof calc
     };
   }
   
-  // Calculate combined statistics using weighted approach
+  // Weight sources by their confidence
   const totalConfidence = validStats.reduce((sum, stat) => sum + stat.confidence, 0);
-  const validSourceCount = validStats.filter(s => s.confidence > 0).length;
   
-  // Create the aggregate "Final Combined Rating" row
+  // Apply weights to get weighted totals
+  let weightedTotalCases = 0;
+  let weightedSevereCases = 0;
+  let weightedModerateCases = 0;
+  let weightedMinorCases = 0;
+  
+  validStats.forEach(stat => {
+    // Skip invalid data
+    if (isNaN(stat.totalCases) || stat.totalCases <= 0) return;
+    
+    const weight = totalConfidence > 0 ? stat.confidence / totalConfidence : 1 / validStats.length;
+    
+    // Apply weight to counts - this gives more weight to higher confidence sources
+    weightedTotalCases += stat.totalCases * weight;
+    weightedSevereCases += stat.severeCases * weight;
+    weightedModerateCases += stat.moderateCases * weight;
+    weightedMinorCases += stat.minorCases * weight;
+  });
+  
+  // Create the combined rating with weighted values
   const weightedStats = {
     name: "Final Combined Rating",
-    totalCases: validStats.reduce((sum, stat) => sum + stat.totalCases, 0),
-    severeCases: validStats.reduce((sum, stat) => sum + stat.severeCases, 0),
-    moderateCases: validStats.reduce((sum, stat) => sum + stat.moderateCases, 0),
-    minorCases: validStats.reduce((sum, stat) => sum + stat.minorCases, 0),
+    totalCases: Math.round(weightedTotalCases),
+    severeCases: Math.round(weightedSevereCases),
+    moderateCases: Math.round(weightedModerateCases),
+    minorCases: Math.round(weightedMinorCases),
     severePercent: 0,
-    confidence: confidenceScore || (validSourceCount > 0 ? Math.round(totalConfidence / validSourceCount) : 0),
-    hasData: validStats.length > 0
+    confidence: confidenceScore || 0,
+    hasData: true
   };
   
   // Calculate combined severe percentage

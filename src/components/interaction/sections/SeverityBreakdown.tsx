@@ -5,6 +5,8 @@ import { useEffect } from "react";
 import { calculateSourceStats, calculateCombinedStats } from "../utils/severity-calculations";
 import { SeverityTableRow } from "./severity/SeverityTableRow";
 import { SeverityLegend } from "./severity/SeverityLegend";
+import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 
 interface SeverityBreakdownProps {
   sources: InteractionSource[];
@@ -16,7 +18,7 @@ export function SeverityBreakdown({ sources, confidenceScore, adverseEvents }: S
   useEffect(() => {
     // Debug log when component renders
     console.log('SeverityBreakdown rendering with sources:', 
-      sources.map(s => `${s.name}: ${s.severity} (${s.confidence}%)`));
+      sources.map(s => `${s.name}: ${s.severity} (${s.confidence || 'N/A'}%)`));
     
     if (adverseEvents) {
       console.log('Adverse events data:', {
@@ -44,14 +46,19 @@ export function SeverityBreakdown({ sources, confidenceScore, adverseEvents }: S
 
   // If we have adverse events data but no OpenFDA source, create one
   if (adverseEvents && adverseEvents.eventCount > 0 && !hasOpenFDASource) {
+    const seriousPercentage = adverseEvents.seriousCount / adverseEvents.eventCount;
+    
     validSources.push({
       name: "OpenFDA Adverse Events",
-      severity: "unknown", // Will be determined by the consensus system
-      description: `${adverseEvents.eventCount} adverse events reported, with ${adverseEvents.seriousCount} serious cases.`,
+      severity: seriousPercentage >= 0.05 ? "severe" : 
+                seriousPercentage >= 0.01 ? "moderate" : "minor",
+      description: `${adverseEvents.eventCount.toLocaleString()} adverse events reported, with ${adverseEvents.seriousCount.toLocaleString()} serious cases (${(seriousPercentage * 100).toFixed(2)}%).`,
+      confidence: 95, // Real-world data has high confidence
       eventData: {
         totalEvents: adverseEvents.eventCount,
         seriousEvents: adverseEvents.seriousCount,
-        nonSeriousEvents: adverseEvents.eventCount - adverseEvents.seriousCount
+        nonSeriousEvents: adverseEvents.eventCount - adverseEvents.seriousCount,
+        seriousPercentage
       }
     });
   }
@@ -59,7 +66,7 @@ export function SeverityBreakdown({ sources, confidenceScore, adverseEvents }: S
   // Process source statistics for each source
   const sourceStats = validSources.map(source => calculateSourceStats(source));
   
-  // Calculate combined statistics
+  // Calculate combined statistics with confidence score
   const weightedStats = calculateCombinedStats(sourceStats, confidenceScore);
   
   // Debug the final stats
@@ -84,13 +91,30 @@ export function SeverityBreakdown({ sources, confidenceScore, adverseEvents }: S
   
   return (
     <div className="my-6 p-4 rounded-lg border border-gray-200 bg-gray-50/60">
-      <h3 className="text-base font-semibold mb-3 pb-2 border-b border-gray-200 flex items-center gap-2">
-        📌 Interaction Severity Breakdown
-      </h3>
+      <div className="mb-3 pb-2 border-b border-gray-200">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold flex items-center gap-2">
+            📌 Interaction Severity Breakdown
+          </h3>
+          
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center text-sm text-blue-600 cursor-help">
+                  <Info className="h-4 w-4 mr-1" />
+                  Confidence: {confidenceScore || 0}%
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>Confidence is calculated from weighted source data. OpenFDA Adverse Events is given the highest weight when available due to its direct reporting on adverse outcomes from combining the selected medications or supplements.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </div>
       
       <p className="text-sm text-gray-600 mb-3">
         This table shows how each data source contributed to the severity rating.
-        {confidenceScore && ` Overall confidence score: ${confidenceScore}%`}
       </p>
       
       <div className="overflow-x-auto">

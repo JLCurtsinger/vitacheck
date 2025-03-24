@@ -68,8 +68,10 @@ export function calculateConsensusScore(
   // If we have no valid sources, but have some sources, use all sources
   // This prevents completely blank results when only general information is available
   const sourcesToProcess = validSources.length > 0 ? validSources : sortedSources;
-
-  // Process each source in deterministic order
+  
+  // Process each source in deterministic order and collect their weights
+  const sourceWeights: { source: InteractionSource, weight: number }[] = [];
+  
   sourcesToProcess.forEach(source => {
     // Get the dynamic weight for this source based on evidence quality
     const weight = determineSourceWeight(source);
@@ -77,15 +79,31 @@ export function calculateConsensusScore(
     // Only include sources with positive weight
     if (weight <= 0) return;
     
+    sourceWeights.push({ source, weight });
+    
     // Check if this is AI validation
     if (source.name === 'AI Literature Analysis') {
       aiValidated = true;
     }
+  });
 
-    // Add weighted vote
+  // Calculate total weight from all valid sources
+  totalWeight = sourceWeights.reduce((sum, item) => sum + item.weight, 0);
+  
+  // If no sources have weight, return unknown
+  if (totalWeight === 0) {
+    return {
+      severity: "unknown",
+      confidenceScore: 0,
+      description: "Insufficient data to determine interaction severity.",
+      aiValidated: false
+    };
+  }
+  
+  // Add weighted votes
+  sourceWeights.forEach(({ source, weight }) => {
     severityVotes[source.severity] += weight;
     severityCounts[source.severity]++;
-    totalWeight += weight;
   });
 
   // Factor in adverse events data if available
@@ -120,8 +138,8 @@ export function calculateConsensusScore(
   let maxVote = 0;
 
   // First check if we have any "severe" votes from high-confidence sources
-  const hasSevereFromHighConfidence = sourcesToProcess.some(s => 
-    s.severity === "severe" && determineSourceWeight(s) >= 0.7);
+  const hasSevereFromHighConfidence = sourceWeights.some(({ source, weight }) => 
+    source.severity === "severe" && weight >= 0.6);
     
   if (severityVotes.severe > 0 && hasSevereFromHighConfidence) {
     finalSeverity = "severe";
@@ -138,30 +156,26 @@ export function calculateConsensusScore(
     }
   }
 
-  // Calculate confidence score (0-100%) - with fixed rounding for consistency
-  let confidenceScore = 0;
-  if (totalWeight > 0) {
-    // Base confidence on agreement between sources
-    const primaryVote = severityVotes[finalSeverity];
-    confidenceScore = Math.min(100, Math.round((primaryVote / totalWeight) * 100));
-    
-    // Apply fixed confidence adjustments rather than dynamic ones
-    if (sourcesToProcess.length >= 3) {
-      confidenceScore = Math.min(100, confidenceScore + 10);
-    }
-    
-    // Adjust confidence based on source agreement
-    const allAgree = Object.values(severityCounts).filter(count => count > 0).length === 1;
-    if (allAgree && sourcesToProcess.length > 1) {
-      confidenceScore = Math.min(100, confidenceScore + 15);
-    }
-    
-    // AI validation adjustment
-    if (aiValidated && severityCounts[finalSeverity] > 1) {
-      confidenceScore = Math.min(100, confidenceScore + 10);
-    }
+  // Calculate confidence score (0-100%) based on the weighted average
+  const primaryVote = severityVotes[finalSeverity];
+  let confidenceScore = totalWeight > 0 ? Math.round((primaryVote / totalWeight) * 100) : 0;
+  
+  // Apply additional confidence adjustments
+  if (sourceWeights.length >= 3) {
+    confidenceScore = Math.min(100, confidenceScore + 5);
   }
-
+  
+  // Adjust confidence based on source agreement
+  const allAgree = Object.values(severityCounts).filter(count => count > 0).length === 1;
+  if (allAgree && sourceWeights.length > 1) {
+    confidenceScore = Math.min(100, confidenceScore + 10);
+  }
+  
+  // AI validation adjustment
+  if (aiValidated && severityCounts[finalSeverity] > 1) {
+    confidenceScore = Math.min(100, confidenceScore + 5);
+  }
+  
   // Generate a description that explains the consensus
   let description = determineConsensusDescription(finalSeverity, confidenceScore, sourcesToProcess, adverseEvents);
 

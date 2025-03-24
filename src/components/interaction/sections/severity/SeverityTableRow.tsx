@@ -28,6 +28,9 @@ export function SeverityTableRow({ stat, isCombined = false }: SeverityTableRowP
   const safeModerate = isNaN(stat.moderateCases) ? 0 : stat.moderateCases;
   const safeMinor = isNaN(stat.minorCases) ? 0 : stat.minorCases;
   const safePercent = isNaN(stat.severePercent) ? 0 : stat.severePercent;
+  const severeWidth = isNaN(stat.severeWidth) ? 0 : stat.severeWidth;
+  const moderateWidth = isNaN(stat.moderateWidth) ? 0 : stat.moderateWidth;
+  const minorWidth = isNaN(stat.minorWidth) ? 0 : stat.minorWidth;
   
   return (
     <TableRow className={cn(
@@ -58,9 +61,9 @@ export function SeverityTableRow({ stat, isCombined = false }: SeverityTableRowP
       </TableCell>
       <TableCell>
         <DistributionBar 
-          severeWidth={stat.severeWidth}
-          moderateWidth={stat.moderateWidth}
-          minorWidth={stat.minorWidth}
+          severeWidth={severeWidth}
+          moderateWidth={moderateWidth}
+          minorWidth={minorWidth}
           hasData={stat.hasData}
         />
       </TableCell>

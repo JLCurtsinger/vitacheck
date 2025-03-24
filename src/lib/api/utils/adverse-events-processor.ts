@@ -52,7 +52,8 @@ export function processAdverseEventsSource(adverseEvents: AdverseEventData | nul
     eventData: {
       totalEvents: adverseEvents.eventCount,
       seriousEvents: adverseEvents.seriousCount,
-      nonSeriousEvents: adverseEvents.eventCount - adverseEvents.seriousCount
+      nonSeriousEvents: adverseEvents.eventCount - adverseEvents.seriousCount,
+      seriousPercentage  // Add the percentage for more precise weight calculation
     }
   };
   
