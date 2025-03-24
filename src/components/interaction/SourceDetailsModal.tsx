@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import { 
   Dialog, 
@@ -97,8 +96,186 @@ export function SourceDetailsModal({ isOpen, onClose, source }: SourceDetailsMod
       );
     }
     
-    // Standard severity and confidence table for all sources
-    const standardTable = (
+    // Create a reusable severity and confidence section
+    const severityConfidenceSection = (
+      <div className="rounded-md border mb-4">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Severity</TableHead>
+              <TableHead>Confidence</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((item, idx) => (
+              <TableRow key={idx}>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    {getSeverityIcon(item.severity)}
+                    <span className="capitalize">{item.severity}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {item.confidence ? (
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                      {item.confidence}%
+                    </Badge>
+                  ) : "N/A"}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
+    
+    // Source-specific UI components based on source type
+    if (name.toUpperCase().includes("ADVERSE")) {
+      // OpenFDA Adverse Events - keep as is, it's already well-formatted
+      return (
+        <>
+          {severityConfidenceSection}
+          
+          {data[0]?.adverseEvents && (
+            <div className="rounded-md border p-4 mb-4">
+              <h3 className="font-medium mb-2">Reported Adverse Events</h3>
+              <p className="text-sm mb-2">Total events: {data[0].adverseEvents.eventCount}</p>
+              <div className="grid grid-cols-2 gap-2">
+                {data[0].adverseEvents.commonReactions && data[0].adverseEvents.commonReactions.length > 0 ? (
+                  data[0].adverseEvents.commonReactions.slice(0, 8).map((reaction, idx) => (
+                    <div key={idx} className="bg-gray-50 p-2 rounded text-sm">
+                      {reaction}
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-2 text-gray-500 text-sm">
+                    No detailed event information available
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Raw details section at the bottom */}
+          <div className="rounded-md border mb-4 p-4">
+            <h3 className="font-medium mb-2 flex items-center">
+              <Info className="h-4 w-4 mr-2 text-gray-500" />
+              Details
+            </h3>
+            <div className="text-sm text-gray-700 max-h-60 overflow-y-auto">
+              {data.map((item, idx) => (
+                <p key={idx}>{item.description || "No detailed description available"}</p>
+              ))}
+            </div>
+          </div>
+        </>
+      );
+    } else if (name.toUpperCase().includes("FDA")) {
+      // FDA - prioritize formatted sections first
+      return (
+        <>
+          {/* Severity and confidence at the top */}
+          {severityConfidenceSection}
+          
+          {/* Categorized FDA content sections - Moderate risks and General info first */}
+          {formattedContent.categories.moderateRisks.length > 0 && (
+            <div className="rounded-md border mb-4 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Info className="h-5 w-5 text-yellow-600" />
+                <h3 className="font-medium text-yellow-600">Precautions</h3>
+              </div>
+              <div className="space-y-2">
+                {formattedContent.categories.moderateRisks.map((point, idx) => (
+                  <p key={idx} className="text-sm" dangerouslySetInnerHTML={createHTMLProps(point)} />
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {formattedContent.categories.generalInfo.length > 0 && (
+            <div className="rounded-md border mb-4 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Info className="h-5 w-5 text-blue-600" />
+                <h3 className="font-medium text-blue-600">General Information</h3>
+              </div>
+              <div className="space-y-2">
+                {formattedContent.categories.generalInfo.map((point, idx) => (
+                  <p key={idx} className="text-sm" dangerouslySetInnerHTML={createHTMLProps(point)} />
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Critical warnings next */}
+          {formattedContent.categories.severeRisks.length > 0 && (
+            <div className="rounded-md border mb-4 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                <h3 className="font-medium text-red-600">Critical Warnings</h3>
+              </div>
+              <div className="space-y-2">
+                {formattedContent.categories.severeRisks.map((point, idx) => (
+                  <p key={idx} className="text-sm" dangerouslySetInnerHTML={createHTMLProps(point)} />
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Raw details section moved to the bottom */}
+          <div className="rounded-md border mb-4 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-medium flex items-center">
+                <Info className="h-4 w-4 mr-2 text-gray-500" />
+                Details
+              </h3>
+            </div>
+            <div className="text-sm text-gray-700 max-h-60 overflow-y-auto">
+              {data.map((item, idx) => (
+                <p key={idx}>{item.description || "No detailed description available"}</p>
+              ))}
+            </div>
+          </div>
+        </>
+      );
+    } else if (name.toUpperCase().includes("AI") || name.toUpperCase().includes("LITERATURE")) {
+      // AI Literature Analysis - prioritize formatted bullet points first
+      return (
+        <>
+          {/* Severity and confidence at the top */}
+          {severityConfidenceSection}
+          
+          {/* Literature Analysis Summary first */}
+          <div className="rounded-md border mb-4 p-4">
+            <h3 className="font-medium mb-2">Literature Analysis</h3>
+            <div className="space-y-2">
+              {formattedContent.bulletPoints.length > 0 ? (
+                formattedContent.bulletPoints.map((point, idx) => (
+                  <p key={idx} className="text-sm" dangerouslySetInnerHTML={createHTMLProps(point)} />
+                ))
+              ) : (
+                <p className="text-sm text-gray-500">No detailed analysis available.</p>
+              )}
+            </div>
+          </div>
+          
+          {/* Raw details section moved to the bottom */}
+          <div className="rounded-md border mb-4 p-4">
+            <h3 className="font-medium mb-2 flex items-center">
+              <Info className="h-4 w-4 mr-2 text-gray-500" />
+              Details
+            </h3>
+            <div className="text-sm text-gray-700 max-h-60 overflow-y-auto">
+              {data.map((item, idx) => (
+                <p key={idx}>{item.description || "No detailed description available"}</p>
+              ))}
+            </div>
+          </div>
+        </>
+      );
+    }
+    
+    // Default UI for other sources - standard table
+    return (
       <div className="rounded-md border mb-4">
         <Table>
           <TableHeader>
@@ -133,107 +310,6 @@ export function SourceDetailsModal({ isOpen, onClose, source }: SourceDetailsMod
         </Table>
       </div>
     );
-    
-    // Source-specific UI components based on source type
-    if (name.toUpperCase().includes("ADVERSE")) {
-      return (
-        <>
-          {standardTable}
-          
-          {data[0]?.adverseEvents && (
-            <div className="rounded-md border p-4 mb-4">
-              <h3 className="font-medium mb-2">Reported Adverse Events</h3>
-              <p className="text-sm mb-2">Total events: {data[0].adverseEvents.eventCount}</p>
-              <div className="grid grid-cols-2 gap-2">
-                {data[0].adverseEvents.commonReactions && data[0].adverseEvents.commonReactions.length > 0 ? (
-                  data[0].adverseEvents.commonReactions.slice(0, 8).map((reaction, idx) => (
-                    <div key={idx} className="bg-gray-50 p-2 rounded text-sm">
-                      {reaction}
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-2 text-gray-500 text-sm">
-                    No detailed event information available
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </>
-      );
-    } else if (name.toUpperCase().includes("FDA")) {
-      return (
-        <>
-          {standardTable}
-          
-          {/* Categorized FDA content sections */}
-          {formattedContent.categories.severeRisks.length > 0 && (
-            <div className="rounded-md border mb-4 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
-                <h3 className="font-medium text-red-600">Critical Warnings</h3>
-              </div>
-              <div className="space-y-2">
-                {formattedContent.categories.severeRisks.map((point, idx) => (
-                  <p key={idx} className="text-sm" dangerouslySetInnerHTML={createHTMLProps(point)} />
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {formattedContent.categories.moderateRisks.length > 0 && (
-            <div className="rounded-md border mb-4 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Info className="h-5 w-5 text-yellow-600" />
-                <h3 className="font-medium text-yellow-600">Precautions</h3>
-              </div>
-              <div className="space-y-2">
-                {formattedContent.categories.moderateRisks.map((point, idx) => (
-                  <p key={idx} className="text-sm" dangerouslySetInnerHTML={createHTMLProps(point)} />
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {formattedContent.categories.generalInfo.length > 0 && (
-            <div className="rounded-md border mb-4 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Info className="h-5 w-5 text-blue-600" />
-                <h3 className="font-medium text-blue-600">General Information</h3>
-              </div>
-              <div className="space-y-2">
-                {formattedContent.categories.generalInfo.map((point, idx) => (
-                  <p key={idx} className="text-sm" dangerouslySetInnerHTML={createHTMLProps(point)} />
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      );
-    } else if (name.toUpperCase().includes("AI") || name.toUpperCase().includes("LITERATURE")) {
-      return (
-        <>
-          {standardTable}
-          
-          {/* Literature Analysis Summary */}
-          <div className="rounded-md border mb-4 p-4">
-            <h3 className="font-medium mb-2">Literature Analysis</h3>
-            <div className="space-y-2">
-              {formattedContent.bulletPoints.length > 0 ? (
-                formattedContent.bulletPoints.map((point, idx) => (
-                  <p key={idx} className="text-sm" dangerouslySetInnerHTML={createHTMLProps(point)} />
-                ))
-              ) : (
-                <p className="text-sm text-gray-500">No detailed analysis available.</p>
-              )}
-            </div>
-          </div>
-        </>
-      );
-    }
-    
-    // Default UI for other sources
-    return standardTable;
   };
   
   return (
