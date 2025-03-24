@@ -66,6 +66,21 @@ export function SeverityIndicator({ severity, confidenceScore, aiValidated }: Se
     return "Very Low Confidence";
   };
 
+  const getConfidenceDescription = (score?: number) => {
+    if (score === undefined) return "";
+    
+    if (score >= 90) {
+      return "Multiple reliable sources with consistent evidence";
+    } else if (score >= 75) {
+      return "Strong evidence from reliable sources";
+    } else if (score >= 50) {
+      return "Moderate evidence supports this classification";
+    } else if (score >= 25) {
+      return "Limited evidence available";
+    }
+    return "Very limited or conflicting evidence";
+  };
+
   return (
     <TooltipProvider>
       <Tooltip>
@@ -103,10 +118,13 @@ export function SeverityIndicator({ severity, confidenceScore, aiValidated }: Se
         <TooltipContent>
           <p className="font-medium">{getSeverityText(severity)}</p>
           {confidenceScore !== undefined && (
-            <p className="text-sm">{getConfidenceLabel(confidenceScore)} ({confidenceScore}%)</p>
+            <>
+              <p className="text-sm">{getConfidenceLabel(confidenceScore)} ({confidenceScore}%)</p>
+              <p className="text-xs text-gray-600 mt-1">{getConfidenceDescription(confidenceScore)}</p>
+            </>
           )}
           {aiValidated && (
-            <p className="text-xs text-blue-500">Validated with AI literature analysis</p>
+            <p className="text-xs text-blue-500 mt-1">Validated with AI literature analysis</p>
           )}
         </TooltipContent>
       </Tooltip>

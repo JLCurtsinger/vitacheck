@@ -140,12 +140,15 @@ export async function processMedicationPair(
   // Merge all sources from different APIs and add confidence values
   const sources = [];
   
-  // Add RxNorm sources if available
+  // Add RxNorm sources if available - with more specific confidence values
   if (rxnormResult) {
     rxnormResult.sources.forEach(source => {
+      // Only add 90% confidence if the source has actual interaction data
+      const confidence = source.description && 
+                          !source.description.toLowerCase().includes('no interaction') ? 90 : 70;
       sources.push({
         ...source,
-        confidence: 90 // High confidence for RxNorm
+        confidence
       });
     });
   }
@@ -153,9 +156,14 @@ export async function processMedicationPair(
   // Add SUPP.AI sources if available
   if (suppaiResult) {
     suppaiResult.sources.forEach(source => {
+      // Adjust confidence based on evidence quality
+      const hasStrongEvidence = source.description && 
+                               (source.description.toLowerCase().includes('evidence') ||
+                                source.description.toLowerCase().includes('study'));
+      
       sources.push({
         ...source,
-        confidence: 60 // Medium confidence for SUPP.AI
+        confidence: hasStrongEvidence ? 65 : 55 // Higher confidence for evidence-based findings
       });
     });
   }
@@ -163,28 +171,43 @@ export async function processMedicationPair(
   // Add FDA sources if available
   if (fdaResult) {
     fdaResult.sources.forEach(source => {
+      // FDA black box warnings are more reliable
+      const isBlackBoxWarning = source.description && 
+                               (source.description.toLowerCase().includes('black box') ||
+                                source.description.toLowerCase().includes('boxed warning'));
+      
       sources.push({
         ...source,
-        confidence: 80 // Medium-high confidence for FDA
+        confidence: isBlackBoxWarning ? 85 : 75 // Higher confidence for black box warnings
       });
     });
   }
   
-  // Add adverse events as a source if found
+  // Add adverse events as a source if found - always high confidence as it's real-world data
   const adverseEventSource = processAdverseEventsSource(adverseEventsResult);
   if (adverseEventSource) {
+    const eventCount = adverseEventsResult?.eventCount || 0;
+    // Scale confidence based on event count - more events = higher confidence
+    const confidenceBoost = Math.min(15, Math.floor(eventCount / 10)); // Up to +15% for many events
+    
     sources.push({
       ...adverseEventSource,
-      confidence: 75 // Medium-high confidence for adverse event data
+      confidence: 75 + confidenceBoost // Base 75% + boost based on event count
     });
   }
 
   // Add AI Literature Analysis result if available
   let aiValidated = false;
   if (aiAnalysisResult) {
+    // For AI results, confidence is based on the quality of citations
+    const hasCitations = aiAnalysisResult.description &&
+                         (aiAnalysisResult.description.toLowerCase().includes('study') || 
+                          aiAnalysisResult.description.toLowerCase().includes('research') ||
+                          aiAnalysisResult.description.toLowerCase().includes('evidence'));
+    
     sources.push({
       ...aiAnalysisResult,
-      confidence: 50 // Medium confidence for AI analysis
+      confidence: hasCitations ? 60 : 45 // Higher confidence for cited AI analysis
     });
     aiValidated = true;
     console.log('Added AI literature analysis:', aiAnalysisResult);

@@ -1,3 +1,4 @@
+
 /**
  * Weighted Multi-Source Consensus System
  * 
@@ -20,6 +21,66 @@ const SOURCE_WEIGHTS = {
 
 // Threshold for considering a severe adverse event rate significant
 const SEVERE_EVENT_THRESHOLD = 0.05; // 5% of total events
+
+/**
+ * Determines if a source contains meaningful interaction evidence
+ * and should be included in confidence calculations
+ */
+function hasValidInteractionEvidence(source: InteractionSource): boolean {
+  // Sources with no descriptions or "no data available" aren't valid
+  if (!source.description || 
+      source.name === 'No Data Available' || 
+      source.severity === 'unknown') {
+    return false;
+  }
+  
+  // "No known interaction" responses should not affect confidence
+  const noInteractionPhrases = [
+    'no known interaction',
+    'no interactions found',
+    'no interaction data',
+    'no evidence of interaction',
+    'could not find any interaction'
+  ];
+  
+  if (noInteractionPhrases.some(phrase => 
+      source.description.toLowerCase().includes(phrase))) {
+    return false;
+  }
+  
+  // If source explicitly indicates safety without evidence, don't count it
+  if (source.severity === 'safe' && 
+      !source.description.toLowerCase().includes('evidence') &&
+      !source.description.toLowerCase().includes('study')) {
+    return false;
+  }
+  
+  // Always include sources with actual adverse event data
+  if (source.eventData && source.eventData.totalEvents > 0) {
+    return true;
+  }
+  
+  // Always include high-quality sources that identify specific interactions
+  const interactionEvidencePhrases = [
+    'adverse event',
+    'clinical',
+    'case report',
+    'study found',
+    'research shows',
+    'trial',
+    'evidence indicates',
+    'reported',
+    'interaction risk',
+    'contraindicated',
+    'statistical',
+    'increased risk',
+    'observed'
+  ];
+  
+  // Check if description contains evidence of actual interaction data
+  return interactionEvidencePhrases.some(phrase => 
+    source.description.toLowerCase().includes(phrase));
+}
 
 /**
  * Calculates a weighted severity score based on multiple sources
@@ -69,9 +130,16 @@ export function calculateConsensusScore(
   
   // Sort sources by name for deterministic processing order
   const sortedSources = [...sources].sort((a, b) => a.name.localeCompare(b.name));
+  
+  // Filter sources to only include those with valid interaction evidence
+  const validSources = sortedSources.filter(hasValidInteractionEvidence);
+  
+  // If we have no valid sources, but have some sources, use all sources
+  // This prevents completely blank results when only general information is available
+  const sourcesToProcess = validSources.length > 0 ? validSources : sortedSources;
 
   // Process each source in deterministic order
-  sortedSources.forEach(source => {
+  sourcesToProcess.forEach(source => {
     // Get the weight for this source
     const weight = SOURCE_WEIGHTS[source.name] || 0.3; // Default to 30% if unknown source
     
@@ -119,7 +187,7 @@ export function calculateConsensusScore(
 
   // First check if we have any "severe" votes from high-confidence sources
   if (severityVotes.severe > 0 && 
-      (sources.some(s => s.severity === "severe" && (SOURCE_WEIGHTS[s.name] || 0) >= 0.8))) {
+      (sourcesToProcess.some(s => s.severity === "severe" && (SOURCE_WEIGHTS[s.name] || 0) >= 0.8))) {
     finalSeverity = "severe";
   } else {
     // Otherwise determine by highest weighted vote
@@ -142,13 +210,13 @@ export function calculateConsensusScore(
     confidenceScore = Math.min(100, Math.round((primaryVote / totalWeight) * 100));
     
     // Apply fixed confidence adjustments rather than dynamic ones
-    if (sources.length >= 3) {
+    if (sourcesToProcess.length >= 3) {
       confidenceScore = Math.min(100, confidenceScore + 10);
     }
     
     // Adjust confidence based on source agreement
     const allAgree = Object.values(severityCounts).filter(count => count > 0).length === 1;
-    if (allAgree && sources.length > 1) {
+    if (allAgree && sourcesToProcess.length > 1) {
       confidenceScore = Math.min(100, confidenceScore + 15);
     }
     
@@ -159,7 +227,7 @@ export function calculateConsensusScore(
   }
 
   // Generate a description that explains the consensus
-  let description = determineConsensusDescription(finalSeverity!, confidenceScore, sortedSources, adverseEvents);
+  let description = determineConsensusDescription(finalSeverity!, confidenceScore, sourcesToProcess, adverseEvents);
 
   return {
     severity: finalSeverity!,
