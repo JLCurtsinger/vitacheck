@@ -13,54 +13,66 @@ import Results from "./pages/Results";
 import Experiences from "./pages/Experiences";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsAndConditions from "./pages/TermsAndConditions";
+import ToggleAnimationButton from "./components/animation/ToggleAnimationButton";
+import TracerAnimation from "./components/animation/TracerAnimation";
+import { useAnimation } from "./hooks/use-animation";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Index />
-              </ProtectedRoute>
-            } />
-            <Route path="/check" element={
-              <ProtectedRoute>
-                <Check />
-              </ProtectedRoute>
-            } />
-            <Route path="/results" element={
-              <ProtectedRoute>
-                <Results />
-              </ProtectedRoute>
-            } />
-            <Route path="/experiences" element={
-              <ProtectedRoute>
-                <Experiences />
-              </ProtectedRoute>
-            } />
-            <Route path="/privacy-policy" element={
-              <ProtectedRoute>
-                <PrivacyPolicy />
-              </ProtectedRoute>
-            } />
-            <Route path="/terms-and-conditions" element={
-              <ProtectedRoute>
-                <TermsAndConditions />
-              </ProtectedRoute>
-            } />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const { isAnimationEnabled, toggleAnimation } = useAnimation();
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <TracerAnimation isEnabled={isAnimationEnabled} />
+          <ToggleAnimationButton
+            isEnabled={isAnimationEnabled}
+            onToggle={toggleAnimation}
+          />
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <Index />
+                </ProtectedRoute>
+              } />
+              <Route path="/check" element={
+                <ProtectedRoute>
+                  <Check />
+                </ProtectedRoute>
+              } />
+              <Route path="/results" element={
+                <ProtectedRoute>
+                  <Results />
+                </ProtectedRoute>
+              } />
+              <Route path="/experiences" element={
+                <ProtectedRoute>
+                  <Experiences />
+                </ProtectedRoute>
+              } />
+              <Route path="/privacy-policy" element={
+                <ProtectedRoute>
+                  <PrivacyPolicy />
+                </ProtectedRoute>
+              } />
+              <Route path="/terms-and-conditions" element={
+                <ProtectedRoute>
+                  <TermsAndConditions />
+                </ProtectedRoute>
+              } />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
