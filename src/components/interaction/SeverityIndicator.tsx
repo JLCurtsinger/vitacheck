@@ -1,5 +1,5 @@
 
-import { CheckCircle, AlertTriangle, XCircle, HelpCircle } from "lucide-react";
+import { CheckCircle, AlertTriangle, XCircle, HelpCircle, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -121,6 +121,15 @@ export function SeverityIndicator({ severity, confidenceScore, aiValidated }: Se
             <>
               <p className="text-sm">{getConfidenceLabel(confidenceScore)} ({confidenceScore}%)</p>
               <p className="text-xs text-gray-600 mt-1">{getConfidenceDescription(confidenceScore)}</p>
+              
+              {confidenceScore < 50 && (
+                <div className="mt-1 flex items-start">
+                  <Info className="h-3 w-3 text-blue-500 mr-1 mt-0.5" />
+                  <p className="text-xs text-blue-500">
+                    Low confidence means limited evidence was found. Consult a healthcare professional.
+                  </p>
+                </div>
+              )}
             </>
           )}
           {aiValidated && (

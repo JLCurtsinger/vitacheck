@@ -8,19 +8,58 @@
 
 import { InteractionSource, AdverseEventData } from '../types';
 
-// Fixed source confidence weights for deterministic results
-const SOURCE_WEIGHTS = {
-  'RxNorm': 0.9, // 90% confidence
-  'FDA': 0.8,    // 80% confidence
-  'SUPP.AI': 0.6, // 60% confidence
-  'OpenFDA Adverse Events': 0.75, // 75% confidence
-  'VitaCheck Safety Database': 0.95, // 95% confidence
-  'No Data Available': 0.0, // 0% confidence
-  'AI Literature Analysis': 0.5 // 50% confidence
-};
-
 // Threshold for considering a severe adverse event rate significant
 const SEVERE_EVENT_THRESHOLD = 0.05; // 5% of total events
+
+/**
+ * Determines the weight of a source based on evidence quality
+ */
+function determineSourceWeight(source: InteractionSource): number {
+  if (!source.description || source.severity === 'unknown') return 0;
+
+  const desc = source.description.toLowerCase();
+
+  const highEvidencePhrases = [
+    'adverse event', 'case report', 'study found', 'research shows',
+    'clinical trial', 'reported', 'contraindicated', 'observed', 'bleeding risk',
+    'statistical', 'increased risk', 'evidence indicates', 'trial'
+  ];
+
+  const lowEvidencePhrases = [
+    'no interaction', 'no known', 'monitor', 'may cause', 'use caution',
+    'general information', 'labeling only', 'could not find any interaction',
+    'no interactions found', 'no interaction data', 'no evidence of interaction'
+  ];
+
+  // VitaCheck Safety Database always has high weight as it contains verified high-risk combinations
+  if (source.name === 'VitaCheck Safety Database') {
+    return 0.95;
+  }
+
+  // OpenFDA: only count if it has event data
+  if (source.name === 'OpenFDA Adverse Events') {
+    return source.eventData?.eventCount > 0 ? 0.95 : 0;
+  }
+
+  if (source.name === 'AI Literature Analysis') {
+    return /study|research|evidence|trial/.test(desc) ? 0.6 : 0.45;
+  }
+
+  // RxNorm tends to have high-quality data when it reports an interaction
+  if (source.name === 'RxNorm' && source.severity !== 'unknown' && source.severity !== 'safe') {
+    return highEvidencePhrases.some(p => desc.includes(p)) ? 0.85 : 0.7;
+  }
+
+  // FDA data is also quite reliable when it comes from black box warnings
+  if (source.name === 'FDA' && desc.includes('box warning')) {
+    return 0.85;
+  }
+
+  if (highEvidencePhrases.some(p => desc.includes(p))) return 0.7;
+  if (lowEvidencePhrases.some(p => desc.includes(p))) return 0.4;
+
+  return 0.5; // Default mid confidence if not matched
+}
 
 /**
  * Determines if a source contains meaningful interaction evidence
@@ -140,8 +179,11 @@ export function calculateConsensusScore(
 
   // Process each source in deterministic order
   sourcesToProcess.forEach(source => {
-    // Get the weight for this source
-    const weight = SOURCE_WEIGHTS[source.name] || 0.3; // Default to 30% if unknown source
+    // Get the dynamic weight for this source based on evidence quality
+    const weight = determineSourceWeight(source);
+    
+    // Only include sources with positive weight
+    if (weight <= 0) return;
     
     // Check if this is AI validation
     if (source.name === 'AI Literature Analysis') {
@@ -156,7 +198,7 @@ export function calculateConsensusScore(
 
   // Factor in adverse events data if available
   if (adverseEvents && adverseEvents.eventCount > 0) {
-    const adverseEventWeight = SOURCE_WEIGHTS['OpenFDA Adverse Events'];
+    const adverseEventWeight = 0.95; // High confidence for real-world data
     totalWeight += adverseEventWeight;
     
     // Calculate percentage of serious events
@@ -186,8 +228,10 @@ export function calculateConsensusScore(
   let maxVote = 0;
 
   // First check if we have any "severe" votes from high-confidence sources
-  if (severityVotes.severe > 0 && 
-      (sourcesToProcess.some(s => s.severity === "severe" && (SOURCE_WEIGHTS[s.name] || 0) >= 0.8))) {
+  const hasSevereFromHighConfidence = sourcesToProcess.some(s => 
+    s.severity === "severe" && determineSourceWeight(s) >= 0.7);
+    
+  if (severityVotes.severe > 0 && hasSevereFromHighConfidence) {
     finalSeverity = "severe";
   } else {
     // Otherwise determine by highest weighted vote
