@@ -2,7 +2,8 @@
 import { MedicationSuggestion, SuggestionCache } from "./types";
 
 // In-memory cache for quick access to previously fetched suggestions
-const suggestionCache: SuggestionCache = {};
+// Initialize with the correct type structure
+const suggestionCache: Record<string, MedicationSuggestion[]> = {};
 
 /**
  * Get suggestions from cache
