@@ -1,6 +1,6 @@
 
 import React, { forwardRef } from "react";
-import { Clock } from "lucide-react";
+import { Clock, ArrowRight } from "lucide-react";
 import { MedicationSuggestion } from "@/services/medication-suggestions";
 
 interface SuggestionDropdownProps {
@@ -49,6 +49,12 @@ export const SuggestionDropdown = forwardRef<HTMLDivElement, SuggestionDropdownP
             onClick={() => onSelectSuggestion(suggestion.name)}
           >
             <div className="font-medium">{suggestion.name}</div>
+            {suggestion.isBrand && suggestion.genericName && (
+              <div className="flex items-center text-xs text-blue-600">
+                <span>Contains: {suggestion.genericName}</span>
+                <ArrowRight className="ml-1 h-3 w-3" />
+              </div>
+            )}
             <div className="text-xs text-gray-500">Source: {suggestion.source}</div>
           </div>
         ))

@@ -1,4 +1,6 @@
 
+import { getGenericName, isBrandName } from "@/services/medication/brand-to-generic";
+
 /**
  * Utility functions for formatting medication names
  */
@@ -49,6 +51,7 @@ const COMMON_SPELLINGS: Record<string, string> = {
   "tylenol": "acetaminophen",
   "asprin": "aspirin",
   "xannax": "xanax",
+  "zanax": "xanax",
   "zoloft": "sertraline",
   "prozac": "fluoxetine",
   "lisinipril": "lisinopril",
@@ -58,7 +61,18 @@ const COMMON_SPELLINGS: Record<string, string> = {
   "vitamine": "vitamin",
   "tumeric": "turmeric",
   "echinacia": "echinacea",
-  "gingseng": "ginseng"
+  "gingseng": "ginseng",
+  "warfrin": "warfarin",
+  "simvistatin": "simvastatin",
+  "omeprazol": "omeprazole",
+  "nexeum": "nexium",
+  "levothyroxin": "levothyroxine",
+  "atenalol": "atenolol",
+  "metropolol": "metoprolol",
+  "escitalopram": "escitalopram",
+  "escitalopran": "escitalopram",
+  "ciprofloxacin": "ciprofloxacin",
+  "hydrochlorothiazid": "hydrochlorothiazide"
 };
 
 /**
@@ -67,7 +81,7 @@ const COMMON_SPELLINGS: Record<string, string> = {
 export function spellcheckMedication(medicationName: string): string {
   if (!medicationName) return "";
   
-  const lowerName = medicationName.toLowerCase();
+  const lowerName = medicationName.toLowerCase().trim();
   
   // Check if this exact name needs correction
   if (COMMON_SPELLINGS[lowerName]) {
@@ -87,15 +101,45 @@ export function spellcheckMedication(medicationName: string): string {
  * Complete medication formatting pipeline for API calls:
  * 1. Strip details
  * 2. Spellcheck
- * 3. Normalize capitalization
+ * 3. Convert brand to generic if applicable
+ * 4. Normalize capitalization
  */
 export function prepareMedicationNameForApi(medicationName: string): string {
   if (!medicationName) return "";
   
   const strippedName = stripMedicationDetails(medicationName);
   const spellcheckedName = spellcheckMedication(strippedName);
+  
+  // Check if this is a brand name and get its generic equivalent
+  const isBrand = isBrandName(spellcheckedName);
+  const nameForApi = isBrand ? getGenericName(spellcheckedName) : spellcheckedName;
+  
+  const normalizedName = normalizeMedicationName(nameForApi);
+  
+  console.log(`Formatted medication: "${medicationName}" → "${normalizedName}"${isBrand ? ` (brand → generic)` : ''}`);
+  return normalizedName;
+}
+
+/**
+ * Format medication information for display, including both brand and generic names
+ */
+export function prepareMedicationForDisplay(medicationName: string): {
+  displayName: string;
+  genericName: string;
+  isBrand: boolean;
+} {
+  if (!medicationName) return { displayName: "", genericName: "", isBrand: false };
+  
+  const strippedName = stripMedicationDetails(medicationName);
+  const spellcheckedName = spellcheckMedication(strippedName);
   const normalizedName = normalizeMedicationName(spellcheckedName);
   
-  console.log(`Formatted medication: "${medicationName}" → "${normalizedName}"`);
-  return normalizedName;
+  const isBrand = isBrandName(normalizedName);
+  const genericName = isBrand ? getGenericName(normalizedName) : normalizedName;
+  
+  return {
+    displayName: normalizedName,
+    genericName: normalizeMedicationName(genericName),
+    isBrand
+  };
 }

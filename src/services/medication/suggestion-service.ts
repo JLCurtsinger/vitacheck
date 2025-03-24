@@ -2,32 +2,42 @@
 import { MedicationSuggestion } from "./types";
 import { fetchRxTermsSuggestions } from "./api/rx-terms-api";
 import { fetchSuppAiSuggestions } from "./api/supp-ai-api";
-import { sortSuggestionsByRelevance } from "./utils";
+import { sortSuggestionsByRelevance, applyFuzzyFiltering } from "./utils";
 import { getCachedCombinedSuggestions, cacheCombinedSuggestions } from "./cache";
+import { getMedicationNamePair } from "./brand-to-generic";
+import { spellcheckMedication } from "@/utils/medication-formatter";
 
 /**
- * Fetch medication suggestions from multiple sources
+ * Fetch medication suggestions from multiple sources with fuzzy matching
  */
 export async function getMedicationSuggestions(query: string): Promise<MedicationSuggestion[]> {
   if (!query || query.trim().length < 2) {
     return [];
   }
   
+  // Apply spelling correction to the query
+  const correctedQuery = spellcheckMedication(query);
+  const queryToUse = correctedQuery !== query ? correctedQuery : query;
+  
+  if (correctedQuery !== query) {
+    console.log(`Corrected query from "${query}" to "${correctedQuery}"`);
+  }
+  
   try {
     // Attempt to fetch from local storage cache
-    const cachedResults = getCachedCombinedSuggestions(query);
+    const cachedResults = getCachedCombinedSuggestions(queryToUse);
     if (cachedResults) {
       return cachedResults;
     }
     
     // Fetch suggestions concurrently from multiple sources
     const [rxTermsResults, suppAiResults] = await Promise.all([
-      fetchRxTermsSuggestions(query),
-      fetchSuppAiSuggestions(query)
+      fetchRxTermsSuggestions(queryToUse),
+      fetchSuppAiSuggestions(queryToUse)
     ]);
     
-    // Combine and deduplicate results
-    const combinedResults = [...rxTermsResults];
+    // Combine results
+    let combinedResults = [...rxTermsResults];
     
     // Add SUPP.AI results, avoiding duplicates
     suppAiResults.forEach(supp => {
@@ -36,11 +46,30 @@ export async function getMedicationSuggestions(query: string): Promise<Medicatio
       }
     });
     
+    // Add brand/generic information to the suggestions
+    combinedResults = combinedResults.map(suggestion => {
+      const { displayName, genericName, isBrand } = getMedicationNamePair(suggestion.name);
+      
+      if (isBrand) {
+        return {
+          ...suggestion,
+          name: displayName,
+          genericName: genericName,
+          isBrand: true
+        };
+      }
+      
+      return suggestion;
+    });
+    
+    // Apply fuzzy filtering for all results that weren't direct API matches
+    const fuzzyFilteredResults = applyFuzzyFiltering(combinedResults, queryToUse);
+    
     // Sort by relevance
-    const sortedResults = sortSuggestionsByRelevance(combinedResults, query);
+    const sortedResults = sortSuggestionsByRelevance(fuzzyFilteredResults, queryToUse);
     
     // Cache the combined results
-    cacheCombinedSuggestions(query, sortedResults);
+    cacheCombinedSuggestions(queryToUse, sortedResults);
     
     return sortedResults;
   } catch (error) {

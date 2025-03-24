@@ -1,6 +1,7 @@
 
 import { MedicationSuggestion } from "../types";
 import { getCachedSuggestions, cacheSuggestions } from "../cache";
+import { fuzzyMatch } from "../utils";
 
 /**
  * Fetch medication suggestions from RxTerms API via our serverless function
