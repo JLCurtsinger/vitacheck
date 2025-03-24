@@ -37,11 +37,47 @@ export function SeverityBreakdown({ sources, confidenceScore, adverseEvents }: S
   // If no valid sources, don't render anything
   if (validSources.length === 0) return null;
 
+  // Check if we have an OpenFDA source already
+  const hasOpenFDASource = validSources.some(source => 
+    source.name === "OpenFDA Adverse Events"
+  );
+
+  // If we have adverse events data but no OpenFDA source, create one
+  if (adverseEvents && adverseEvents.eventCount > 0 && !hasOpenFDASource) {
+    validSources.push({
+      name: "OpenFDA Adverse Events",
+      severity: "unknown", // Will be determined by the consensus system
+      description: `${adverseEvents.eventCount} adverse events reported, with ${adverseEvents.seriousCount} serious cases.`,
+      eventData: {
+        totalEvents: adverseEvents.eventCount,
+        seriousEvents: adverseEvents.seriousCount,
+        nonSeriousEvents: adverseEvents.eventCount - adverseEvents.seriousCount
+      }
+    });
+  }
+  
   // Process source statistics for each source
   const sourceStats = validSources.map(source => calculateSourceStats(source));
   
   // Calculate combined statistics
   const weightedStats = calculateCombinedStats(sourceStats, confidenceScore);
+  
+  // Debug the final stats
+  console.log('Severity stats:', {
+    sourceStats: sourceStats.map(s => ({
+      name: s.name,
+      totalCases: s.totalCases,
+      severeCases: s.severeCases,
+      severePercent: s.severePercent,
+      hasData: s.hasData
+    })),
+    combinedStats: {
+      totalCases: weightedStats.totalCases,
+      severeCases: weightedStats.severeCases,
+      severePercent: weightedStats.severePercent,
+      hasData: weightedStats.hasData
+    }
+  });
   
   // Combine all stats for display
   const allStats = [...sourceStats, weightedStats];
@@ -63,9 +99,9 @@ export function SeverityBreakdown({ sources, confidenceScore, adverseEvents }: S
             <TableRow>
               <TableHead className="w-1/6">Source</TableHead>
               <TableHead className="text-right">Total Cases</TableHead>
-              <TableHead className="text-right">Severe Cases</TableHead>
-              <TableHead className="text-right">Moderate Cases</TableHead>
-              <TableHead className="text-right">Minor Cases</TableHead>
+              <TableHead className="text-right text-red-700">Severe Cases</TableHead>
+              <TableHead className="text-right text-yellow-700">Moderate Cases</TableHead>
+              <TableHead className="text-right text-green-700">Minor Cases</TableHead>
               <TableHead className="text-right">% Severe</TableHead>
               <TableHead className="w-1/5">Distribution</TableHead>
             </TableRow>

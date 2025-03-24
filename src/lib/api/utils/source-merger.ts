@@ -51,7 +51,7 @@ export function mergeSources(sources: InteractionSource[]): InteractionSource[] 
       confidence: Math.round(sources.reduce((sum, s) => sum + (s.confidence || 0), 0) / sources.length)
     };
     
-    // Add event data if available (from OpenFDA Adverse Events)
+    // Add event data if available (from OpenFDA Adverse Events or other sources)
     if (sources.some(s => s.eventData)) {
       const eventData = {
         totalEvents: 0,
@@ -59,15 +59,21 @@ export function mergeSources(sources: InteractionSource[]): InteractionSource[] 
         nonSeriousEvents: 0
       };
       
+      let eventSourceCount = 0;
+      
       sources.forEach(s => {
         if (s.eventData) {
+          eventSourceCount++;
           eventData.totalEvents += s.eventData.totalEvents || 0;
           eventData.seriousEvents += s.eventData.seriousEvents || 0;
           eventData.nonSeriousEvents += s.eventData.nonSeriousEvents || 0;
         }
       });
       
-      mergedSource.eventData = eventData;
+      // Only add event data if we actually found some events
+      if (eventData.totalEvents > 0 || eventData.seriousEvents > 0 || eventData.nonSeriousEvents > 0) {
+        mergedSource.eventData = eventData;
+      }
     }
     
     mergedSources.push(mergedSource);

@@ -1,3 +1,4 @@
+
 /**
  * Source Weight
  * 
@@ -26,7 +27,7 @@ export function determineSourceWeight(source: InteractionSource): number {
   
   // OpenFDA Adverse Events: highest weight for real-world data
   if (source.name === 'OpenFDA Adverse Events' || source.name.includes('Adverse Event')) {
-    // Only count if it has event data
+    // Only count if it has event data with actual events
     return source.eventData?.totalEvents > 0 ? 0.95 : 0;
   }
   

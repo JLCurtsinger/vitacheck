@@ -22,32 +22,39 @@ interface SeverityTableRowProps {
 }
 
 export function SeverityTableRow({ stat, isCombined = false }: SeverityTableRowProps) {
+  // Ensure all numeric values are actually numbers and not NaN
+  const safeTotal = isNaN(stat.totalCases) ? 0 : stat.totalCases;
+  const safeSevere = isNaN(stat.severeCases) ? 0 : stat.severeCases;
+  const safeModerate = isNaN(stat.moderateCases) ? 0 : stat.moderateCases;
+  const safeMinor = isNaN(stat.minorCases) ? 0 : stat.minorCases;
+  const safePercent = isNaN(stat.severePercent) ? 0 : stat.severePercent;
+  
   return (
     <TableRow className={cn(
       isCombined && "font-medium bg-gray-100"
     )}>
       <TableCell>{stat.name}</TableCell>
       <TableCell className="text-right">
-        {stat.hasData ? stat.totalCases.toLocaleString() : 
+        {stat.hasData ? safeTotal.toLocaleString() : 
           <span className="text-gray-400 italic">Not Available</span>}
       </TableCell>
       <TableCell className="text-right text-red-700">
-        {stat.hasData ? stat.severeCases.toLocaleString() : 
+        {stat.hasData ? safeSevere.toLocaleString() : 
           <span className="text-gray-400 italic">N/A</span>}
       </TableCell>
       <TableCell className="text-right text-yellow-700">
-        {stat.hasData ? stat.moderateCases.toLocaleString() : 
+        {stat.hasData ? safeModerate.toLocaleString() : 
           <span className="text-gray-400 italic">N/A</span>}
       </TableCell>
       <TableCell className="text-right text-green-700">
-        {stat.hasData ? stat.minorCases.toLocaleString() : 
+        {stat.hasData ? safeMinor.toLocaleString() : 
           <span className="text-gray-400 italic">N/A</span>}
       </TableCell>
       <TableCell className={cn(
         "text-right font-medium", 
-        stat.hasData ? getSeverityClass(stat.severePercent) : "text-gray-400"
+        stat.hasData ? getSeverityClass(safePercent) : "text-gray-400"
       )}>
-        {stat.hasData ? stat.severePercent.toFixed(2) + "%" : "N/A"}
+        {stat.hasData ? safePercent.toFixed(2) + "%" : "N/A"}
       </TableCell>
       <TableCell>
         <DistributionBar 

@@ -144,11 +144,21 @@ export async function processApiInteractions(
   // Add adverse events as a source if found - always high confidence as it's real-world data
   const adverseEventSource = processAdverseEventsSource(adverseEventsResult);
   if (adverseEventSource) {
+    // Create proper event data structure for the source
+    const eventData = adverseEventsResult ? {
+      totalEvents: adverseEventsResult.eventCount || 0,
+      seriousEvents: adverseEventsResult.seriousCount || 0,
+      nonSeriousEvents: (adverseEventsResult.eventCount || 0) - (adverseEventsResult.seriousCount || 0)
+    } : undefined;
+    
     sources.push({
       ...adverseEventSource,
       // For OpenFDA events, include the event data for confidence calculation
-      eventData: adverseEventsResult
+      eventData
     });
+    
+    // Log the event data to help with debugging
+    console.log('OpenFDA Event Data added to source:', eventData);
   }
 
   // Add AI Literature Analysis result if available
