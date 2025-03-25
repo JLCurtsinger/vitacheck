@@ -2,18 +2,23 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { checkInteractions, InteractionResult } from "@/lib/api/medication-service";
+import { checkInteractions, checkAllCombinations, CombinationResult } from "@/lib/api/medication-service";
 
 // Cache for storing interaction results
-const interactionCache = new Map<string, InteractionResult[]>();
+const interactionCache = new Map<string, CombinationResult[]>();
 
 export function useInteractions(medications: string[]) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [interactions, setInteractions] = useState<InteractionResult[]>([]);
+  const [interactions, setInteractions] = useState<CombinationResult[]>([]);
   const [hasAnyInteraction, setHasAnyInteraction] = useState(false);
   const [requestId, setRequestId] = useState<string>(`req-${Date.now()}`);
+  
+  // Add states for different combination types
+  const [singleResults, setSingleResults] = useState<CombinationResult[]>([]);
+  const [pairResults, setPairResults] = useState<CombinationResult[]>([]);
+  const [tripleResults, setTripleResults] = useState<CombinationResult[]>([]);
 
   // Create a cache key based on medications (sorted to ensure consistent key regardless of order)
   const getCacheKey = useCallback((meds: string[]) => {
@@ -27,6 +32,9 @@ export function useInteractions(medications: string[]) {
     // Reset state for each new medication list
     setLoading(true);
     setInteractions([]);
+    setSingleResults([]);
+    setPairResults([]);
+    setTripleResults([]);
     setHasAnyInteraction(false);
     setRequestId(newRequestId);
     
@@ -48,6 +56,11 @@ export function useInteractions(medications: string[]) {
           
           setInteractions(cachedResults);
           
+          // Separate results by type
+          setSingleResults(cachedResults.filter(r => r.type === 'single'));
+          setPairResults(cachedResults.filter(r => r.type === 'pair'));
+          setTripleResults(cachedResults.filter(r => r.type === 'triple'));
+          
           // Check if any interaction was found with severity moderate or severe
           setHasAnyInteraction(cachedResults.some(result => 
             result.severity === "moderate" || result.severity === "severe" || result.severity === "minor"
@@ -58,12 +71,14 @@ export function useInteractions(medications: string[]) {
         }
         
         console.log(`[${newRequestId}] Fetching interactions for medications:`, medications);
-        const results = await checkInteractions(medications);
+        // Use the enhanced function that returns combination types
+        const results = await checkAllCombinations(medications);
         
         // Log the results to help debug confidence score issues
         console.log(`[${newRequestId}] Received interaction results:`, 
           results.map(r => ({
-            meds: r.medications.join('+'), 
+            type: r.type,
+            label: r.label,
             severity: r.severity, 
             confidenceScore: r.confidenceScore
           }))
@@ -78,7 +93,15 @@ export function useInteractions(medications: string[]) {
           "safe": 4
         };
         
+        // Sort within each type category
         const sortedResults = [...results].sort((a, b) => {
+          // First sort by type (single, pair, triple)
+          const typeOrder = { 'single': 0, 'pair': 1, 'triple': 2 };
+          const typeDiff = typeOrder[a.type] - typeOrder[b.type];
+          
+          if (typeDiff !== 0) return typeDiff;
+          
+          // Then sort by severity within each type
           return severityOrder[a.severity] - severityOrder[b.severity];
         });
         
@@ -87,6 +110,11 @@ export function useInteractions(medications: string[]) {
         
         setInteractions(sortedResults);
         
+        // Separate results by type
+        setSingleResults(sortedResults.filter(r => r.type === 'single'));
+        setPairResults(sortedResults.filter(r => r.type === 'pair'));
+        setTripleResults(sortedResults.filter(r => r.type === 'triple'));
+        
         // Check if any interaction was found with severity moderate or severe
         setHasAnyInteraction(results.some(result => 
           result.severity === "moderate" || result.severity === "severe" || result.severity === "minor"
@@ -94,8 +122,10 @@ export function useInteractions(medications: string[]) {
         
         console.log(`[${newRequestId}] Interaction processing complete:`, {
           count: results.length,
-          hasInteractions: results.some(r => r.severity !== "safe" && r.severity !== "unknown"),
-          confidenceScores: results.map(r => r.confidenceScore)
+          singles: sortedResults.filter(r => r.type === 'single').length,
+          pairs: sortedResults.filter(r => r.type === 'pair').length,
+          triples: sortedResults.filter(r => r.type === 'triple').length,
+          hasInteractions: results.some(r => r.severity !== "safe" && r.severity !== "unknown")
         });
       } catch (error) {
         console.error(`[${newRequestId}] Error checking interactions:`, error);
@@ -116,6 +146,10 @@ export function useInteractions(medications: string[]) {
     loading,
     interactions,
     hasAnyInteraction,
-    requestId
+    requestId,
+    // Return separated results by type
+    singleResults,
+    pairResults,
+    tripleResults
   };
 }

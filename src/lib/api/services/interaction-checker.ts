@@ -1,38 +1,21 @@
 
 import { InteractionResult } from '../types';
-import { processMedicationLookups, validateMedicationPair } from '../utils/medication-lookup-utils';
-import { generateMedicationPairs, processMedicationPair } from '../utils/pair-processing-utils';
+import { checkAllCombinations, CombinationResult } from './combination-checker';
 
+/**
+ * Enhanced interaction checker that processes single, pair, and triple combinations
+ * 
+ * @param medications Array of medication names
+ * @returns Array of interaction results for all combinations
+ */
 export async function checkInteractions(medications: string[]): Promise<InteractionResult[]> {
-  const results: InteractionResult[] = [];
+  // For backward compatibility, we convert the new combination results
+  // back to the original InteractionResult format
+  const combinationResults = await checkAllCombinations(medications);
   
-  // Process all medication lookups
-  const medicationStatuses = await processMedicationLookups(medications);
-  
-  // Generate all possible medication pairs
-  const medicationPairs = generateMedicationPairs(medications);
-  
-  // Process each pair
-  for (const [med1, med2] of medicationPairs) {
-    const { isValid, error } = validateMedicationPair(med1, med2, medicationStatuses);
-    
-    if (!isValid) {
-      results.push({
-        medications: [med1, med2],
-        severity: "unknown",
-        description: error || "Unknown error occurred",
-        sources: [{
-          name: "No data available",
-          severity: "unknown",
-          description: error || "Unknown error occurred"
-        }]
-      });
-      continue;
-    }
-    
-    const result = await processMedicationPair(med1, med2, medicationStatuses);
-    results.push(result);
-  }
-  
-  return results;
+  // Return all results (singles, pairs, triples) with type information
+  return combinationResults;
 }
+
+// Export the more detailed function and types for direct use
+export { checkAllCombinations, CombinationResult };
