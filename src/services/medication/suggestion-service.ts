@@ -7,6 +7,9 @@ import { getCachedCombinedSuggestions, cacheCombinedSuggestions } from "./cache"
 import { getMedicationNamePair } from "./brand-to-generic";
 import { spellcheckMedication } from "@/utils/medication-formatter";
 
+// Enhanced session-level cache for medication suggestions
+const sessionSuggestionsCache = new Map<string, MedicationSuggestion[]>();
+
 /**
  * Fetch medication suggestions from multiple sources with fuzzy matching
  */
@@ -23,10 +26,18 @@ export async function getMedicationSuggestions(query: string): Promise<Medicatio
     console.log(`Corrected query from "${query}" to "${correctedQuery}"`);
   }
   
+  // Check session cache first (faster than localStorage cache)
+  if (sessionSuggestionsCache.has(queryToUse)) {
+    console.log(`Using session cache for query: ${queryToUse}`);
+    return sessionSuggestionsCache.get(queryToUse)!;
+  }
+  
   try {
-    // Attempt to fetch from local storage cache
+    // Attempt to fetch from local storage cache (if not in session cache)
     const cachedResults = getCachedCombinedSuggestions(queryToUse);
     if (cachedResults) {
+      // Store in session cache for faster future lookups
+      sessionSuggestionsCache.set(queryToUse, cachedResults);
       return cachedResults;
     }
     
@@ -68,8 +79,9 @@ export async function getMedicationSuggestions(query: string): Promise<Medicatio
     // Sort by relevance
     const sortedResults = sortSuggestionsByRelevance(fuzzyFilteredResults, queryToUse);
     
-    // Cache the combined results
+    // Cache the combined results (both in localStorage and session)
     cacheCombinedSuggestions(queryToUse, sortedResults);
+    sessionSuggestionsCache.set(queryToUse, sortedResults);
     
     return sortedResults;
   } catch (error) {

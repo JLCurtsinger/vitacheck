@@ -16,6 +16,14 @@ import { hasInteractionCache, getCachedInteractionResult, cacheInteractionResult
 import { checkForHighRiskPair } from './high-risk-checker';
 import { processApiInteractions } from './api-interactions-processor';
 
+// Session-level cache for API interactions
+const apiInteractionsCache = new Map<string, any>();
+
+// Helper function to generate a consistent cache key for API interactions
+function getApiCacheKey(med1: string, med2: string): string {
+  return [med1.toLowerCase(), med2.toLowerCase()].sort().join('+');
+}
+
 // Re-export generateMedicationPairs for backward compatibility
 export { generateMedicationPairs } from './medication-pairs';
 
@@ -38,7 +46,7 @@ export async function processMedicationPair(
   med2: string,
   medicationStatuses: Map<string, MedicationLookupResult>
 ): Promise<InteractionResult> {
-  // Check if we already have cached results
+  // Check if we already have cached results for this interaction
   if (hasInteractionCache(med1, med2)) {
     console.log(`Using cached interaction data for ${med1} + ${med2}`);
     return getCachedInteractionResult(med1, med2)!;
@@ -53,7 +61,20 @@ export async function processMedicationPair(
     return highRiskResult;
   }
 
-  // Process all API interactions for this medication pair
+  // Check API interactions cache
+  const apiCacheKey = getApiCacheKey(med1, med2);
+  let apiResult;
+  
+  if (apiInteractionsCache.has(apiCacheKey)) {
+    console.log(`Using cached API interaction data for ${med1} + ${med2}`);
+    apiResult = apiInteractionsCache.get(apiCacheKey);
+  } else {
+    // Process all API interactions for this medication pair
+    apiResult = await processApiInteractions(med1Status, med2Status, med1, med2);
+    // Cache the API result
+    apiInteractionsCache.set(apiCacheKey, apiResult);
+  }
+  
   const { 
     rxnormResult, 
     suppaiResult, 
@@ -61,7 +82,7 @@ export async function processMedicationPair(
     adverseEventsResult,
     aiAnalysisResult,
     sources 
-  } = await processApiInteractions(med1Status, med2Status, med1, med2);
+  } = apiResult;
   
   // Determine final severity and description based on all results
   const { severity, description, confidenceScore, aiValidated } = determineFinalSeverity(

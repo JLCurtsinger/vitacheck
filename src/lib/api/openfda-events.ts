@@ -26,6 +26,18 @@ export interface AdverseEventResponse {
   };
 }
 
+// Session-level cache for adverse events
+const adverseEventsCache = new Map<string, {
+  eventCount: number;
+  seriousCount: number;
+  commonReactions: string[];
+} | null>();
+
+// Helper function to generate a consistent cache key
+function getCacheKey(med1: string, med2: string): string {
+  return [med1.toLowerCase(), med2.toLowerCase()].sort().join('+');
+}
+
 /**
  * Fetches adverse event data for a combination of medications
  * 
@@ -39,6 +51,13 @@ export async function getAdverseEvents(med1: string, med2: string): Promise<{
   commonReactions: string[];
 } | null> {
   try {
+    // Check cache first
+    const cacheKey = getCacheKey(med1, med2);
+    if (adverseEventsCache.has(cacheKey)) {
+      console.log(`🔍 [OpenFDA Events] Using cached adverse events for: ${med1} + ${med2}`);
+      return adverseEventsCache.get(cacheKey);
+    }
+    
     // Encode medication names for the API request
     const encodedMed1 = encodeURIComponent(med1.trim());
     const encodedMed2 = encodeURIComponent(med2.trim());
@@ -58,6 +77,7 @@ export async function getAdverseEvents(med1: string, med2: string): Promise<{
     if (!response.ok) {
       if (response.status === 404) {
         console.log(`✅ [OpenFDA Events] No adverse events found for: ${med1} + ${med2}`);
+        adverseEventsCache.set(cacheKey, null);
         return null;
       }
       
@@ -71,6 +91,7 @@ export async function getAdverseEvents(med1: string, med2: string): Promise<{
     // Check if we have valid results
     if (!data.results || data.results.length === 0) {
       console.log(`✅ [OpenFDA Events] No adverse events found for: ${med1} + ${med2}`);
+      adverseEventsCache.set(cacheKey, null);
       return null;
     }
     
@@ -102,11 +123,16 @@ export async function getAdverseEvents(med1: string, med2: string): Promise<{
     console.log(`✅ [OpenFDA Events] Found ${eventCount} events (${seriousCount} serious) for: ${med1} + ${med2}`);
     console.log(`✅ [OpenFDA Events] Common reactions:`, sortedReactions);
     
-    return {
+    const result = {
       eventCount,
       seriousCount,
       commonReactions: sortedReactions
     };
+    
+    // Cache the result
+    adverseEventsCache.set(cacheKey, result);
+    
+    return result;
   } catch (error) {
     console.error(`❌ [OpenFDA Events] Error fetching adverse events:`, error);
     return null;

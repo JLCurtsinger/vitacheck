@@ -2,11 +2,24 @@
 import { MedicationLookupResult } from '../types';
 import { lookupMedication } from '../services/medication-lookup';
 
+// Session-level medication lookup cache
+const medicationLookupCache = new Map<string, MedicationLookupResult>();
+
 export async function processMedicationLookups(medications: string[]): Promise<Map<string, MedicationLookupResult>> {
   const medicationStatuses = new Map<string, MedicationLookupResult>();
   
   for (const med of medications) {
-    medicationStatuses.set(med, await lookupMedication(med));
+    // Check if this medication is already in the cache
+    if (medicationLookupCache.has(med)) {
+      console.log(`Using cached lookup data for: ${med}`);
+      medicationStatuses.set(med, medicationLookupCache.get(med)!);
+    } else {
+      // If not in cache, perform the lookup
+      const result = await lookupMedication(med);
+      // Store result in both the local map and the cache
+      medicationStatuses.set(med, result);
+      medicationLookupCache.set(med, result);
+    }
   }
   
   return medicationStatuses;

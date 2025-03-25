@@ -1,3 +1,4 @@
+
 /**
  * FDA API Integration Module
  * Handles interactions with the openFDA API for medication warnings and adverse effects.
@@ -10,6 +11,9 @@ export interface FDAResponse {
     drug_interactions?: string[];
   }>;
 }
+
+// Session-level cache for FDA warnings
+const fdaWarningsCache = new Map<string, FDAResponse>();
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // milliseconds
@@ -28,6 +32,12 @@ export async function getFDAWarnings(medication: string): Promise<FDAResponse> {
   console.log(`🔍 [FDA Client] Fetching warnings for: ${medication}`);
   console.log(`🔍 [FDA Client] Using formatted name: ${formattedMedication}`);
   
+  // Check if this medication's warnings are already in the cache
+  if (fdaWarningsCache.has(formattedMedication)) {
+    console.log(`✅ [FDA Client] Using cached warnings for: ${formattedMedication}`);
+    return fdaWarningsCache.get(formattedMedication)!;
+  }
+  
   while (attempts < MAX_RETRIES) {
     try {
       // Expand search to include both brand and generic names using OR
@@ -42,7 +52,9 @@ export async function getFDAWarnings(medication: string): Promise<FDAResponse> {
       if (!response.ok) {
         if (response.status === 404) {
           console.warn('⚠️ [FDA Client] No FDA data found for medication:', formattedMedication);
-          return { results: [] };
+          const emptyResponse = { results: [] };
+          fdaWarningsCache.set(formattedMedication, emptyResponse);
+          return emptyResponse;
         }
         console.error(`❌ [FDA Client] API error (${response.status}): ${response.statusText}`);
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -51,6 +63,9 @@ export async function getFDAWarnings(medication: string): Promise<FDAResponse> {
       const data: FDAResponse = await response.json();
       console.log(`✅ [FDA Client] Received data for ${formattedMedication}:`, 
         data.results ? `Found ${data.results.length} results` : 'No results');
+      
+      // Cache successful responses
+      fdaWarningsCache.set(formattedMedication, data);
       
       return data;
       
@@ -64,7 +79,10 @@ export async function getFDAWarnings(medication: string): Promise<FDAResponse> {
       }
       
       console.error('❌ [FDA Client] All lookup attempts failed for medication:', formattedMedication);
-      return { results: [] };
+      // Cache empty response for failed attempts to prevent repeated failures
+      const emptyResponse = { results: [] };
+      fdaWarningsCache.set(formattedMedication, emptyResponse);
+      return emptyResponse;
     }
   }
   

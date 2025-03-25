@@ -33,6 +33,10 @@ interface RxNormInteractionResponse {
   message?: string;
 }
 
+// Session-level caches
+const rxcuiCache = new Map<string, string | null>();
+const interactionCache = new Map<string, any[]>();
+
 const INTERACTION_REQUEST_DELAY = 500; // milliseconds
 
 /**
@@ -48,6 +52,13 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
  */
 export async function getRxCUI(medication: string): Promise<string | null> {
   console.log(`🔍 [RxNorm Client] Attempting to get RxCUI for medication: ${medication}`);
+  
+  // Check the cache first
+  const medKey = medication.toLowerCase();
+  if (rxcuiCache.has(medKey)) {
+    console.log(`✅ [RxNorm Client] Using cached RxCUI for ${medication}: ${rxcuiCache.get(medKey)}`);
+    return rxcuiCache.get(medKey);
+  }
   
   // Try with original input
   let rxcui = await tryGetRxCUI(medication);
@@ -71,8 +82,12 @@ export async function getRxCUI(medication: string): Promise<string | null> {
   
   if (rxcui) {
     console.log(`✅ [RxNorm Client] Finally found RxCUI for ${medication}: ${rxcui}`);
+    // Cache the positive result
+    rxcuiCache.set(medKey, rxcui);
   } else {
     console.log(`⚠️ [RxNorm Client] Could not find RxCUI for ${medication} after trying multiple formats`);
+    // Cache the negative result to avoid repeating the same lookup
+    rxcuiCache.set(medKey, null);
   }
   
   return rxcui;
@@ -123,6 +138,13 @@ async function tryGetRxCUI(formattedMedication: string): Promise<string | null> 
 }
 
 /**
+ * Generates a cache key for interaction lookups
+ */
+function getInteractionCacheKey(rxCUIs: string[]): string {
+  return [...rxCUIs].sort().join('+');
+}
+
+/**
  * Fetches drug interaction information for given RxCUIs.
  * @param rxCUIs - Array of RxNorm Concept Unique Identifiers
  * @returns Array of interaction data or empty array if none found
@@ -136,6 +158,13 @@ export async function getDrugInteractions(rxCUIs: string[]): Promise<any[]> {
   }
 
   console.log('🔍 [RxNorm Client] Checking interactions for RxCUIs:', validRxCUIs);
+  
+  // Check cache for this set of RxCUIs
+  const cacheKey = getInteractionCacheKey(validRxCUIs);
+  if (interactionCache.has(cacheKey)) {
+    console.log(`✅ [RxNorm Client] Using cached interactions for RxCUIs: ${cacheKey}`);
+    return interactionCache.get(cacheKey) || [];
+  }
   
   // Add delay to prevent rate limiting
   await delay(INTERACTION_REQUEST_DELAY);
@@ -151,34 +180,48 @@ export async function getDrugInteractions(rxCUIs: string[]): Promise<any[]> {
   
   console.log(`📡 [RxNorm Client] Sending request to RxNorm:`, requestBody);
   
-  const response = await fetch('/.netlify/functions/rxnorm', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody)
-  });
-  
-  if (!response.ok) {
-    console.error('❌ [RxNorm Client] Drug interactions API error:', {
-      status: response.status,
-      rxcuis: rxcuiString,
-      requestBody
+  try {
+    const response = await fetch('/.netlify/functions/rxnorm', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody)
     });
+    
+    if (!response.ok) {
+      console.error('❌ [RxNorm Client] Drug interactions API error:', {
+        status: response.status,
+        rxcuis: rxcuiString,
+        requestBody
+      });
+      // Cache empty results to prevent repeated failures
+      interactionCache.set(cacheKey, []);
+      return [];
+    }
+    
+    const data: RxNormInteractionResponse = await response.json();
+    console.log('⚙️ [RxNorm Client] Drug interactions API raw response:', data);
+    
+    if (data.status === 'error' || data.message === "No data found" || data.message === "No interactions found") {
+      console.log('⚠️ [RxNorm Client] No interactions found for RxCUIs:', rxcuiString);
+      // Cache empty results
+      interactionCache.set(cacheKey, []);
+      return [];
+    }
+    
+    const interactionResults = data.data?.fullInteractionTypeGroup || [];
+    console.log('✅ [RxNorm Client] Processed interaction results:', 
+      interactionResults.length > 0 ? `Found ${interactionResults.length} interaction groups` : 'No interactions');
+    
+    // Cache the successful result
+    interactionCache.set(cacheKey, interactionResults);
+    
+    return interactionResults;
+  } catch (error) {
+    console.error('❌ [RxNorm Client] Error getting drug interactions:', error);
+    // Cache empty results on error to prevent continuous retries
+    interactionCache.set(cacheKey, []);
     return [];
   }
-  
-  const data: RxNormInteractionResponse = await response.json();
-  console.log('⚙️ [RxNorm Client] Drug interactions API raw response:', data);
-  
-  if (data.status === 'error' || data.message === "No data found" || data.message === "No interactions found") {
-    console.log('⚠️ [RxNorm Client] No interactions found for RxCUIs:', rxcuiString);
-    return [];
-  }
-  
-  const interactionResults = data.data?.fullInteractionTypeGroup || [];
-  console.log('✅ [RxNorm Client] Processed interaction results:', 
-    interactionResults.length > 0 ? `Found ${interactionResults.length} interaction groups` : 'No interactions');
-  
-  return interactionResults;
 }

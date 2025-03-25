@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { checkInteractions, checkAllCombinations, CombinationResult } from "@/lib/api/medication-service";
 
-// Cache for storing interaction results
+// Enhanced cache for storing interaction results
+// This will persist during the session until the page is reloaded
 const interactionCache = new Map<string, CombinationResult[]>();
 
 export function useInteractions(medications: string[]) {
