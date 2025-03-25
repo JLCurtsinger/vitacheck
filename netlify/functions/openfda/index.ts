@@ -226,7 +226,30 @@ const handler: Handler = async (event) => {
         reactionMedDRApt: result.reactionmeddrapt
       })) || [];
 
-      // Return structured response with nutrient depletions
+      // Extract the most common reactions for single medication adverse events
+      let commonReactions: string[] = [];
+      if (data.results) {
+        const reactionCounts = new Map<string, number>();
+        
+        data.results.forEach(result => {
+          if (result.patient?.reaction) {
+            result.patient.reaction.forEach(reaction => {
+              if (reaction.reactionmeddrapt) {
+                const count = reactionCounts.get(reaction.reactionmeddrapt) || 0;
+                reactionCounts.set(reaction.reactionmeddrapt, count + 1);
+              }
+            });
+          }
+        });
+        
+        // Sort by frequency and get top reactions
+        commonReactions = Array.from(reactionCounts.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([reaction]) => reaction);
+      }
+
+      // Return structured response with nutrient depletions and common reactions
       return {
         statusCode: 200,
         headers: corsHeaders,
@@ -236,7 +259,8 @@ const handler: Handler = async (event) => {
             reports: structuredResults,
             query: query,
             total: data.meta?.results?.total || 0,
-            nutrientDepletions: nutrientDepletions
+            nutrientDepletions: nutrientDepletions,
+            commonReactions: commonReactions
           }
         })
       };

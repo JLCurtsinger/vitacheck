@@ -7,6 +7,7 @@ import { CombinedInteractionResult } from "../interaction/CombinedInteractionRes
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNutrientDepletions } from "@/hooks/use-nutrient-depletions";
+import { SingleMedicationAdverseEvents } from "../interaction/sections/SingleMedicationAdverseEvents";
 
 interface InteractionsListProps {
   interactions: InteractionResultType[];
@@ -75,6 +76,26 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
     }));
   };
   
+  // Check if this is a single medication search
+  const isSingleMedication = medications && medications.length === 1;
+  
+  // Get adverse events data for single medication if available
+  const singleMedicationAdverseEvents = useMemo(() => {
+    if (!isSingleMedication || interactions.length === 0) return null;
+    
+    // Find any source with eventData
+    const eventData = interactions[0]?.sources?.find(source => 
+      source.eventData && source.eventData.totalEvents > 0
+    )?.eventData;
+    
+    if (!eventData || !eventData.totalEvents) return null;
+    
+    return {
+      totalEvents: eventData.totalEvents,
+      reactions: eventData.commonReactions || []
+    };
+  }, [isSingleMedication, interactions]);
+  
   if (interactions.length === 0) {
     return (
       <div className="max-w-3xl mx-auto">
@@ -86,7 +107,7 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
     );
   }
   
-  if (!hasAnyInteraction) {
+  if (!hasAnyInteraction && !singleMedicationAdverseEvents) {
     return (
       <div className="max-w-3xl mx-auto">
         <ErrorMessage
@@ -102,6 +123,14 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
   
   return (
     <div className="space-y-8 mb-12 max-w-3xl mx-auto">
+      {/* Single Medication Adverse Events Section */}
+      {isSingleMedication && singleMedicationAdverseEvents && (
+        <SingleMedicationAdverseEvents 
+          totalEvents={singleMedicationAdverseEvents.totalEvents}
+          reactions={singleMedicationAdverseEvents.reactions}
+        />
+      )}
+
       {/* Combined Interaction Section */}
       {hasCombinedInteraction && (
         <Collapsible 
