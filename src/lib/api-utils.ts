@@ -29,6 +29,7 @@ export interface InteractionSource {
     totalEvents: number;
     seriousEvents: number;
     nonSeriousEvents: number;
+    seriousPercentage?: number; // Add this property for tracking percentage of serious events
   };
 }
 
