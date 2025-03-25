@@ -30,6 +30,7 @@ export interface InteractionSource {
     seriousEvents: number;
     nonSeriousEvents: number;
     seriousPercentage?: number; // Add this property for tracking percentage of serious events
+    commonReactions?: string[]; // Add this property for storing common reactions
   };
 }
 
