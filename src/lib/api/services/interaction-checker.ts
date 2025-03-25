@@ -1,6 +1,9 @@
 
 import { InteractionResult } from '../types';
-import { checkAllCombinations, CombinationResult } from './combination-checker';
+import { checkAllCombinations } from './combination-checker';
+
+// Use export type for re-exporting types when isolatedModules is enabled
+export type { CombinationResult } from './combination-checker';
 
 /**
  * Enhanced interaction checker that processes single, pair, and triple combinations
@@ -17,5 +20,5 @@ export async function checkInteractions(medications: string[]): Promise<Interact
   return combinationResults;
 }
 
-// Export the more detailed function and types for direct use
-export { checkAllCombinations, CombinationResult };
+// Export the more detailed function
+export { checkAllCombinations };

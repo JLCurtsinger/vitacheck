@@ -1,5 +1,5 @@
 
-import { InteractionResult, MedicationLookupResult } from '../types';
+import { InteractionResult, MedicationLookupResult, InteractionSource } from '../types';
 import { processMedicationLookups, validateMedicationPair } from '../utils/medication-lookup-utils';
 import { processMedicationPair } from '../utils/pair-processing-utils';
 import { processMedicationTriple } from '../utils/triple-processing-utils';
@@ -48,11 +48,11 @@ export async function checkAllCombinations(medications: string[]): Promise<Combi
     if (!isValid) {
       results.push({
         medications: [med1, med2],
-        severity: "unknown",
+        severity: "unknown" as const,
         description: error || "Unknown error occurred",
         sources: [{
           name: "No data available",
-          severity: "unknown",
+          severity: "unknown" as const,
           description: error || "Unknown error occurred"
         }],
         type: 'pair',
@@ -95,24 +95,24 @@ async function processSingleMedication(
   if (!medStatus) {
     return {
       medications: [medication],
-      severity: "unknown",
+      severity: "unknown" as const,
       description: "Medication information not found",
       sources: [{
         name: "No data available",
-        severity: "unknown",
+        severity: "unknown" as const,
         description: "Medication information not found"
       }]
     };
   }
   
   // For single medications, we just use the warnings as sources
-  const sources = medStatus.warnings ? medStatus.warnings.map(warning => ({
+  const sources: InteractionSource[] = medStatus.warnings ? medStatus.warnings.map(warning => ({
     name: "FDA Warnings",
-    severity: "minor",
+    severity: "minor" as const,
     description: warning
   })) : [{
     name: "FDA Information",
-    severity: "unknown",
+    severity: "unknown" as const,
     description: "No specific warnings found for this medication"
   }];
   
