@@ -1,109 +1,108 @@
 
-import { InteractionResult as InteractionResultType } from "@/lib/api/types";
-import { useState, useEffect } from "react";
+import React, { useMemo } from "react";
+import { InteractionResult } from "@/lib/api-utils";
 import { processCombinedSeverity } from "@/lib/api/utils/combined-severity-utils";
-import { NutrientDepletion, analyzeNutrientDepletions } from "@/lib/api/utils/nutrient-depletion-utils";
-
-// Import refactored components
 import { CombinedHeader } from "./combined/CombinedHeader";
+import { CombinedSeverityContainer } from "./combined/CombinedSeverityContainer";
 import { CombinedSummary } from "./combined/CombinedSummary";
 import { CombinedAdvice } from "./combined/CombinedAdvice";
-import { CombinedSeverityContainer } from "./combined/CombinedSeverityContainer";
-import { SeverityBreakdown } from "./sections/SeverityBreakdown";
-import { NutrientDepletions } from "./sections/NutrientDepletions";
+import { prepareRiskAssessment } from "@/lib/utils/risk-assessment";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 
 interface CombinedInteractionResultProps {
   medications: string[];
-  interactions: InteractionResultType[];
+  interactions: InteractionResult[];
 }
 
-export function CombinedInteractionResult({ medications, interactions }: CombinedInteractionResultProps) {
-  const [combinedResult, setCombinedResult] = useState<{
-    severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
-    description: string;
-    confidenceScore: number;
-    sources: InteractionResultType["sources"];
-    combinedWarnings: string[];
-  } | null>(null);
-  
-  // State for nutrient depletions
-  const [nutrientDepletions, setNutrientDepletions] = useState<NutrientDepletion[]>([]);
-
-  // Process the combined severity based on all interactions
-  useEffect(() => {
-    if (interactions.length > 0) {
-      const result = processCombinedSeverity(interactions);
-      setCombinedResult(result);
-      
-      console.log('Combined severity calculated:', {
-        severity: result.severity,
-        confidenceScore: result.confidenceScore,
-        sourcesCount: result.sources.length,
-        warnings: result.combinedWarnings
-      });
-    }
+export function CombinedInteractionResult({ 
+  medications, 
+  interactions 
+}: CombinedInteractionResultProps) {
+  // Process all interactions to determine overall severity, confidence, etc.
+  const combinedResults = useMemo(() => {
+    return processCombinedSeverity(interactions);
   }, [interactions]);
   
-  // Load nutrient depletion data
-  useEffect(() => {
-    const fetchNutrientDepletions = async () => {
-      // Extract FDA warnings from all interactions
-      const fdaWarnings: Record<string, string[]> = {};
-      
-      medications.forEach(med => {
-        fdaWarnings[med] = [];
-      });
-      
-      // Collect FDA warnings from all interactions
-      interactions.forEach(interaction => {
-        interaction.sources.forEach(source => {
-          if (source.name === "FDA" && source.description) {
-            // Since this is a combined view, add warnings to the related medications
-            interaction.medications.forEach(med => {
-              if (medications.includes(med) && !fdaWarnings[med].includes(source.description)) {
-                fdaWarnings[med].push(source.description);
-              }
-            });
-          }
-        });
-      });
-      
-      const depletions = await analyzeNutrientDepletions(medications, fdaWarnings);
-      setNutrientDepletions(depletions);
-    };
-    
-    if (medications && medications.length > 0) {
-      fetchNutrientDepletions();
-    }
-  }, [medications, interactions]);
+  // Create a risk assessment for the combined result
+  const riskAssessment = useMemo(() => {
+    return prepareRiskAssessment({
+      severity: combinedResults.severity === "severe" ? "severe" : 
+                combinedResults.severity === "moderate" ? "moderate" : "mild",
+      fdaReports: { 
+        signal: interactions.some(i => 
+          i.sources.some(s => s.name === "FDA" && s.severity !== "safe")
+        ), 
+        count: interactions.reduce((total, i) => 
+          total + (i.sources.find(s => s.name === "FDA")?.eventData?.totalEvents || 0), 0)
+      },
+      openFDA: { 
+        signal: interactions.some(i => 
+          i.sources.some(s => s.name === "OpenFDA Adverse Events" && s.severity !== "safe")
+        ),
+        count: interactions.reduce((total, i) => 
+          total + (i.sources.find(s => s.name === "OpenFDA Adverse Events")?.eventData?.totalEvents || 0), 0)
+      },
+      suppAI: { 
+        signal: interactions.some(i =>
+          i.sources.some(s => s.name.includes("AI") && s.severity !== "safe")
+        ) 
+      },
+      mechanism: { 
+        plausible: interactions.some(i =>
+          i.sources.some(s => s.name.includes("Mechanism") && s.severity !== "safe")
+        ) 
+      },
+      aiLiterature: { 
+        plausible: interactions.some(i =>
+          i.sources.some(s => s.name.includes("Literature") && s.severity !== "safe")
+        ) 
+      },
+      peerReports: { 
+        signal: interactions.some(i =>
+          i.sources.some(s => s.name.includes("Report") && s.severity !== "safe")
+        ) 
+      }
+    });
+  }, [combinedResults.severity, interactions]);
 
-  if (!combinedResult) {
-    return <div className="p-6">Processing combined interaction data...</div>;
-  }
+  // Determine if this is a high-risk combination
+  const isHighRisk = riskAssessment.riskScore >= 70;
 
   return (
-    <CombinedSeverityContainer severity={combinedResult.severity}>
-      <CombinedHeader
-        severity={combinedResult.severity}
-        confidenceScore={combinedResult.confidenceScore}
+    <div className="p-6">
+      <CombinedHeader 
+        severity={combinedResults.severity}
+        confidenceScore={combinedResults.confidenceScore}
         medications={medications}
         aiValidated={interactions.some(i => i.aiValidated)}
+        severityFlag={riskAssessment.severityFlag}
       />
-
-      <CombinedSummary
-        severity={combinedResult.severity}
-        description={combinedResult.description}
-        warnings={combinedResult.combinedWarnings}
+      
+      {/* High Risk Warning Alert */}
+      {isHighRisk && (
+        <Alert variant="destructive" className="mt-1 mb-4 bg-red-50 border-red-200">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-600 font-medium">
+            ⚠️ High-risk combination. Consult a medical professional before use.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      <CombinedSummary 
+        description={combinedResults.description}
+        warnings={combinedResults.combinedWarnings}
       />
-
-      <SeverityBreakdown 
-        sources={combinedResult.sources}
-        confidenceScore={combinedResult.confidenceScore}
+      
+      <CombinedSeverityContainer 
+        interactions={interactions}
+        totalMedications={medications.length}
       />
-
-      <NutrientDepletions depletions={nutrientDepletions} />
-
-      <CombinedAdvice severity={combinedResult.severity} />
-    </CombinedSeverityContainer>
+      
+      <CombinedAdvice 
+        severity={combinedResults.severity} 
+        medications={medications}
+      />
+    </div>
   );
 }

@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { useNutrientDepletions } from "@/hooks/use-nutrient-depletions";
 import { SingleMedicationAdverseEvents } from "../interaction/sections/SingleMedicationAdverseEvents";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { prepareRiskAssessment } from "@/lib/utils/risk-assessment";
+import { Badge } from "@/components/ui/badge";
 
 interface InteractionsListProps {
   interactions: InteractionResultType[];
@@ -157,6 +159,100 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
   // Create a combined interaction result if we have more than 2 medications
   const hasCombinedInteraction = medications && medications.length > 2;
   
+  // Function to get risk assessment for an interaction
+  const getRiskAssessment = (interaction: InteractionResultType) => {
+    return prepareRiskAssessment({
+      severity: interaction.severity === "severe" ? "severe" : 
+                interaction.severity === "moderate" ? "moderate" : "mild",
+      fdaReports: { 
+        signal: interaction.sources.some(s => s.name === "FDA" && s.severity !== "safe"), 
+        count: interaction.sources.find(s => s.name === "FDA")?.eventData?.totalEvents
+      },
+      openFDA: { 
+        signal: interaction.sources.some(s => s.name === "OpenFDA Adverse Events" && s.severity !== "safe"),
+        count: interaction.sources.find(s => s.name === "OpenFDA Adverse Events")?.eventData?.totalEvents  
+      },
+      suppAI: { 
+        signal: interaction.sources.some(s => s.name.includes("AI") && s.severity !== "safe") 
+      },
+      mechanism: { 
+        plausible: interaction.sources.some(s => s.name.includes("Mechanism") && s.severity !== "safe") 
+      },
+      aiLiterature: { 
+        plausible: interaction.sources.some(s => s.name.includes("Literature") && s.severity !== "safe") 
+      },
+      peerReports: { 
+        signal: interaction.sources.some(s => s.name.includes("Report") && s.severity !== "safe") 
+      }
+    });
+  };
+  
+  // Get badge color based on severity flag
+  const getBadgeClass = (severityFlag: '🔴' | '🟡' | '🟢') => {
+    switch (severityFlag) {
+      case "🔴": return "bg-red-100 text-red-800 border-red-200";
+      case "🟡": return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "🟢": return "bg-green-100 text-green-800 border-green-200";
+      default: return "";
+    }
+  };
+  
+  // Get risk text based on severity flag
+  const getRiskText = (severityFlag: '🔴' | '🟡' | '🟢') => {
+    switch (severityFlag) {
+      case "🔴": return "High Risk";
+      case "🟡": return "Moderate Risk";
+      case "🟢": return "No Known Risk";
+      default: return "";
+    }
+  };
+
+  // Create a combined risk assessment for all medications
+  const combinedRiskAssessment = useMemo(() => {
+    if (!medications || medications.length <= 1 || interactions.length === 0) {
+      return null;
+    }
+    
+    return prepareRiskAssessment({
+      severity: interactions.some(i => i.severity === "severe") ? "severe" : 
+                interactions.some(i => i.severity === "moderate") ? "moderate" : "mild",
+      fdaReports: { 
+        signal: interactions.some(i => 
+          i.sources.some(s => s.name === "FDA" && s.severity !== "safe")
+        ), 
+        count: interactions.reduce((total, i) => 
+          total + (i.sources.find(s => s.name === "FDA")?.eventData?.totalEvents || 0), 0)
+      },
+      openFDA: { 
+        signal: interactions.some(i => 
+          i.sources.some(s => s.name === "OpenFDA Adverse Events" && s.severity !== "safe")
+        ),
+        count: interactions.reduce((total, i) => 
+          total + (i.sources.find(s => s.name === "OpenFDA Adverse Events")?.eventData?.totalEvents || 0), 0)
+      },
+      suppAI: { 
+        signal: interactions.some(i =>
+          i.sources.some(s => s.name.includes("AI") && s.severity !== "safe")
+        ) 
+      },
+      mechanism: { 
+        plausible: interactions.some(i =>
+          i.sources.some(s => s.name.includes("Mechanism") && s.severity !== "safe")
+        ) 
+      },
+      aiLiterature: { 
+        plausible: interactions.some(i =>
+          i.sources.some(s => s.name.includes("Literature") && s.severity !== "safe")
+        ) 
+      },
+      peerReports: { 
+        signal: interactions.some(i =>
+          i.sources.some(s => s.name.includes("Report") && s.severity !== "safe")
+        ) 
+      }
+    });
+  }, [medications, interactions]);
+  
   // Render the interactions grouped by type if we have type information
   if (shouldShowTabs) {
     return (
@@ -193,8 +289,13 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
                 className="rounded-xl bg-white border shadow-lg"
               >
                 <CollapsibleTrigger className="flex w-full justify-between items-center p-4 rounded-t-xl hover:bg-gray-50">
-                  <span className="text-lg font-medium">
+                  <span className="text-lg font-medium flex items-center gap-2">
                     🔍 Combined Interaction: {medications?.join(' + ')}
+                    {combinedRiskAssessment && (
+                      <Badge variant="outline" className={cn("ml-2 font-medium text-sm", getBadgeClass(combinedRiskAssessment.severityFlag))}>
+                        {combinedRiskAssessment.severityFlag} {getRiskText(combinedRiskAssessment.severityFlag)}
+                      </Badge>
+                    )}
                   </span>
                   <ChevronDown 
                     className={cn(
@@ -214,37 +315,46 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
             )}
             
             {/* All Interaction Sections */}
-            {interactionKeys.map(({ id, interaction, label }) => (
-              <Collapsible 
-                key={id}
-                open={openSections[id]} 
-                onOpenChange={() => toggleSection(id)}
-                className="rounded-xl bg-white border shadow-lg"
-              >
-                <CollapsibleTrigger className="flex w-full justify-between items-center p-4 rounded-t-xl hover:bg-gray-50">
-                  <span className="text-lg font-medium">
-                    {interaction.severity === "severe" && "🚨 Severe: "}
-                    {interaction.severity === "moderate" && "⚠️ Moderate: "}
-                    {interaction.severity === "minor" && "ℹ️ Minor: "}
-                    {interaction.severity === "safe" && "✅ Safe: "}
-                    {interaction.severity === "unknown" && "ℹ️ Unknown: "}
-                    {label}
-                  </span>
-                  <ChevronDown 
-                    className={cn(
-                      "h-5 w-5 transition-transform duration-200",
-                      openSections[id] ? "transform rotate-180" : ""
-                    )} 
-                  />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="px-1">
-                  <InteractionResult 
-                    interaction={interaction}
-                    key={id}
-                  />
-                </CollapsibleContent>
-              </Collapsible>
-            ))}
+            {interactionKeys.map(({ id, interaction, label }) => {
+              const risk = getRiskAssessment(interaction);
+              return (
+                <Collapsible 
+                  key={id}
+                  open={openSections[id]} 
+                  onOpenChange={() => toggleSection(id)}
+                  className="rounded-xl bg-white border shadow-lg"
+                >
+                  <CollapsibleTrigger className="flex w-full justify-between items-center p-4 rounded-t-xl hover:bg-gray-50">
+                    <span className="text-lg font-medium flex items-center gap-2">
+                      {interaction.severity === "severe" && "🚨 Severe: "}
+                      {interaction.severity === "moderate" && "⚠️ Moderate: "}
+                      {interaction.severity === "minor" && "ℹ️ Minor: "}
+                      {interaction.severity === "safe" && "✅ Safe: "}
+                      {interaction.severity === "unknown" && "ℹ️ Unknown: "}
+                      {label}
+                      
+                      {risk && (
+                        <Badge variant="outline" className={cn("ml-2 font-medium text-sm", getBadgeClass(risk.severityFlag))}>
+                          {risk.severityFlag} {getRiskText(risk.severityFlag)}
+                        </Badge>
+                      )}
+                    </span>
+                    <ChevronDown 
+                      className={cn(
+                        "h-5 w-5 transition-transform duration-200",
+                        openSections[id] ? "transform rotate-180" : ""
+                      )} 
+                    />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="px-1">
+                    <InteractionResult 
+                      interaction={interaction}
+                      key={id}
+                    />
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            })}
           </TabsContent>
           
           {/* Singles Tab */}
@@ -257,6 +367,7 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
               groupedInteractions.singles.map((interaction, index) => {
                 const id = `single-${interaction.medications.join('-')}-${index}`;
                 const label = 'label' in interaction ? (interaction as CombinationResult).label : interaction.medications.join('+');
+                const risk = getRiskAssessment(interaction);
                 
                 return (
                   <Collapsible 
@@ -266,8 +377,13 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
                     className="rounded-xl bg-white border shadow-lg"
                   >
                     <CollapsibleTrigger className="flex w-full justify-between items-center p-4 rounded-t-xl hover:bg-gray-50">
-                      <span className="text-lg font-medium">
+                      <span className="text-lg font-medium flex items-center gap-2">
                         {'🔍 Individual: '}{label}
+                        {risk && (
+                          <Badge variant="outline" className={cn("ml-2 font-medium text-sm", getBadgeClass(risk.severityFlag))}>
+                            {risk.severityFlag} {getRiskText(risk.severityFlag)}
+                          </Badge>
+                        )}
                       </span>
                       <ChevronDown 
                         className={cn(
@@ -298,6 +414,7 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
               groupedInteractions.pairs.map((interaction, index) => {
                 const id = `pair-${interaction.medications.join('-')}-${index}`;
                 const label = 'label' in interaction ? (interaction as CombinationResult).label : interaction.medications.join(' + ');
+                const risk = getRiskAssessment(interaction);
                 
                 return (
                   <Collapsible 
@@ -307,13 +424,18 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
                     className="rounded-xl bg-white border shadow-lg"
                   >
                     <CollapsibleTrigger className="flex w-full justify-between items-center p-4 rounded-t-xl hover:bg-gray-50">
-                      <span className="text-lg font-medium">
+                      <span className="text-lg font-medium flex items-center gap-2">
                         {interaction.severity === "severe" && "🚨 Severe: "}
                         {interaction.severity === "moderate" && "⚠️ Moderate: "}
                         {interaction.severity === "minor" && "ℹ️ Minor: "}
                         {interaction.severity === "safe" && "✅ Safe: "}
                         {interaction.severity === "unknown" && "ℹ️ Unknown: "}
                         {label}
+                        {risk && (
+                          <Badge variant="outline" className={cn("ml-2 font-medium text-sm", getBadgeClass(risk.severityFlag))}>
+                            {risk.severityFlag} {getRiskText(risk.severityFlag)}
+                          </Badge>
+                        )}
                       </span>
                       <ChevronDown 
                         className={cn(
@@ -349,6 +471,7 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
               groupedInteractions.triples.map((interaction, index) => {
                 const id = `triple-${interaction.medications.join('-')}-${index}`;
                 const label = 'label' in interaction ? (interaction as CombinationResult).label : interaction.medications.join(' + ');
+                const risk = getRiskAssessment(interaction);
                 
                 return (
                   <Collapsible 
@@ -358,13 +481,18 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
                     className="rounded-xl bg-white border shadow-lg"
                   >
                     <CollapsibleTrigger className="flex w-full justify-between items-center p-4 rounded-t-xl hover:bg-gray-50">
-                      <span className="text-lg font-medium">
+                      <span className="text-lg font-medium flex items-center gap-2">
                         {interaction.severity === "severe" && "🚨 Severe: "}
                         {interaction.severity === "moderate" && "⚠️ Moderate: "}
                         {interaction.severity === "minor" && "ℹ️ Minor: "}
                         {interaction.severity === "safe" && "✅ Safe: "}
                         {interaction.severity === "unknown" && "ℹ️ Unknown: "}
                         {label}
+                        {risk && (
+                          <Badge variant="outline" className={cn("ml-2 font-medium text-sm", getBadgeClass(risk.severityFlag))}>
+                            {risk.severityFlag} {getRiskText(risk.severityFlag)}
+                          </Badge>
+                        )}
                       </span>
                       <ChevronDown 
                         className={cn(
@@ -408,8 +536,13 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
           className="rounded-xl bg-white border shadow-lg"
         >
           <CollapsibleTrigger className="flex w-full justify-between items-center p-4 rounded-t-xl hover:bg-gray-50">
-            <span className="text-lg font-medium">
+            <span className="text-lg font-medium flex items-center gap-2">
               🔍 Combined Interaction: {medications?.join(' + ')}
+              {combinedRiskAssessment && (
+                <Badge variant="outline" className={cn("ml-2 font-medium text-sm", getBadgeClass(combinedRiskAssessment.severityFlag))}>
+                  {combinedRiskAssessment.severityFlag} {getRiskText(combinedRiskAssessment.severityFlag)}
+                </Badge>
+              )}
             </span>
             <ChevronDown 
               className={cn(
@@ -429,37 +562,46 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
       )}
       
       {/* Individual Interaction Sections */}
-      {interactionKeys.map(({ id, interaction, label }) => (
-        <Collapsible 
-          key={id}
-          open={openSections[id]} 
-          onOpenChange={() => toggleSection(id)}
-          className="rounded-xl bg-white border shadow-lg"
-        >
-          <CollapsibleTrigger className="flex w-full justify-between items-center p-4 rounded-t-xl hover:bg-gray-50">
-            <span className="text-lg font-medium">
-              {interaction.severity === "severe" && "🚨 Severe: "}
-              {interaction.severity === "moderate" && "⚠️ Moderate: "}
-              {interaction.severity === "minor" && "ℹ️ Minor: "}
-              {interaction.severity === "safe" && "✅ Safe: "}
-              {interaction.severity === "unknown" && "ℹ️ Unknown: "}
-              {label}
-            </span>
-            <ChevronDown 
-              className={cn(
-                "h-5 w-5 transition-transform duration-200",
-                openSections[id] ? "transform rotate-180" : ""
-              )} 
-            />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="px-1">
-            <InteractionResult 
-              interaction={interaction}
-              key={id}
-            />
-          </CollapsibleContent>
-        </Collapsible>
-      ))}
+      {interactionKeys.map(({ id, interaction, label }) => {
+        const risk = getRiskAssessment(interaction);
+        return (
+          <Collapsible 
+            key={id}
+            open={openSections[id]} 
+            onOpenChange={() => toggleSection(id)}
+            className="rounded-xl bg-white border shadow-lg"
+          >
+            <CollapsibleTrigger className="flex w-full justify-between items-center p-4 rounded-t-xl hover:bg-gray-50">
+              <span className="text-lg font-medium flex items-center gap-2">
+                {interaction.severity === "severe" && "🚨 Severe: "}
+                {interaction.severity === "moderate" && "⚠️ Moderate: "}
+                {interaction.severity === "minor" && "ℹ️ Minor: "}
+                {interaction.severity === "safe" && "✅ Safe: "}
+                {interaction.severity === "unknown" && "ℹ️ Unknown: "}
+                {label}
+                
+                {risk && (
+                  <Badge variant="outline" className={cn("ml-2 font-medium text-sm", getBadgeClass(risk.severityFlag))}>
+                    {risk.severityFlag} {getRiskText(risk.severityFlag)}
+                  </Badge>
+                )}
+              </span>
+              <ChevronDown 
+                className={cn(
+                  "h-5 w-5 transition-transform duration-200",
+                  openSections[id] ? "transform rotate-180" : ""
+                )} 
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-1">
+              <InteractionResult 
+                interaction={interaction}
+                key={id}
+              />
+            </CollapsibleContent>
+          </Collapsible>
+        );
+      })}
     </div>
   );
 }

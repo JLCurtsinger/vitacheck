@@ -6,9 +6,10 @@ import { InteractionDescription } from "./InteractionDescription";
 import { InteractionFooter } from "./InteractionFooter";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { BarChart2 } from "lucide-react";
+import { BarChart2, AlertTriangle } from "lucide-react";
 import { RiskAssessmentModal } from "./RiskAssessmentModal";
 import { prepareRiskAssessment } from "@/lib/utils/risk-assessment";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface InteractionResultProps {
   interaction: InteractionResultType;
@@ -51,6 +52,9 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
     "safe": "border-green-200 bg-green-50/30"
   };
 
+  // Determine if this is a high-risk interaction
+  const isHighRisk = riskAssessment.riskScore >= 70;
+
   return (
     <div className={cn(
       "p-6 transition-transform hover:scale-[1.01]",
@@ -58,7 +62,19 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
     )}>
       <InteractionHeader 
         interaction={interaction} 
+        severityFlag={riskAssessment.severityFlag}
       />
+      
+      {/* High Risk Warning Alert */}
+      {isHighRisk && (
+        <Alert variant="destructive" className="mt-3 mb-2 bg-red-50 border-red-200">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-600 font-medium">
+            ⚠️ High-risk combination. Consult a medical professional before use.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <InteractionDescription interaction={interaction} />
       <InteractionFooter interaction={interaction} />
       

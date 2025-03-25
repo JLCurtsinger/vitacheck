@@ -4,12 +4,14 @@ import { SeverityIndicator } from "./SeverityIndicator";
 import { InteractionResult } from "@/lib/api-utils";
 import { AlertTriangle, CheckCircle, Info, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface InteractionHeaderProps {
   interaction: InteractionResult;
+  severityFlag?: '🔴' | '🟡' | '🟢';
 }
 
-export function InteractionHeader({ interaction }: InteractionHeaderProps) {
+export function InteractionHeader({ interaction, severityFlag }: InteractionHeaderProps) {
   const getSeverityIcon = () => {
     switch (interaction.severity) {
       case "severe":
@@ -60,6 +62,30 @@ export function InteractionHeader({ interaction }: InteractionHeaderProps) {
     }
   };
 
+  // Get risk text based on severity flag
+  const getRiskText = () => {
+    if (!severityFlag) return "";
+    
+    switch (severityFlag) {
+      case "🔴": return "High Risk";
+      case "🟡": return "Moderate Risk";
+      case "🟢": return "No Known Risk";
+      default: return "";
+    }
+  };
+  
+  // Get badge color based on severity flag
+  const getBadgeClass = () => {
+    if (!severityFlag) return "";
+    
+    switch (severityFlag) {
+      case "🔴": return "bg-red-100 text-red-800 border-red-200 hover:bg-red-200";
+      case "🟡": return "bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200";
+      case "🟢": return "bg-green-100 text-green-800 border-green-200 hover:bg-green-200";
+      default: return "";
+    }
+  };
+
   return (
     <div className="flex items-center justify-between gap-2 mb-3 pb-3 border-b">
       <div className="flex items-center gap-2">
@@ -72,7 +98,23 @@ export function InteractionHeader({ interaction }: InteractionHeaderProps) {
           {getSeverityTitle()}
         </h4>
       </div>
-      {getSeverityIcon()}
+      <div className="flex items-center gap-2">
+        {severityFlag && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <Badge variant="outline" className={cn("font-medium", getBadgeClass())}>
+                  {severityFlag} {getRiskText()}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Risk assessment based on multiple data sources</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {getSeverityIcon()}
+      </div>
     </div>
   );
 }
