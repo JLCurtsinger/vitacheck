@@ -5,11 +5,10 @@ import { InteractionHeader } from "./InteractionHeader";
 import { InteractionDescription } from "./InteractionDescription";
 import { InteractionFooter } from "./InteractionFooter";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { BarChart2, AlertTriangle } from "lucide-react";
 import { RiskAssessmentModal } from "./RiskAssessmentModal";
 import { prepareRiskAssessment } from "@/lib/utils/risk-assessment";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { HighRiskWarning } from "./severity/HighRiskWarning";
+import { RiskAssessmentButton } from "./risk/RiskAssessmentButton";
 
 interface InteractionResultProps {
   interaction: InteractionResultType;
@@ -65,31 +64,12 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
         severityFlag={riskAssessment.severityFlag}
       />
       
-      {/* High Risk Warning Alert */}
-      {isHighRisk && (
-        <Alert variant="destructive" className="mt-3 mb-2 bg-red-50 border-red-200">
-          <AlertTriangle className="h-4 w-4 text-red-600" />
-          <AlertDescription className="text-red-600 font-medium">
-            ⚠️ High-risk combination. Consult a medical professional before use.
-          </AlertDescription>
-        </Alert>
-      )}
+      <HighRiskWarning isHighRisk={isHighRisk} />
       
       <InteractionDescription interaction={interaction} />
       <InteractionFooter interaction={interaction} />
       
-      {/* Risk Assessment Button & Modal */}
-      <div className="mt-4 flex justify-end">
-        <Button 
-          variant="outline" 
-          size="sm"
-          className="flex items-center gap-2"
-          onClick={() => setRiskModalOpen(true)}
-        >
-          <BarChart2 className="h-4 w-4" />
-          <span>Overview / Why is this flagged?</span>
-        </Button>
-      </div>
+      <RiskAssessmentButton onClick={() => setRiskModalOpen(true)} />
       
       <RiskAssessmentModal
         open={riskModalOpen}
