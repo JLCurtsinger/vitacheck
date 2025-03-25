@@ -102,7 +102,7 @@ interface RawRiskData {
 }
 
 // Define the enhanced output that includes original input summary
-interface EnhancedRiskAssessmentOutput extends RiskAssessmentOutput {
+export interface EnhancedRiskAssessmentOutput extends RiskAssessmentOutput {
   inputSummary: {
     severity: Severity;
     sources: Sources;
