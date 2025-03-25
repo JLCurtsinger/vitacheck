@@ -1,44 +1,84 @@
 
 import { cn } from "@/lib/utils";
+import { AlertTriangle, FileText } from "lucide-react";
 
 interface CombinedSummaryProps {
-  severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
   description: string;
   warnings: string[];
+  severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
 }
 
-export function CombinedSummary({ severity, description, warnings }: CombinedSummaryProps) {
+export function CombinedSummary({ description, warnings, severity }: CombinedSummaryProps) {
+  // Only show warnings for non-safe interactions
+  const hasWarnings = warnings.length > 0 && severity !== "safe";
+  
+  // Get appropriate styling based on severity
+  const getSeverityClass = () => {
+    switch (severity) {
+      case "severe":
+        return "bg-red-50/80 border-red-200";
+      case "moderate":
+        return "bg-yellow-50/80 border-yellow-300";
+      case "minor":
+        return "bg-yellow-50/60 border-yellow-200";
+      case "safe":
+        return "bg-green-50/60 border-green-200";
+      default:
+        return "bg-gray-50/60 border-gray-200";
+    }
+  };
+  
+  // Get text color based on severity
+  const getTextColorClass = () => {
+    switch (severity) {
+      case "severe":
+        return "text-red-700";
+      case "moderate":
+        return "text-yellow-700";
+      case "minor":
+        return "text-yellow-600";
+      case "safe":
+        return "text-green-700";
+      default:
+        return "text-gray-700";
+    }
+  };
+
   return (
     <div className={cn(
-      "p-4 mb-6 rounded-lg border",
-      severity === "severe" ? "bg-red-50/60 border-red-200" : 
-      severity === "moderate" ? "bg-yellow-50/70 border-yellow-300" :
-      severity === "minor" ? "bg-yellow-50/60 border-yellow-200" : 
-      severity === "safe" ? "bg-green-50/60 border-green-200" : 
-      "bg-gray-50/60 border-gray-200"
+      "p-4 rounded-lg border mb-6",
+      getSeverityClass()
     )}>
       <h3 className={cn(
         "text-base font-semibold mb-3 pb-2 border-b flex items-center gap-2",
-        severity === "severe" ? "text-red-700 border-red-200" : 
-        severity === "moderate" ? "text-yellow-700 border-yellow-300" :
-        severity === "minor" ? "text-yellow-600 border-yellow-200" : 
-        severity === "safe" ? "text-green-700 border-green-200" : 
-        "text-gray-700 border-gray-200"
+        getTextColorClass(),
+        severity === "severe" ? "border-red-200" : 
+        severity === "moderate" ? "border-yellow-300" :
+        severity === "minor" ? "border-yellow-200" : 
+        severity === "safe" ? "border-green-200" : 
+        "border-gray-200"
       )}>
-        Combined Interaction Analysis
+        {(severity === "severe" || severity === "moderate") && <AlertTriangle className="h-5 w-5" />}
+        {severity === "minor" && <AlertTriangle className="h-5 w-5 text-yellow-500" />}
+        {severity === "safe" && <FileText className="h-5 w-5" />}
+        Combined Analysis
       </h3>
       
       <div className="space-y-3">
-        <p className="text-gray-800">
-          {description}
+        <p className={getTextColorClass()}>
+          {description || "No specific information available for this combination."}
         </p>
         
-        {warnings.length > 0 && (
-          <div className="mt-4 space-y-2">
-            <h4 className="font-medium text-gray-800">Key Warnings:</h4>
-            <ul className="list-disc pl-5 space-y-1">
+        {hasWarnings && (
+          <div className="mt-4">
+            <h4 className={cn("font-medium mb-2", getTextColorClass())}>
+              Important Warnings:
+            </h4>
+            <ul className="list-disc list-inside space-y-1">
               {warnings.map((warning, index) => (
-                <li key={index} className="text-gray-700">{warning}</li>
+                <li key={index} className={getTextColorClass()}>
+                  {warning}
+                </li>
               ))}
             </ul>
           </div>

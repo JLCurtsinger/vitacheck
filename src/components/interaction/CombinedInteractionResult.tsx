@@ -92,6 +92,7 @@ export function CombinedInteractionResult({
       <CombinedSummary 
         description={combinedResults.description}
         warnings={combinedResults.combinedWarnings}
+        severity={combinedResults.severity}
       />
       
       <CombinedSeverityContainer 
