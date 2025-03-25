@@ -24,7 +24,8 @@ export function prepareRiskAssessment(inputData: RawRiskData): EnhancedRiskAsses
     // Skip the severity field and any undefined sources
     if (key === 'severity' || !value) return;
     
-    const source = value;
+    // We need to cast value to RawSourceData since we know it's not 'severity'
+    const source = value as RawSourceData;
     
     // Only include sources with defined signal or plausible flags
     if (source.signal !== undefined || source.plausible !== undefined) {
