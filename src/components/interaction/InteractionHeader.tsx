@@ -1,9 +1,5 @@
 
-import { SeverityIndicator } from "./SeverityIndicator";
 import { InteractionResult } from "@/lib/api-utils";
-import { SeverityBadge } from "./severity/SeverityBadge";
-import { SeverityIcon } from "./severity/SeverityIcon";
-import { SeverityTitle } from "./severity/SeverityTitle";
 
 interface InteractionHeaderProps {
   interaction: InteractionResult;
@@ -11,23 +7,26 @@ interface InteractionHeaderProps {
 }
 
 export function InteractionHeader({ interaction, severityFlag }: InteractionHeaderProps) {
+  const getSeverityText = (severity: string) => {
+    switch (severity) {
+      case "severe": return "Severe Interaction";
+      case "moderate": return "Moderate Interaction";
+      case "minor": return "Minor Interaction";
+      case "unknown": return "Unknown Interaction Risk";
+      case "safe": return "No Known Interaction";
+      default: return "";
+    }
+  };
+
   return (
-    <div className="flex items-center justify-between gap-2 mb-3 pb-3 border-b">
-      <div className="flex items-center gap-2">
-        <SeverityIndicator 
-          severity={interaction.severity} 
-          confidenceScore={interaction.confidenceScore}
-          aiValidated={interaction.aiValidated}
-        />
-        <SeverityTitle 
-          severity={interaction.severity} 
-          medications={interaction.medications} 
-        />
-      </div>
-      <div className="flex items-center gap-2">
-        <SeverityBadge severityFlag={severityFlag} />
-        <SeverityIcon severity={interaction.severity} />
-      </div>
+    <div className="mb-4">
+      <h2 className="text-xl font-semibold flex items-center gap-2">
+        {severityFlag && <span>{severityFlag}</span>}
+        {getSeverityText(interaction.severity)}
+      </h2>
+      <p className="text-gray-600 mt-1">
+        {interaction.medications.join(' + ')}
+      </p>
     </div>
   );
 }

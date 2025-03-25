@@ -6,7 +6,7 @@ import { InteractionDescription } from "./InteractionDescription";
 import { InteractionFooter } from "./InteractionFooter";
 import { cn } from "@/lib/utils";
 import { RiskAssessmentModal } from "./RiskAssessmentModal";
-import { prepareRiskAssessment } from "@/lib/utils/risk-assessment";
+import { analyzeInteractionRisk } from "@/lib/utils/risk-assessment";
 import { HighRiskWarning } from "./severity/HighRiskWarning";
 import { RiskAssessmentButton } from "./risk/RiskAssessmentButton";
 
@@ -17,31 +17,8 @@ interface InteractionResultProps {
 export function InteractionResult({ interaction }: InteractionResultProps) {
   const [riskModalOpen, setRiskModalOpen] = useState(false);
   
-  // Prepare risk assessment data from the interaction object
-  const riskAssessment = prepareRiskAssessment({
-    severity: interaction.severity === "severe" ? "severe" : 
-              interaction.severity === "moderate" ? "moderate" : "mild",
-    fdaReports: { 
-      signal: interaction.sources.some(s => s.name === "FDA" && s.severity !== "safe"), 
-      count: interaction.sources.find(s => s.name === "FDA")?.eventData?.totalEvents
-    },
-    openFDA: { 
-      signal: interaction.sources.some(s => s.name === "OpenFDA Adverse Events" && s.severity !== "safe"),
-      count: interaction.sources.find(s => s.name === "OpenFDA Adverse Events")?.eventData?.totalEvents  
-    },
-    suppAI: { 
-      signal: interaction.sources.some(s => s.name.includes("AI") && s.severity !== "safe") 
-    },
-    mechanism: { 
-      plausible: interaction.sources.some(s => s.name.includes("Mechanism") && s.severity !== "safe") 
-    },
-    aiLiterature: { 
-      plausible: interaction.sources.some(s => s.name.includes("Literature") && s.severity !== "safe") 
-    },
-    peerReports: { 
-      signal: interaction.sources.some(s => s.name.includes("Report") && s.severity !== "safe") 
-    }
-  });
+  // Generate risk assessment data from the interaction object
+  const riskAssessment = analyzeInteractionRisk(interaction);
 
   const severityColorMap = {
     "severe": "border-red-200 bg-red-50/30",

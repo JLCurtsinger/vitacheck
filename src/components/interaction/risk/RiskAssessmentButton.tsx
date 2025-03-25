@@ -1,6 +1,7 @@
 
+import React from "react";
 import { Button } from "@/components/ui/button";
-import { BarChart2 } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 
 interface RiskAssessmentButtonProps {
   onClick: () => void;
@@ -8,16 +9,14 @@ interface RiskAssessmentButtonProps {
 
 export function RiskAssessmentButton({ onClick }: RiskAssessmentButtonProps) {
   return (
-    <div className="mt-4 flex justify-end">
-      <Button 
-        variant="outline" 
-        size="sm"
-        className="flex items-center gap-2"
-        onClick={onClick}
-      >
-        <BarChart2 className="h-4 w-4" />
-        <span>Overview / Why is this flagged?</span>
-      </Button>
-    </div>
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={onClick}
+      className="mt-2 text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 w-full"
+    >
+      <BarChart3 className="h-4 w-4 mr-2" />
+      View Risk Assessment
+    </Button>
   );
 }
