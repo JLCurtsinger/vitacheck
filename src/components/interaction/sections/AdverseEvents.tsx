@@ -15,6 +15,8 @@ export function AdverseEvents({ adverseEvents }: AdverseEventsProps) {
   if (!adverseEvents || adverseEvents.eventCount === 0) return null;
   
   const hasSeriousEvents = adverseEvents.seriousCount > 0;
+  // Make sure we handle both commonReactions and the older API format that might not have it
+  const reactions = adverseEvents.commonReactions || [];
   
   return (
     <div className={cn(
@@ -46,11 +48,11 @@ export function AdverseEvents({ adverseEvents }: AdverseEventsProps) {
         }
       </div>
       
-      {showAdverseEvents ? (
+      {showAdverseEvents && reactions.length > 0 ? (
         <div className="mt-3 space-y-1">
           <div className="font-medium mb-1">Common reported reactions:</div>
           <ul className="list-disc list-inside space-y-1 ml-2">
-            {adverseEvents.commonReactions.map((reaction, index) => (
+            {reactions.map((reaction, index) => (
               <li key={index} className={cn(
                 hasSeriousEvents
                   ? "text-red-800" 

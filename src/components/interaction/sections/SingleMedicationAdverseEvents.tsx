@@ -1,6 +1,6 @@
 
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
+import { AlertTriangle } from "lucide-react";
 
 interface SingleMedicationAdverseEventsProps {
   totalEvents: number;
@@ -17,7 +17,7 @@ export function SingleMedicationAdverseEvents({
 
   return (
     <Alert variant="destructive" className="bg-yellow-50 border-yellow-200 text-yellow-800 mb-4">
-      <ExclamationTriangleIcon className="h-4 w-4 text-yellow-800" />
+      <AlertTriangle className="h-4 w-4 text-yellow-800" />
       <AlertTitle className="text-yellow-800 font-medium">
         ⚠️ This substance has been associated with the following reactions in {totalEvents.toLocaleString()} reports:
       </AlertTitle>

@@ -1,4 +1,3 @@
-
 /**
  * API Interactions Processor
  * 
@@ -148,7 +147,8 @@ export async function processApiInteractions(
     const eventData = adverseEventsResult ? {
       totalEvents: adverseEventsResult.eventCount || 0,
       seriousEvents: adverseEventsResult.seriousCount || 0,
-      nonSeriousEvents: (adverseEventsResult.eventCount || 0) - (adverseEventsResult.seriousCount || 0)
+      nonSeriousEvents: (adverseEventsResult.eventCount || 0) - (adverseEventsResult.seriousCount || 0),
+      commonReactions: adverseEventsResult.commonReactions || []
     } : undefined;
     
     sources.push({

@@ -13,7 +13,7 @@ export function processAdverseEventsSource(adverseEvents: AdverseEventData | nul
   console.log('Processing OpenFDA adverse events:', {
     eventCount: adverseEvents.eventCount,
     seriousCount: adverseEvents.seriousCount,
-    commonReactions: adverseEvents.commonReactions
+    commonReactions: adverseEvents.commonReactions || []
   });
   
   // Calculate the percentage of serious events
@@ -39,8 +39,9 @@ export function processAdverseEventsSource(adverseEvents: AdverseEventData | nul
   // Format description to include common reactions
   let description = `${adverseEvents.eventCount.toLocaleString()} adverse events reported, with ${adverseEvents.seriousCount.toLocaleString()} serious cases (${(seriousPercentage * 100).toFixed(2)}%).`;
   
-  if (adverseEvents.commonReactions && adverseEvents.commonReactions.length > 0) {
-    description += ` Common reactions include: ${adverseEvents.commonReactions.slice(0, 3).join(", ")}.`;
+  const commonReactions = adverseEvents.commonReactions || [];
+  if (commonReactions.length > 0) {
+    description += ` Common reactions include: ${commonReactions.slice(0, 3).join(", ")}.`;
   }
   
   // Create the source object
@@ -53,7 +54,8 @@ export function processAdverseEventsSource(adverseEvents: AdverseEventData | nul
       totalEvents: adverseEvents.eventCount,
       seriousEvents: adverseEvents.seriousCount,
       nonSeriousEvents: adverseEvents.eventCount - adverseEvents.seriousCount,
-      seriousPercentage  // Add the percentage for more precise weight calculation
+      seriousPercentage,  // Add the percentage for more precise weight calculation
+      commonReactions     // Add common reactions to event data
     }
   };
   
