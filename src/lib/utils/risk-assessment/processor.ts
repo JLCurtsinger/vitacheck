@@ -6,7 +6,7 @@
  */
 
 import { calculateRiskScore } from './calculator';
-import { RawRiskData, EnhancedRiskAssessmentOutput, Sources, RiskAssessmentInput } from './types';
+import { RawRiskData, EnhancedRiskAssessmentOutput, Sources, RiskAssessmentInput, RawSourceData } from './types';
 import { SOURCE_WEIGHTS, DEFAULT_SCORES } from './constants';
 
 /**
