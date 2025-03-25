@@ -55,15 +55,18 @@ export function useInteractions(medications: string[]) {
           console.log(`[${newRequestId}] Using cached interaction results for:`, medications);
           const cachedResults = interactionCache.get(cacheKey)!;
           
-          setInteractions(cachedResults);
+          // Apply the custom sorting function before setting state
+          const sortedResults = applySortingRules(cachedResults);
+          
+          setInteractions(sortedResults);
           
           // Separate results by type
-          setSingleResults(cachedResults.filter(r => r.type === 'single'));
-          setPairResults(cachedResults.filter(r => r.type === 'pair'));
-          setTripleResults(cachedResults.filter(r => r.type === 'triple'));
+          setSingleResults(sortedResults.filter(r => r.type === 'single'));
+          setPairResults(sortedResults.filter(r => r.type === 'pair'));
+          setTripleResults(sortedResults.filter(r => r.type === 'triple'));
           
           // Check if any interaction was found with severity moderate or severe
-          setHasAnyInteraction(cachedResults.some(result => 
+          setHasAnyInteraction(sortedResults.some(result => 
             result.severity === "moderate" || result.severity === "severe" || result.severity === "minor"
           ));
           
@@ -85,26 +88,8 @@ export function useInteractions(medications: string[]) {
           }))
         );
         
-        // Sort interactions by severity (severe -> moderate -> minor -> unknown -> safe)
-        const severityOrder = {
-          "severe": 0,
-          "moderate": 1,
-          "minor": 2, 
-          "unknown": 3,
-          "safe": 4
-        };
-        
-        // Sort within each type category
-        const sortedResults = [...results].sort((a, b) => {
-          // First sort by type (single, pair, triple)
-          const typeOrder = { 'single': 0, 'pair': 1, 'triple': 2 };
-          const typeDiff = typeOrder[a.type] - typeOrder[b.type];
-          
-          if (typeDiff !== 0) return typeDiff;
-          
-          // Then sort by severity within each type
-          return severityOrder[a.severity] - severityOrder[b.severity];
-        });
+        // Apply the custom sorting function
+        const sortedResults = applySortingRules(results);
         
         // Store results in cache
         interactionCache.set(cacheKey, sortedResults);
@@ -142,6 +127,28 @@ export function useInteractions(medications: string[]) {
 
     fetchInteractions();
   }, [medications, navigate, toast, getCacheKey]); 
+
+  // Helper function to sort results by type and severity
+  const applySortingRules = (results: CombinationResult[]): CombinationResult[] => {
+    return [...results].sort((a, b) => {
+      // First sort by type (triple > pair > single)
+      const typeOrder = { 'triple': 0, 'pair': 1, 'single': 2 };
+      const typeDiff = typeOrder[a.type] - typeOrder[b.type];
+      
+      if (typeDiff !== 0) return typeDiff;
+      
+      // Then sort by severity within each type
+      const severityOrder = {
+        "severe": 0,
+        "moderate": 1,
+        "minor": 2, 
+        "unknown": 3,
+        "safe": 4
+      };
+      
+      return severityOrder[a.severity] - severityOrder[b.severity];
+    });
+  };
 
   return {
     loading,

@@ -80,6 +80,10 @@ export async function checkAllCombinations(medications: string[]): Promise<Combi
     });
   }
   
+  // Sort results by type (triple > pair > single) and then by severity
+  // Note: The sorting will be performed in the useInteractions hook to allow
+  // for more flexible sorting based on UI context
+  
   return results;
 }
 
