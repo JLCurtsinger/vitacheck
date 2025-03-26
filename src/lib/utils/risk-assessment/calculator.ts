@@ -6,50 +6,95 @@
  */
 
 import { RiskAssessmentInput, RiskAssessmentOutput } from './types';
-import { SEVERITY_MULTIPLIERS } from './constants';
 
 /**
  * Calculate a standardized risk score based on multiple data sources
  * 
  * @param input Object containing severity level and data sources
- * @returns Standardized risk assessment with risk score, confidence and severity flag
+ * @returns Standardized risk assessment with risk score and severity flag
  */
 export function calculateRiskScore(input: RiskAssessmentInput): RiskAssessmentOutput {
-  const { severity, sources } = input;
+  // Initial score based on reported severity
+  let riskScore = input.severity === "severe" ? 70 : 
+                 input.severity === "moderate" ? 50 : 25;
   
-  const severityMultiplier = SEVERITY_MULTIPLIERS[severity] || 1;
+  // Track adjustments for explanation
+  const adjustments: string[] = [];
   
-  // Filter for active sources (those with signal or plausible = true)
-  const activeSources = Object.entries(sources).filter(([_, source]) => 
-    source.signal === true || source.plausible === true
-  );
+  // FDA reports adjustment
+  if (input.fdaReports?.signal) {
+    const count = input.fdaReports.count || 0;
+    if (count > 1000) {
+      riskScore += 15;
+      adjustments.push("Large number of FDA reports (+15)");
+    } else if (count > 100) {
+      riskScore += 10;
+      adjustments.push("Significant FDA reports (+10)");
+    } else if (count > 0) {
+      riskScore += 5;
+      adjustments.push("FDA reports present (+5)");
+    }
+  }
   
-  // Calculate weighted risk score
-  let rawRiskScore = 0;
-  activeSources.forEach(([_, source]) => {
-    rawRiskScore += source.weight * source.score * severityMultiplier;
-  });
+  // OpenFDA adverse events adjustment
+  if (input.openFDA?.signal) {
+    const count = input.openFDA.count || 0;
+    const percentage = input.openFDA.percentage || 0;
+    
+    if (percentage > 0.05 && count > 50) {
+      riskScore += 20;
+      adjustments.push("High percentage of serious adverse events (+20)");
+    } else if (percentage > 0.01 && count > 10) {
+      riskScore += 10;
+      adjustments.push("Moderate adverse event concerns (+10)");
+    } else if (count > 0) {
+      riskScore += 5;
+      adjustments.push("Some adverse events reported (+5)");
+    }
+  }
   
-  // Normalize score to max of 100
-  const riskScore = Math.min(Math.round(rawRiskScore), 100);
+  // AI analysis and mechanism plausibility
+  if (input.suppAI?.signal) {
+    riskScore += 5;
+    adjustments.push("SUPP.AI detected potential interaction (+5)");
+  }
   
-  // Calculate confidence score
-  // Start at 50, add 10 for each active source, cap at 100
-  const confidence = Math.min(50 + (activeSources.length * 10), 100);
+  if (input.mechanism?.plausible) {
+    riskScore += 8;
+    adjustments.push("Plausible biological mechanism identified (+8)");
+  }
+  
+  if (input.aiLiterature?.plausible) {
+    riskScore += 7;
+    adjustments.push("AI literature analysis found evidence (+7)");
+  }
+  
+  // Peer reports
+  if (input.peerReports?.signal) {
+    riskScore += 5;
+    adjustments.push("Peer-reported interactions (+5)");
+  }
+  
+  // Cap the risk score at 100
+  riskScore = Math.min(100, riskScore);
   
   // Determine severity flag based on risk score
-  let severityFlag: '🔴' | '🟡' | '🟢';
+  const severityFlag = riskScore >= 70 ? "🔴" : 
+                       riskScore >= 40 ? "🟡" : "🟢";
+  
+  // Generate avoidance strategy if available
+  let avoidanceStrategy = "";
   if (riskScore >= 70) {
-    severityFlag = '🔴';
+    avoidanceStrategy = "Consult healthcare provider before taking these medications together.";
   } else if (riskScore >= 40) {
-    severityFlag = '🟡';
-  } else {
-    severityFlag = '🟢';
+    avoidanceStrategy = "Consider spacing doses or monitoring for symptoms.";
   }
   
   return {
     riskScore,
-    confidence,
-    severityFlag
+    severityFlag,
+    adjustments,
+    avoidanceStrategy,
+    inputData: input
   };
 }

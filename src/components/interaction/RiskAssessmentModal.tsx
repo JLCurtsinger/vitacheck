@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { RiskAssessmentOutput } from "@/lib/utils/risk-assessment/types";
+import { cn } from "@/lib/utils";
 
 interface RiskAssessmentModalProps {
   open: boolean;
@@ -58,8 +59,7 @@ export function RiskAssessmentModal({
             </div>
             <Progress
               value={riskAssessment.riskScore}
-              className="h-3 w-full"
-              indicatorClassName={getColorClass(riskAssessment.riskScore)}
+              className={cn("h-3 w-full", getColorClass(riskAssessment.riskScore))}
             />
             <p className="text-sm text-gray-500">
               {riskAssessment.riskScore >= 70 
