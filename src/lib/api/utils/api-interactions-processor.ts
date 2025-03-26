@@ -6,13 +6,19 @@
  * and processing their responses.
  */
 
-import { InteractionSource, MedicationLookupResult, AdverseEventData } from '../types';
+import { InteractionSource, MedicationLookupResult, AdverseEventData, StandardizedApiResponse } from '../types';
 import { checkRxNormInteractions } from '../services/interactions/rxnorm-interactions';
 import { checkSuppAiInteractions } from '../services/interactions/suppai-interactions';
 import { checkFDAInteractions } from '../services/interactions/fda-interactions';
 import { getAdverseEvents } from '../openfda-events';
 import { queryAiLiteratureAnalysis } from '../services/ai-literature-analysis';
 import { processAdverseEventsSource } from './adverse-events-processor';
+import { 
+  standardizeApiResponse, 
+  extractEventData,
+  validateStandardizedResponse,
+  standardizedResponseToSource
+} from './api-response-standardizer';
 
 /**
  * Processes API queries for a medication pair
@@ -29,11 +35,11 @@ export async function processApiInteractions(
   med1: string,
   med2: string
 ): Promise<{
-  rxnormResult: any;
-  suppaiResult: any;
-  fdaResult: any;
+  rxnormResult: StandardizedApiResponse | null;
+  suppaiResult: StandardizedApiResponse | null;
+  fdaResult: StandardizedApiResponse | null;
   adverseEventsResult: AdverseEventData | null;
-  aiAnalysisResult: any;
+  aiAnalysisResult: StandardizedApiResponse | null;
   sources: InteractionSource[];
 }> {
   console.log(`Checking interactions between ${med1} (${med1Status.id || 'no id'}) and ${med2} (${med2Status.id || 'no id'})`);
@@ -73,11 +79,49 @@ export async function processApiInteractions(
 
   // Wait for all API calls to complete (regardless of success/failure)
   const apiResults = await Promise.all(apiPromises);
-  const [rxnormResult, suppaiResult, fdaResult, adverseEventsResult] = apiResults;
+  const [rxnormRawResult, suppaiRawResult, fdaRawResult, adverseEventsResult] = apiResults;
   
   // Try to get AI result but don't let it block the process
-  const aiAnalysisResult = await aiAnalysisPromise;
+  const aiAnalysisRawResult = await aiAnalysisPromise;
   
+  // Standardize each API response to ensure consistent structure
+  const rxnormResult = rxnormRawResult 
+    ? standardizeApiResponse("RxNorm", rxnormRawResult, rxnormRawResult.description || "") 
+    : null;
+    
+  const suppaiResult = suppaiRawResult 
+    ? standardizeApiResponse("SUPP.AI", suppaiRawResult, suppaiRawResult.description || "")
+    : null;
+    
+  const fdaResult = fdaRawResult 
+    ? standardizeApiResponse("FDA", fdaRawResult, fdaRawResult.description || "")
+    : null;
+    
+  const aiAnalysisResult = aiAnalysisRawResult 
+    ? standardizeApiResponse("AI Literature Analysis", aiAnalysisRawResult, aiAnalysisRawResult.description || "")
+    : null;
+
+  // Set severity and confidence from raw data for backward compatibility
+  if (rxnormResult && rxnormRawResult) {
+    rxnormResult.severity = rxnormRawResult.severity || "unknown";
+    rxnormResult.confidence = rxnormRawResult.sources?.[0]?.confidence || null;
+  }
+  
+  if (suppaiResult && suppaiRawResult) {
+    suppaiResult.severity = suppaiRawResult.severity || "unknown";
+    suppaiResult.confidence = suppaiRawResult.sources?.[0]?.confidence || null;
+  }
+  
+  if (fdaResult && fdaRawResult) {
+    fdaResult.severity = fdaRawResult.severity || "unknown";
+    fdaResult.confidence = fdaRawResult.sources?.[0]?.confidence || null;
+  }
+  
+  if (aiAnalysisResult && aiAnalysisRawResult) {
+    aiAnalysisResult.severity = aiAnalysisRawResult.severity || "unknown";
+    aiAnalysisResult.confidence = aiAnalysisRawResult.confidence || null;
+  }
+
   console.log('API Results:', {
     rxnorm: rxnormResult ? `Found: ${rxnormResult.severity}` : 'No data',
     suppai: suppaiResult ? `Found: ${suppaiResult.severity}` : 'No data',
@@ -90,8 +134,8 @@ export async function processApiInteractions(
   const sources: InteractionSource[] = [];
   
   // Add RxNorm sources if available
-  if (rxnormResult) {
-    rxnormResult.sources.forEach((source: InteractionSource) => {
+  if (rxnormResult && rxnormRawResult) {
+    rxnormRawResult.sources?.forEach((source: InteractionSource) => {
       // Only add relevant sources with interaction data
       const isRelevant = source.description && 
                         !source.description.toLowerCase().includes('no interaction');
@@ -106,8 +150,8 @@ export async function processApiInteractions(
   }
   
   // Add SUPP.AI sources if available
-  if (suppaiResult) {
-    suppaiResult.sources.forEach((source: InteractionSource) => {
+  if (suppaiResult && suppaiRawResult) {
+    suppaiRawResult.sources?.forEach((source: InteractionSource) => {
       // Filter to only include sources with actual evidence
       const hasEvidence = source.description && 
                          (source.description.toLowerCase().includes('evidence') ||
@@ -124,8 +168,8 @@ export async function processApiInteractions(
   }
   
   // Add FDA sources if available
-  if (fdaResult) {
-    fdaResult.sources.forEach((source: InteractionSource) => {
+  if (fdaResult && fdaRawResult) {
+    fdaRawResult.sources?.forEach((source: InteractionSource) => {
       // FDA black box warnings are more reliable
       const hasWarning = source.description && 
                        (source.description.toLowerCase().includes('warning') ||
@@ -163,7 +207,7 @@ export async function processApiInteractions(
   }
 
   // Add AI Literature Analysis result if available
-  if (aiAnalysisResult) {
+  if (aiAnalysisResult && aiAnalysisRawResult) {
     // Only include AI results that provide meaningful interaction data
     const hasInsight = aiAnalysisResult.description &&
                      (aiAnalysisResult.description.toLowerCase().includes('study') || 
@@ -171,9 +215,9 @@ export async function processApiInteractions(
                       aiAnalysisResult.description.toLowerCase().includes('evidence') ||
                       aiAnalysisResult.description.toLowerCase().includes('risk'));
     
-    if (hasInsight || aiAnalysisResult.severity !== 'unknown') {
-      sources.push(aiAnalysisResult);
-      console.log('Added AI literature analysis:', aiAnalysisResult);
+    if (hasInsight || aiAnalysisResult.severity !== "unknown") {
+      sources.push(aiAnalysisRawResult);
+      console.log('Added AI literature analysis:', aiAnalysisRawResult);
     }
   }
   

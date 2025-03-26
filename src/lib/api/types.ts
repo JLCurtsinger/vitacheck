@@ -18,6 +18,26 @@ export interface MedicationLookupResult {
 }
 
 /**
+ * Standardized API response format to ensure consistent structure
+ * before risk scoring and ML prediction
+ */
+export interface StandardizedApiResponse {
+  source: string;
+  severity: "safe" | "minor" | "moderate" | "severe" | "unknown" | null;
+  description: string;
+  confidence?: number;
+  rawData: any;
+  processed: boolean;
+  eventData?: {
+    totalEvents: number;
+    seriousEvents: number;
+    nonSeriousEvents: number;
+    seriousPercentage?: number;
+    commonReactions?: string[];
+  };
+}
+
+/**
  * Represents a source of information about a medication interaction
  */
 export interface InteractionSource {

@@ -1,3 +1,4 @@
+
 /**
  * Weighted Multi-Source Consensus System
  * 
@@ -5,7 +6,7 @@
  * by weighing multiple data sources according to their reliability.
  */
 
-import { InteractionSource, AdverseEventData } from '../../types';
+import { InteractionSource, AdverseEventData, StandardizedApiResponse } from '../../types';
 import { determineSourceWeight } from './source-weight';
 import { hasValidInteractionEvidence } from './source-validation';
 import { determineConsensusDescription } from './description-generator';
@@ -60,10 +61,14 @@ export function calculateConsensusScore(
   let aiValidated = false;
   
   // Sort sources by name for deterministic processing order
-  const sortedSources = [...sources].sort((a, b) => a.name.localeCompare(b.name));
+  const sortedSources = [...sources].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   
   // Filter sources to only include those with valid interaction evidence
-  const validSources = sortedSources.filter(hasValidInteractionEvidence);
+  const validSources = sortedSources.filter(source => {
+    // Safely check if source exists and has valid properties
+    if (!source) return false;
+    return hasValidInteractionEvidence(source);
+  });
   
   // If we have no valid sources, but have some sources, use all sources
   // This prevents completely blank results when only general information is available
@@ -73,6 +78,9 @@ export function calculateConsensusScore(
   const sourceWeights: { source: InteractionSource, weight: number }[] = [];
   
   sourcesToProcess.forEach(source => {
+    // Skip invalid sources
+    if (!source || !source.name) return;
+    
     // Get the dynamic weight for this source based on evidence quality
     const weight = determineSourceWeight(source);
     
@@ -102,8 +110,10 @@ export function calculateConsensusScore(
   
   // Add weighted votes
   sourceWeights.forEach(({ source, weight }) => {
-    severityVotes[source.severity] += weight;
-    severityCounts[source.severity]++;
+    // Safely handle severity - default to unknown if not present
+    const severity = source.severity || "unknown";
+    severityVotes[severity] += weight;
+    severityCounts[severity]++;
   });
 
   // Factor in adverse events data if available

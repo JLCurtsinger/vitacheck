@@ -1,143 +1,89 @@
 
 /**
- * Source Weight
+ * Source Weight Determination
  * 
- * This module determines the weight to assign to each source in the consensus system
- * based on quality of evidence.
+ * This module calculates the weight to assign to various data sources
+ * based on their reliability and evidence quality.
  */
 
 import { InteractionSource } from '../../types';
 
 /**
- * Determines the weight to assign to a source based on evidence quality
+ * Determines the weight to give a particular source in the consensus calculation
+ * 
+ * @param source The interaction source to analyze
+ * @returns A weight between 0 and 1
  */
 export function determineSourceWeight(source: InteractionSource): number {
-  if (!source || !source.description || source.name === 'No Data Available') {
+  // Guard against null or undefined source
+  if (!source || !source.name) {
     return 0;
   }
   
-  // Don't include unknown severity sources by default, but there are exceptions below
-  if (source.severity === 'unknown' && !source.description) {
-    return 0;
+  // Start with a baseline weight based on source reliability
+  let weight = getBaseSourceWeight(source.name);
+  
+  // If confidence is explicitly provided, use it to influence the weight
+  if (source.confidence !== undefined && source.confidence !== null) {
+    // Scale the provided confidence (typically 0-100) to a 0-1 range
+    const confidenceFactor = Math.max(0, Math.min(source.confidence, 100)) / 100;
+    
+    // Blend the base weight with the confidence factor
+    weight = (weight * 0.7) + (confidenceFactor * 0.3);
   }
   
-  const desc = source.description.toLowerCase();
+  // Adjust weight based on severity - give more weight to more severe ratings
+  // as they're more important for safety
+  if (source.severity === "severe") {
+    weight *= 1.2; // 20% boost for severe warnings
+  } else if (source.severity === "moderate") {
+    weight *= 1.1; // 10% boost for moderate warnings
+  }
   
-  // Special cases for different sources
-  
-  // OpenFDA Adverse Events: highest weight based on relevance and seriousness percentage
-  if (source.name === 'OpenFDA Adverse Events' || source.name.includes('Adverse Event')) {
-    // Only count if it has event data with actual events
-    if (!source.eventData?.totalEvents || source.eventData.totalEvents <= 0) {
-      return 0;
+  // Event data provides real-world evidence, so it gets a boost
+  if (source.eventData && source.eventData.totalEvents > 0) {
+    // More events = more reliable data
+    const eventCount = source.eventData.totalEvents;
+    let eventFactor = 0;
+    
+    if (eventCount > 1000) {
+      eventFactor = 0.2; // Large dataset
+    } else if (eventCount > 100) {
+      eventFactor = 0.15; // Moderate dataset
+    } else if (eventCount > 10) {
+      eventFactor = 0.1; // Small but meaningful dataset
+    } else {
+      eventFactor = 0.05; // Very small dataset
     }
     
-    // Calculate weight based on serious percentage
-    const seriousPercentage = source.eventData.seriousPercentage || 
-      (source.eventData.seriousEvents / source.eventData.totalEvents);
-    
-    // Apply weighted scale based on seriousness
-    if (seriousPercentage >= 0.01) { // ≥ 1%
-      return 0.95;
-    } else if (seriousPercentage >= 0.005) { // 0.5-0.99%
-      return 0.8;
-    } else if (seriousPercentage >= 0.001) { // 0.1-0.49%
-      return 0.6;
-    } else { // < 0.1%
-      return 0.5;
-    }
+    weight += eventFactor;
   }
   
-  // AI Literature Analysis: weight depends on evidence quality
-  if (source.name === 'AI Literature Analysis') {
-    // Higher weight if describes specific interaction mechanism
-    if (/interaction (mechanism|between)|directly (interacts|affects)/.test(desc)) {
-      return 0.6;
-    }
-    // Moderate weight if contains references to studies but less specific
-    else if (/study|research|evidence|trial/.test(desc)) {
-      return 0.5;
-    }
-    // Lower weight for general correlations
-    else if (/correlation|association|linked|may interact/.test(desc)) {
-      return 0.4;
-    }
-    // Very low weight if no clear evidence
-    return 0.3;
+  // Cap the weight at 1.0
+  return Math.min(weight, 1.0);
+}
+
+/**
+ * Gets the base reliability weight for a source based on its name
+ */
+function getBaseSourceWeight(sourceName: string): number {
+  // Convert to lowercase for case-insensitive comparison
+  const name = sourceName.toLowerCase();
+  
+  // FDA and RxNorm are the most reliable
+  if (name.includes('rxnorm')) {
+    return 0.9; // RxNorm is highly reliable for approved drug interactions
+  } else if (name.includes('fda') && !name.includes('adverse')) {
+    return 0.85; // FDA warnings are also very reliable
+  } else if (name.includes('adverse events') || name.includes('openfda')) {
+    return 0.8; // OpenFDA adverse events represent real-world data
+  } else if (name.includes('supp.ai')) {
+    return 0.7; // SUPP.AI uses NLP on literature, so medium reliability
+  } else if (name.includes('ai literature')) {
+    return 0.65; // Our AI analysis of literature
+  } else if (name.includes('mechanism')) {
+    return 0.7; // Mechanistic analysis has medium reliability
+  } else {
+    return 0.5; // Default weight for unknown sources
   }
-  
-  // FDA: weight based on specificity of warnings
-  if (source.name === 'FDA') {
-    // High weight for specific warnings mentioning both medications
-    if (/contraindicated|serious|fatal|death|avoid combining|do not use/.test(desc) || 
-        (desc.includes('warning') && desc.includes('both'))) {
-      return 0.6;
-    }
-    // Moderate weight for general warnings on one substance
-    else if (desc.includes('warning') || /caution|adverse|risk/.test(desc)) {
-      return 0.4;
-    }
-    // If no specific warnings or just labeling info
-    return 0.2;
-  }
-  
-  // SUPP.AI & RxNorm: weight based on specificity
-  if (source.name === 'SUPP.AI' || source.name === 'RxNorm') {
-    // Look for specific interaction mentions
-    if (/specific interaction|directly (interacts|affects)|confirmed|verified/.test(desc)) {
-      return 0.6;
-    }
-    // Moderate weight for general mentions
-    else if (/potential|possible|may|could|suggest/.test(desc)) {
-      return 0.4;
-    }
-    // Lower weight for less specific mentions
-    return 0.3;
-  }
-  
-  // Evidence quality indicators for other sources
-  
-  // High evidence phrases indicate stronger evidence
-  const highEvidencePhrases = [
-    'adverse event', 'case report', 'study found', 'research shows',
-    'clinical trial', 'reported', 'contraindicated', 'observed', 'bleeding risk',
-    'mortality', 'fatality', 'death', 'hospitalizations',
-    'toxicity', 'overdose', 'hazardous'
-  ];
-  
-  // Medium evidence phrases
-  const mediumEvidencePhrases = [
-    'interaction', 'effect', 'impact', 'influence', 'change', 
-    'alter', 'modify', 'adjust', 'increase', 'decrease'
-  ];
-  
-  // Low evidence phrases indicate weaker evidence
-  const lowEvidencePhrases = [
-    'monitor', 'may cause', 'use caution',
-    'general information', 'labeling only', 'possible'
-  ];
-  
-  // No interaction phrases should have minimal impact on consensus
-  const noInteractionPhrases = [
-    'no interaction', 'no known', 'no evidence of',
-    'has not been established', 'no data available'
-  ];
-  
-  // Check evidence quality
-  if (highEvidencePhrases.some(phrase => desc.includes(phrase))) {
-    return 0.6;
-  } else if (mediumEvidencePhrases.some(phrase => desc.includes(phrase))) {
-    return 0.5;
-  } else if (lowEvidencePhrases.some(phrase => desc.includes(phrase))) {
-    return 0.4;
-  } else if (noInteractionPhrases.some(phrase => desc.includes(phrase))) {
-    // For safety ratings, no interaction is a positive finding
-    if (source.severity === 'safe') {
-      return 0.3;  // Some weight for confirmed safety
-    }
-    return 0;  // No weight for no data
-  }
-  
-  // Default weight for sources without special categorization
-  return 0.3;
 }

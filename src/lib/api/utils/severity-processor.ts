@@ -6,7 +6,7 @@
  * interaction severity rating.
  */
 
-import { InteractionSource, AdverseEventData } from '../types';
+import { InteractionSource, AdverseEventData, StandardizedApiResponse } from '../types';
 import { calculateConsensusScore } from './consensus-system';
 
 /**
@@ -24,9 +24,9 @@ export function createDefaultSource(): InteractionSource {
  * Determines the final severity rating based on multiple data sources
  */
 export function determineFinalSeverity(
-  rxnormResult: any | null,
-  suppaiResult: any | null,
-  fdaResult: any | null,
+  rxnormResult: StandardizedApiResponse | null,
+  suppaiResult: StandardizedApiResponse | null,
+  fdaResult: StandardizedApiResponse | null,
   adverseEventsResult: AdverseEventData | null,
   sources: InteractionSource[]
 ): {
