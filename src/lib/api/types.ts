@@ -1,3 +1,4 @@
+
 /**
  * API Types
  * 
@@ -60,12 +61,3 @@ export interface InteractionResult {
   confidenceScore?: number; // Added overall confidence score
   aiValidated?: boolean; // Indicates if AI was used to validate
 }
-
-// Export the types and functions
-export * from './api/types';
-
-// Export the checkInteractions function
-export { checkInteractions } from './api/services/interaction-checker';
-
-// Re-export CombinationResult type for use in other modules
-export type { CombinationResult } from './services/combination-checker';

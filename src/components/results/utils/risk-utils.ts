@@ -148,7 +148,7 @@ export function getCombinedRiskAssessment(
   return {
     riskScore: Math.round(finalRiskScore),
     severityFlag: severestFlag,
-    riskLevel: finalRiskLevel,
+    riskLevel: finalRiskLevel as 'Low' | 'Moderate' | 'High' | 'Lethal',
     adjustments: adjustments,
     avoidanceStrategy: avoidanceStrategy,
     inputData: {

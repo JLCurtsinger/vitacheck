@@ -31,7 +31,7 @@ export function InteractionGroup({
     <div className="space-y-6">
       {interactions.map((interaction, index) => {
         const id = `${groupName}-${interaction.medications.join('-')}-${index}`;
-        const label = 'label' in interaction ? interaction.label : interaction.medications.join(' + ');
+        const label = 'label' in interaction ? (interaction as any).label : interaction.medications.join(' + ');
         const risk = getRiskAssessment(interaction);
         
         return (
