@@ -1,89 +1,83 @@
-
 /**
  * Source Weight Determination
  * 
- * This module calculates the weight to assign to various data sources
- * based on their reliability and evidence quality.
+ * This module calculates the relative weight to assign to different 
+ * data sources when determining interaction severity.
  */
 
 import { InteractionSource } from '../../types';
+import { logSourceSeverityIssues } from '../debug-logger';
 
 /**
- * Determines the weight to give a particular source in the consensus calculation
+ * Determines the weight to assign to a source based on its reliability 
+ * and the quality of evidence it provides
  * 
  * @param source The interaction source to analyze
- * @returns A weight between 0 and 1
+ * @returns A weight between 0 and 1, with higher values indicating greater reliability
  */
 export function determineSourceWeight(source: InteractionSource): number {
-  // Guard against null or undefined source
+  // Log any issues with source severity
+  logSourceSeverityIssues(source, 'SourceWeight');
+  
+  // Guard against null or undefined sources
   if (!source || !source.name) {
     return 0;
   }
   
-  // Start with a baseline weight based on source reliability
-  let weight = getBaseSourceWeight(source.name);
+  // Base weights by source type
+  let baseWeight = 0;
   
-  // If confidence is explicitly provided, use it to influence the weight
-  if (source.confidence !== undefined && source.confidence !== null) {
-    // Scale the provided confidence (typically 0-100) to a 0-1 range
-    const confidenceFactor = Math.max(0, Math.min(source.confidence, 100)) / 100;
-    
-    // Blend the base weight with the confidence factor
-    weight = (weight * 0.7) + (confidenceFactor * 0.3);
+  // RxNorm is considered highly reliable
+  if (source.name === 'RxNorm') {
+    baseWeight = 0.85;
+  }
+  // FDA sources are also highly reliable
+  else if (source.name === 'FDA') {
+    baseWeight = 0.80;
+  }
+  // OpenFDA Adverse Events are based on real-world data
+  else if (source.name === 'OpenFDA Adverse Events') {
+    baseWeight = 0.90;
+  }
+  // SUPP.AI has a moderate weight
+  else if (source.name === 'SUPP.AI') {
+    baseWeight = 0.60;
+  }
+  // AI Literature Analysis gets a moderate weight 
+  else if (source.name === 'AI Literature Analysis') {
+    baseWeight = 0.65;
+  }
+  // Other sources get a lower default weight
+  else {
+    baseWeight = 0.50;
   }
   
-  // Adjust weight based on severity - give more weight to more severe ratings
-  // as they're more important for safety
-  if (source.severity === "severe") {
-    weight *= 1.2; // 20% boost for severe warnings
-  } else if (source.severity === "moderate") {
-    weight *= 1.1; // 10% boost for moderate warnings
+  // Adjust weight based on confidence if provided
+  if (source.confidence && source.confidence > 0) {
+    // Convert confidence (0-100) to a multiplier (0.5-1.5)
+    const confidenceMultiplier = 0.5 + (source.confidence / 100);
+    baseWeight *= confidenceMultiplier;
   }
   
-  // Event data provides real-world evidence, so it gets a boost
+  // Adjust weight based on source data quality
+  
+  // Event data gets a bonus because it's based on real reports
   if (source.eventData && source.eventData.totalEvents > 0) {
-    // More events = more reliable data
-    const eventCount = source.eventData.totalEvents;
-    let eventFactor = 0;
+    const eventAdjustment = Math.min(0.2, source.eventData.totalEvents / 1000 * 0.1);
+    baseWeight += eventAdjustment;
     
-    if (eventCount > 1000) {
-      eventFactor = 0.2; // Large dataset
-    } else if (eventCount > 100) {
-      eventFactor = 0.15; // Moderate dataset
-    } else if (eventCount > 10) {
-      eventFactor = 0.1; // Small but meaningful dataset
-    } else {
-      eventFactor = 0.05; // Very small dataset
+    // Higher percentage of serious events increases weight
+    if (source.eventData.seriousPercentage && source.eventData.seriousPercentage > 5) {
+      baseWeight += 0.1;
     }
-    
-    weight += eventFactor;
   }
   
-  // Cap the weight at 1.0
-  return Math.min(weight, 1.0);
-}
-
-/**
- * Gets the base reliability weight for a source based on its name
- */
-function getBaseSourceWeight(sourceName: string): number {
-  // Convert to lowercase for case-insensitive comparison
-  const name = sourceName.toLowerCase();
-  
-  // FDA and RxNorm are the most reliable
-  if (name.includes('rxnorm')) {
-    return 0.9; // RxNorm is highly reliable for approved drug interactions
-  } else if (name.includes('fda') && !name.includes('adverse')) {
-    return 0.85; // FDA warnings are also very reliable
-  } else if (name.includes('adverse events') || name.includes('openfda')) {
-    return 0.8; // OpenFDA adverse events represent real-world data
-  } else if (name.includes('supp.ai')) {
-    return 0.7; // SUPP.AI uses NLP on literature, so medium reliability
-  } else if (name.includes('ai literature')) {
-    return 0.65; // Our AI analysis of literature
-  } else if (name.includes('mechanism')) {
-    return 0.7; // Mechanistic analysis has medium reliability
-  } else {
-    return 0.5; // Default weight for unknown sources
+  // Safety check for invalid severity
+  if (!source.severity || source.severity === "unknown") {
+    // If no clear severity, reduce the weight
+    baseWeight *= 0.5;
   }
+  
+  // Ensure final weight is between 0 and 1
+  return Math.max(0, Math.min(1, baseWeight));
 }

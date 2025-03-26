@@ -1,4 +1,3 @@
-
 /**
  * Weighted Multi-Source Consensus System
  * 

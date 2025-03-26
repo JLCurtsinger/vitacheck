@@ -1,4 +1,3 @@
-
 /**
  * API Interactions Processor
  * 
@@ -19,6 +18,11 @@ import {
   validateStandardizedResponse,
   standardizedResponseToSource
 } from './api-response-standardizer';
+import { 
+  logSourceSeverityIssues, 
+  logApiResponseFormat, 
+  logStandardizedResponse 
+} from './debug-logger';
 
 /**
  * Processes API queries for a medication pair
@@ -84,6 +88,12 @@ export async function processApiInteractions(
   // Try to get AI result but don't let it block the process
   const aiAnalysisRawResult = await aiAnalysisPromise;
   
+  // Log API response formats before standardization
+  logApiResponseFormat(rxnormRawResult, 'RxNorm');
+  logApiResponseFormat(suppaiRawResult, 'SUPP.AI');
+  logApiResponseFormat(fdaRawResult, 'FDA');
+  logApiResponseFormat(aiAnalysisRawResult, 'AI Literature');
+  
   // Standardize each API response to ensure consistent structure
   const rxnormResult = rxnormRawResult 
     ? standardizeApiResponse("RxNorm", rxnormRawResult, rxnormRawResult.description || "") 
@@ -100,6 +110,12 @@ export async function processApiInteractions(
   const aiAnalysisResult = aiAnalysisRawResult 
     ? standardizeApiResponse("AI Literature Analysis", aiAnalysisRawResult, aiAnalysisRawResult.description || "")
     : null;
+  
+  // Log standardized responses
+  logStandardizedResponse(rxnormResult, 'RxNorm');
+  logStandardizedResponse(suppaiResult, 'SUPP.AI');
+  logStandardizedResponse(fdaResult, 'FDA');
+  logStandardizedResponse(aiAnalysisResult, 'AI Literature');
 
   // Set severity and confidence from raw data for backward compatibility
   if (rxnormResult && rxnormRawResult) {
