@@ -162,10 +162,13 @@ export async function processApiInteractions(
         logSourceSeverityIssues(source, 'Before push - RxNorm');
         
         // Validate and standardize the source before pushing
-        const validatedSource = validateStandardizedResponse({
+        const standardizedResponse = validateStandardizedResponse({
           ...source,
           source: "RxNorm"
         });
+        
+        // Convert standardized response to InteractionSource and push
+        const validatedSource = standardizedResponseToSource(standardizedResponse);
         sources.push(validatedSource);
       }
     });
@@ -185,10 +188,13 @@ export async function processApiInteractions(
         logSourceSeverityIssues(source, 'Before push - SUPP.AI');
         
         // Validate and standardize the source before pushing
-        const validatedSource = validateStandardizedResponse({
+        const standardizedResponse = validateStandardizedResponse({
           ...source,
           source: "SUPP.AI"
         });
+        
+        // Convert standardized response to InteractionSource and push
+        const validatedSource = standardizedResponseToSource(standardizedResponse);
         sources.push(validatedSource);
       }
     });
@@ -208,10 +214,13 @@ export async function processApiInteractions(
         logSourceSeverityIssues(source, 'Before push - FDA');
         
         // Validate and standardize the source before pushing
-        const validatedSource = validateStandardizedResponse({
+        const standardizedResponse = validateStandardizedResponse({
           ...source,
           source: "FDA"
         });
+        
+        // Convert standardized response to InteractionSource and push
+        const validatedSource = standardizedResponseToSource(standardizedResponse);
         sources.push(validatedSource);
       }
     });
@@ -232,11 +241,14 @@ export async function processApiInteractions(
     } : undefined;
     
     // Validate and standardize before pushing
-    const validatedSource = validateStandardizedResponse({
+    const standardizedResponse = validateStandardizedResponse({
       ...adverseEventSource,
       // For OpenFDA events, include the event data for confidence calculation
       eventData
     });
+    
+    // Convert standardized response to InteractionSource and push
+    const validatedSource = standardizedResponseToSource(standardizedResponse);
     sources.push(validatedSource);
     
     // Log the event data to help with debugging
@@ -257,10 +269,13 @@ export async function processApiInteractions(
       logSourceSeverityIssues(aiAnalysisRawResult, 'Before push - AI Literature');
       
       // Validate and standardize before pushing
-      const validatedSource = validateStandardizedResponse({
+      const standardizedResponse = validateStandardizedResponse({
         ...aiAnalysisRawResult,
         source: "AI Literature Analysis"
       });
+      
+      // Convert standardized response to InteractionSource and push
+      const validatedSource = standardizedResponseToSource(standardizedResponse);
       sources.push(validatedSource);
       console.log('Added AI literature analysis:', validatedSource);
     }
