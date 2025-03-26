@@ -2,19 +2,37 @@
 import { InteractionResult } from "@/lib/api/types";
 import { RiskAssessmentInput, RiskAssessmentOutput } from "./types";
 import { calculateRiskScore } from "./calculator";
+import { enhanceRiskAssessment, initializeModel } from "@/lib/ml/risk-prediction-model";
+
+// Initialize the ML model in the background when this module is imported
+initializeModel();
 
 /**
  * Prepares a risk assessment based on interaction data
  * This function consolidates data from various sources to calculate a risk score
+ * and enhances it with ML predictions when available
  */
-export function prepareRiskAssessment(input: RiskAssessmentInput): RiskAssessmentOutput {
-  return calculateRiskScore(input);
+export async function prepareRiskAssessment(
+  input: RiskAssessmentInput, 
+  medications: string[] = []
+): Promise<RiskAssessmentOutput> {
+  // First calculate using the rule-based system
+  const baseOutput = calculateRiskScore(input);
+  
+  try {
+    // Then enhance with ML predictions if possible
+    return await enhanceRiskAssessment(input, baseOutput, medications);
+  } catch (error) {
+    // Fall back to rule-based output if ML enhancement fails
+    console.error('Error in ML risk enhancement:', error);
+    return baseOutput;
+  }
 }
 
 /**
  * Analyzes an interaction result to extract risk assessment data
  */
-export function analyzeInteractionRisk(interaction: InteractionResult): RiskAssessmentOutput {
+export async function analyzeInteractionRisk(interaction: InteractionResult): Promise<RiskAssessmentOutput> {
   // Extract data from the interaction result
   const input: RiskAssessmentInput = {
     severity: interaction.severity === "severe" ? "severe" : 
@@ -42,8 +60,9 @@ export function analyzeInteractionRisk(interaction: InteractionResult): RiskAsse
     }
   };
   
-  // Generate the risk assessment
-  return prepareRiskAssessment(input);
+  // Generate the risk assessment with ML enhancement
+  return prepareRiskAssessment(input, interaction.medications);
 }
 
+// Export types for use in other modules
 export { type RiskAssessmentInput, type RiskAssessmentOutput } from "./types";
