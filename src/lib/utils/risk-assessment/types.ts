@@ -1,61 +1,56 @@
 
-/**
- * Input data for risk assessment
- */
 export interface RiskAssessmentInput {
-  // Core severity from primary data
   severity: "severe" | "moderate" | "mild";
-  
-  // FDA data points
-  fdaReports?: {
-    signal: boolean;
+  fdaReports?: { 
+    signal: boolean; 
     count?: number;
   };
-  
-  // OpenFDA adverse events
-  openFDA?: {
+  openFDA?: { 
     signal: boolean;
     count?: number;
     percentage?: number;
   };
-  
-  // SUPP.AI analysis
-  suppAI?: {
+  suppAI?: { 
     signal: boolean;
   };
-  
-  // Biological mechanism
-  mechanism?: {
+  mechanism?: { 
     plausible: boolean;
   };
-  
-  // AI Literature analysis
-  aiLiterature?: {
+  aiLiterature?: { 
     plausible: boolean;
   };
-  
-  // Peer-reported interactions
-  peerReports?: {
+  peerReports?: { 
     signal: boolean;
   };
 }
 
-/**
- * Output from the risk assessment
- */
 export interface RiskAssessmentOutput {
-  // Calculated risk score (0-100)
   riskScore: number;
-  
-  // Visual indicator of severity (🔴, 🟡, 🟢)
   severityFlag: '🔴' | '🟡' | '🟢';
-  
-  // Factors that influenced the score
-  adjustments: string[];
-  
-  // Recommended avoidance strategy if available
+  riskLevel: 'Low' | 'Moderate' | 'High' | 'Lethal';
+  adjustments: {
+    sources: string[];
+    description: string;
+  }[];
   avoidanceStrategy: string;
-  
-  // Original input data for reference
   inputData: RiskAssessmentInput;
+  modelConfidence?: number;
+  mlPrediction?: {
+    score: number;
+    riskLevel: string;
+    confidence: number;
+  };
 }
+
+export type RiskModelFeatures = [
+  number,  // 0: severity (0 = mild, 1 = moderate, 2 = severe)
+  number,  // 1: fdaSignal (0/1)
+  number,  // 2: fdaCount (normalized)
+  number,  // 3: openFdaSignal (0/1)
+  number,  // 4: openFdaCount (normalized)
+  number,  // 5: openFdaPercentage (normalized)
+  number,  // 6: suppaiSignal (0/1)
+  number,  // 7: mechanismPlausible (0/1)
+  number,  // 8: aiLiterature (0/1)
+  number,  // 9: peerReports (0/1)
+];

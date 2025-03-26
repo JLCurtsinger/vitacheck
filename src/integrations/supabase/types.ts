@@ -39,6 +39,42 @@ export type Database = {
         }
         Relationships: []
       }
+      ml_risk_predictions: {
+        Row: {
+          actual_risk: string | null
+          created_at: string
+          features: Json
+          feedback: string | null
+          id: string
+          medications: string[]
+          model_version: string
+          predicted_risk: string
+          score: number
+        }
+        Insert: {
+          actual_risk?: string | null
+          created_at?: string
+          features: Json
+          feedback?: string | null
+          id?: string
+          medications: string[]
+          model_version: string
+          predicted_risk: string
+          score: number
+        }
+        Update: {
+          actual_risk?: string | null
+          created_at?: string
+          features?: Json
+          feedback?: string | null
+          id?: string
+          medications?: string[]
+          model_version?: string
+          predicted_risk?: string
+          score?: number
+        }
+        Relationships: []
+      }
       nutrient_depletions: {
         Row: {
           created_at: string

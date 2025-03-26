@@ -4,15 +4,24 @@ import { cn } from "@/lib/utils";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface SeverityBadgeProps {
+  severity?: "safe" | "minor" | "moderate" | "severe" | "unknown";
   severityFlag?: '🔴' | '🟡' | '🟢';
 }
 
-export function SeverityBadge({ severityFlag }: SeverityBadgeProps) {
-  if (!severityFlag) return null;
+export function SeverityBadge({ severity, severityFlag }: SeverityBadgeProps) {
+  if (!severityFlag && !severity) return null;
+  
+  // Determine severity flag based on severity if not explicitly provided
+  const displayFlag = severityFlag || (
+    severity === "severe" ? "🔴" : 
+    severity === "moderate" ? "🟡" : 
+    severity === "minor" ? "🟡" : 
+    severity === "safe" ? "🟢" : "🟡"
+  );
   
   // Get risk text based on severity flag
   const getRiskText = () => {
-    switch (severityFlag) {
+    switch (displayFlag) {
       case "🔴": return "High Risk";
       case "🟡": return "Moderate Risk";
       case "🟢": return "No Known Risk";
@@ -22,7 +31,7 @@ export function SeverityBadge({ severityFlag }: SeverityBadgeProps) {
   
   // Get badge color based on severity flag
   const getBadgeClass = () => {
-    switch (severityFlag) {
+    switch (displayFlag) {
       case "🔴": return "bg-red-100 text-red-800 border-red-200 hover:bg-red-200";
       case "🟡": return "bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200";
       case "🟢": return "bg-green-100 text-green-800 border-green-200 hover:bg-green-200";
@@ -35,7 +44,7 @@ export function SeverityBadge({ severityFlag }: SeverityBadgeProps) {
       <Tooltip>
         <TooltipTrigger>
           <Badge variant="outline" className={cn("font-medium", getBadgeClass())}>
-            {severityFlag} {getRiskText()}
+            {displayFlag} {getRiskText()}
           </Badge>
         </TooltipTrigger>
         <TooltipContent>

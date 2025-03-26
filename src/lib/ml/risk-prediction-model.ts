@@ -1,110 +1,81 @@
+
 import * as tf from '@tensorflow/tfjs';
-import { supabase } from '@/integrations/supabase/client';
-import { RiskAssessmentInput, RiskAssessmentOutput } from '@/lib/utils/risk-assessment/types';
+import { RiskAssessmentInput, RiskAssessmentOutput, RiskModelFeatures } from '@/lib/utils/risk-assessment/types';
 import { calculateRiskScore } from '@/lib/utils/risk-assessment/calculator';
-import { SOURCE_WEIGHTS } from '@/lib/utils/risk-assessment/constants';
+import { supabase } from '@/integrations/supabase/client';
 
-// Interface for model prediction results
-export interface RiskPrediction {
-  riskLevel: 'Low' | 'Moderate' | 'High' | 'Lethal';
-  score: number;
-}
+// Model configuration
+const MODEL_LEARNING_RATE = 0.01;
+const MODEL_VERSION = '1.0.0';
+const MIN_SAMPLES_FOR_TRAINING = 10;
+const ML_WEIGHT_FACTOR = 0.5; // Start with 50% weight for ML predictions
 
-// Interface for training data
-interface TrainingData {
-  id: string;
-  features: number[];
-  predictedRisk: string;
-  actualRisk: string;
-  score: number;
-  medications: string[];
-  createdAt: string;
-}
+// Model state
+let model: tf.LayersModel | null = null;
+let isModelLoading = false;
+let modelSampleCount = 0;
 
-// Default model values
-const DEFAULT_MODEL_VERSION = '1.0.0';
-const MODEL_STORAGE_KEY = 'risk-prediction-model';
-
-// Feature extraction from RiskAssessmentInput
-function extractFeatures(input: RiskAssessmentInput): number[] {
-  // Convert input data to numerical features
-  const features: number[] = [
-    // Severity encoding: severe=2, moderate=1, mild=0
-    input.severity === 'severe' ? 2 : input.severity === 'moderate' ? 1 : 0,
+/**
+ * Initializes the TensorFlow.js model
+ * This can be called early in the application lifecycle
+ */
+export async function initializeModel(): Promise<void> {
+  try {
+    // Check if we're already loading
+    if (isModelLoading) return;
+    isModelLoading = true;
     
-    // FDA reports feature
-    input.fdaReports?.signal ? 1 : 0,
-    input.fdaReports?.count || 0,
+    console.log('Initializing risk prediction model...');
     
-    // OpenFDA features
-    input.openFDA?.signal ? 1 : 0,
-    input.openFDA?.count || 0,
-    input.openFDA?.percentage || 0,
-    
-    // Other signal features
-    input.suppAI?.signal ? 1 : 0,
-    input.mechanism?.plausible ? 1 : 0,
-    input.aiLiterature?.plausible ? 1 : 0,
-    input.peerReports?.signal ? 1 : 0,
-    
-    // Source weights as features
-    SOURCE_WEIGHTS.fdaReports,
-    SOURCE_WEIGHTS.openFDA,
-    SOURCE_WEIGHTS.suppAI,
-    SOURCE_WEIGHTS.mechanism,
-    SOURCE_WEIGHTS.aiLiterature,
-    SOURCE_WEIGHTS.peerReports
-  ];
-  
-  return features;
-}
-
-// Risk level mapping from score
-function mapScoreToRiskLevel(score: number): 'Low' | 'Moderate' | 'High' | 'Lethal' {
-  if (score >= 80) return 'Lethal';
-  if (score >= 60) return 'High';
-  if (score >= 40) return 'Moderate';
-  return 'Low';
-}
-
-// Risk level mapping to severity flag
-export function mapRiskLevelToSeverityFlag(riskLevel: string): '🔴' | '🟡' | '🟢' {
-  switch (riskLevel) {
-    case 'Lethal':
-    case 'High':
-      return '🔴';
-    case 'Moderate':
-      return '🟡';
-    default:
-      return '🟢';
+    // Check if we have a saved model
+    try {
+      model = await tf.loadLayersModel('indexeddb://risk-prediction-model');
+      console.log('Loaded existing risk prediction model from IndexedDB');
+      
+      // Get sample count from Supabase to determine model maturity
+      await fetchModelSampleCount();
+    } catch (error) {
+      console.log('No saved model found, creating a new one');
+      model = createModel();
+      await model.save('indexeddb://risk-prediction-model');
+    }
+  } catch (error) {
+    console.error('Error initializing risk prediction model:', error);
+    model = null;
+  } finally {
+    isModelLoading = false;
   }
 }
 
-// Create and save a model
-async function createModel(): Promise<tf.LayersModel> {
-  // Create a sequential model
+/**
+ * Creates a new neural network model for risk prediction
+ */
+function createModel(): tf.LayersModel {
+  const inputShape = [10]; // Number of features in our input
   const model = tf.sequential();
   
-  // Add layers to the model
-  model.add(tf.layers.dense({
-    units: 32,
-    activation: 'relu',
-    inputShape: [16] // Number of features
-  }));
-  
+  // Input layer
   model.add(tf.layers.dense({
     units: 16,
+    activation: 'relu',
+    inputShape
+  }));
+  
+  // Hidden layer
+  model.add(tf.layers.dense({
+    units: 8,
     activation: 'relu'
   }));
   
+  // Output layer - 4 classes (Low, Moderate, High, Lethal) and 1 score value
   model.add(tf.layers.dense({
-    units: 1, // Output a single value (risk score)
-    activation: 'sigmoid' // Between 0 and 1
+    units: 5, 
+    activation: 'sigmoid'
   }));
   
   // Compile the model
   model.compile({
-    optimizer: tf.train.adam(),
+    optimizer: tf.train.adam(MODEL_LEARNING_RATE),
     loss: 'meanSquaredError',
     metrics: ['accuracy']
   });
@@ -112,151 +83,236 @@ async function createModel(): Promise<tf.LayersModel> {
   return model;
 }
 
-// Load model from IndexedDB or create a new one
-async function loadOrCreateModel(): Promise<tf.LayersModel> {
+/**
+ * Fetches the current count of samples in the training dataset
+ */
+async function fetchModelSampleCount(): Promise<number> {
   try {
-    // Try to load the model from IndexedDB
-    const model = await tf.loadLayersModel(`indexeddb://${MODEL_STORAGE_KEY}`);
-    console.log('Loaded existing risk prediction model');
-    return model;
-  } catch (error) {
-    // If no model exists, create a new one
-    console.log('Creating new risk prediction model');
-    const model = await createModel();
+    const { count, error } = await supabase
+      .from('ml_risk_predictions')
+      .select('*', { count: 'exact', head: true });
     
-    // Save the model to IndexedDB
-    await model.save(`indexeddb://${MODEL_STORAGE_KEY}`);
-    return model;
+    if (error) throw error;
+    
+    modelSampleCount = count || 0;
+    console.log(`Model sample count: ${modelSampleCount}`);
+    return modelSampleCount;
+  } catch (error) {
+    console.error('Error fetching model sample count:', error);
+    return 0;
   }
 }
 
-// Get or initialize the model (singleton pattern)
-let modelPromise: Promise<tf.LayersModel> | null = null;
-export function getModel(): Promise<tf.LayersModel> {
-  if (!modelPromise) {
-    modelPromise = loadOrCreateModel();
-  }
-  return modelPromise;
+/**
+ * Converts risk assessment input to model features
+ */
+function extractFeatures(input: RiskAssessmentInput): RiskModelFeatures {
+  // Normalize severity to a value between 0-2
+  const severityValue = 
+    input.severity === 'severe' ? 2 : 
+    input.severity === 'moderate' ? 1 : 0;
+  
+  // Extract and normalize other features
+  const fdaSignal = input.fdaReports?.signal ? 1 : 0;
+  const fdaCount = normalizeCount(input.fdaReports?.count);
+  
+  const openFdaSignal = input.openFDA?.signal ? 1 : 0;
+  const openFdaCount = normalizeCount(input.openFDA?.count);
+  const openFdaPercentage = normalizePercentage(input.openFDA?.percentage);
+  
+  const suppaiSignal = input.suppAI?.signal ? 1 : 0;
+  const mechanismPlausible = input.mechanism?.plausible ? 1 : 0;
+  const aiLiteraturePlausible = input.aiLiterature?.plausible ? 1 : 0;
+  const peerReportsSignal = input.peerReports?.signal ? 1 : 0;
+  
+  return [
+    severityValue,
+    fdaSignal,
+    fdaCount,
+    openFdaSignal,
+    openFdaCount,
+    openFdaPercentage,
+    suppaiSignal,
+    mechanismPlausible,
+    aiLiteraturePlausible,
+    peerReportsSignal
+  ];
 }
 
-// Store training data in Supabase
-export async function storeTrainingData(
-  input: RiskAssessmentInput, 
-  prediction: RiskPrediction,
+/**
+ * Helper function to normalize count values
+ */
+function normalizeCount(count?: number): number {
+  if (!count) return 0;
+  // Log scale normalization for events/reports counts
+  return Math.min(Math.log10(count + 1) / 5, 1);
+}
+
+/**
+ * Helper function to normalize percentage values 
+ */
+function normalizePercentage(percentage?: number): number {
+  if (!percentage) return 0;
+  return percentage / 100;
+}
+
+/**
+ * Makes a prediction using the model
+ */
+async function makePrediction(features: RiskModelFeatures): Promise<{
+  riskLevel: 'Low' | 'Moderate' | 'High' | 'Lethal';
+  score: number;
+  confidence: number;
+} | null> {
+  if (!model) await initializeModel();
+  if (!model) return null;
+  
+  try {
+    // Convert features to tensor
+    const inputTensor = tf.tensor2d([features]);
+    
+    // Make prediction
+    const prediction = model.predict(inputTensor) as tf.Tensor;
+    const predictionData = await prediction.data();
+    
+    // First 4 values are class probabilities, last value is score
+    const probabilities = predictionData.slice(0, 4);
+    const maxIndex = tf.argMax(probabilities).dataSync()[0];
+    
+    // Map index to risk level
+    const riskLevels: Array<'Low' | 'Moderate' | 'High' | 'Lethal'> = ['Low', 'Moderate', 'High', 'Lethal'];
+    const riskLevel = riskLevels[maxIndex];
+    
+    // Raw score from model (0-1)
+    const rawScore = predictionData[4];
+    
+    // Scale to 0-100
+    const score = Math.round(rawScore * 100);
+    
+    // Confidence is the probability of the predicted class
+    const confidence = probabilities[maxIndex];
+    
+    // Cleanup
+    inputTensor.dispose();
+    prediction.dispose();
+    
+    return {
+      riskLevel,
+      score,
+      confidence
+    };
+  } catch (error) {
+    console.error('Error making prediction:', error);
+    return null;
+  }
+}
+
+/**
+ * Saves interaction data for training
+ */
+export async function saveInteractionData(
+  features: RiskModelFeatures,
+  predictedRisk: string,
+  actualRisk: string | null,
+  score: number,
   medications: string[]
 ): Promise<void> {
   try {
-    const features = extractFeatures(input);
-    
-    // Store the training data
     const { error } = await supabase
       .from('ml_risk_predictions')
       .insert({
         features: features,
-        predicted_risk: prediction.riskLevel,
-        actual_risk: input.severity === 'severe' ? 'High' : 
-                    input.severity === 'moderate' ? 'Moderate' : 'Low',
-        score: prediction.score,
+        predicted_risk: predictedRisk,
+        actual_risk: actualRisk,
+        score: score,
         medications: medications,
-        model_version: DEFAULT_MODEL_VERSION
+        model_version: MODEL_VERSION
       });
-      
-    if (error) {
-      console.error('Error storing training data:', error);
+    
+    if (error) throw error;
+    
+    // Increment sample count
+    modelSampleCount++;
+    console.log('Saved interaction data for training');
+    
+    // If we've gathered enough new samples, trigger training
+    if (modelSampleCount >= MIN_SAMPLES_FOR_TRAINING && modelSampleCount % 5 === 0) {
+      // This would ideally be done in a background worker
+      // For simplicity, we're not implementing the full training loop here
+      console.log('Would trigger model training with', modelSampleCount, 'samples');
     }
   } catch (error) {
-    console.error('Failed to store training data:', error);
+    console.error('Error saving interaction data:', error);
   }
 }
 
-// Predict risk using the ML model
-export async function predictRisk(input: RiskAssessmentInput): Promise<RiskPrediction> {
-  try {
-    // Extract features from the input
-    const features = extractFeatures(input);
-    
-    // Get the model
-    const model = await getModel();
-    
-    // Make a prediction
-    const prediction = tf.tidy(() => {
-      const inputTensor = tf.tensor2d([features]);
-      const prediction = model.predict(inputTensor) as tf.Tensor;
-      return prediction.dataSync()[0];
-    });
-    
-    // Scale the prediction to a 0-100 score
-    const score = Math.round(prediction * 100);
-    
-    // Map the score to a risk level
-    const riskLevel = mapScoreToRiskLevel(score);
-    
-    return { riskLevel, score };
-  } catch (error) {
-    console.error('Error during risk prediction:', error);
-    
-    // Fall back to the rule-based system
-    const fallbackResult = calculateRiskScore(input);
-    return {
-      riskLevel: mapScoreToRiskLevel(fallbackResult.riskScore),
-      score: fallbackResult.riskScore
-    };
-  }
-}
-
-// Enhance the risk assessment output with ML predictions
+/**
+ * Enhances a rule-based risk assessment with ML predictions
+ */
 export async function enhanceRiskAssessment(
-  input: RiskAssessmentInput, 
+  input: RiskAssessmentInput,
   baseOutput: RiskAssessmentOutput,
-  medications: string[]
+  medications: string[] = []
 ): Promise<RiskAssessmentOutput> {
+  // Extract features from input
+  const features = extractFeatures(input);
+  
+  // Make a prediction using the model if possible
+  let mlPrediction = null;
   try {
-    // Get prediction from the ML model
-    const prediction = await predictRisk(input);
-    
-    // Store the training data for future model improvement
-    await storeTrainingData(input, prediction, medications);
-    
-    // Decide whether to use the ML prediction or the rule-based result
-    // For now, we'll combine them with a weighted average to ensure smooth transition
-    // as the model improves over time
-    const MODEL_CONFIDENCE = 0.3; // Start with low confidence in the model
-    const combinedScore = Math.round(
-      prediction.score * MODEL_CONFIDENCE + 
-      baseOutput.riskScore * (1 - MODEL_CONFIDENCE)
-    );
-    
-    // Update the severity flag based on the combined score
-    const severityFlag = mapRiskLevelToSeverityFlag(mapScoreToRiskLevel(combinedScore));
-    
-    // Add ML-related adjustment to explain the score
-    const mlAdjustment = `ML model risk assessment (${prediction.riskLevel}, score: ${prediction.score})`;
-    const adjustments = [...baseOutput.adjustments];
-    if (!adjustments.includes(mlAdjustment)) {
-      adjustments.push(mlAdjustment);
-    }
-    
-    return {
-      ...baseOutput,
-      riskScore: combinedScore,
-      severityFlag,
-      adjustments,
-      // Add ML-specific fields that won't affect the UI
-      mlPrediction: prediction
-    };
+    mlPrediction = await makePrediction(features);
   } catch (error) {
     console.error('Error enhancing risk assessment with ML:', error);
-    // Return the original output if enhancement fails
-    return baseOutput;
   }
-}
-
-// Initialize the model in the background
-export function initializeModel(): void {
-  // Load the model in the background
-  getModel().then(() => {
-    console.log('Risk prediction model initialized');
-  }).catch(error => {
-    console.error('Failed to initialize risk prediction model:', error);
-  });
+  
+  // If we have a valid ML prediction, blend it with the rule-based output
+  if (mlPrediction) {
+    // Save the interaction data for future training
+    await saveInteractionData(
+      features,
+      mlPrediction.riskLevel,
+      null, // No actual risk yet, this would be updated with user feedback
+      mlPrediction.score,
+      medications
+    );
+    
+    // Calculate the weighted average based on model maturity
+    const mlWeight = Math.min(modelSampleCount / 100, 0.8) * ML_WEIGHT_FACTOR;
+    const ruleWeight = 1 - mlWeight;
+    
+    // Blend the scores
+    const blendedScore = Math.round(
+      (baseOutput.riskScore * ruleWeight) + (mlPrediction.score * mlWeight)
+    );
+    
+    // Determine flag based on blended score
+    let severityFlag: '🔴' | '🟡' | '🟢';
+    if (blendedScore >= 70) severityFlag = '🔴';
+    else if (blendedScore >= 30) severityFlag = '🟡';
+    else severityFlag = '🟢';
+    
+    // Determine risk level based on blended score
+    let riskLevel: 'Low' | 'Moderate' | 'High' | 'Lethal';
+    if (blendedScore >= 85) riskLevel = 'Lethal';
+    else if (blendedScore >= 65) riskLevel = 'High';
+    else if (blendedScore >= 35) riskLevel = 'Moderate';
+    else riskLevel = 'Low';
+    
+    // Return enhanced output
+    return {
+      ...baseOutput,
+      riskScore: blendedScore,
+      severityFlag,
+      riskLevel,
+      mlPrediction: {
+        score: mlPrediction.score,
+        riskLevel: mlPrediction.riskLevel,
+        confidence: mlPrediction.confidence
+      },
+      modelConfidence: mlPrediction.confidence
+    };
+  }
+  
+  // If ML prediction failed, return the base output
+  return baseOutput;
 }

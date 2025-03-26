@@ -1,109 +1,99 @@
 
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
-import { RiskAssessmentOutput } from "@/lib/utils/risk-assessment/types";
-import { cn } from "@/lib/utils";
+import React from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { RiskAssessmentOutput } from '@/lib/utils/risk-assessment/types';
 
 interface RiskAssessmentModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  isOpen: boolean;
+  onClose: () => void;
   riskAssessment: RiskAssessmentOutput;
+  medications: string[];
+  isLoading?: boolean;
 }
 
-export function RiskAssessmentModal({ 
-  open, 
-  onOpenChange,
-  riskAssessment 
+export function RiskAssessmentModal({
+  isOpen,
+  onClose,
+  riskAssessment,
+  medications,
+  isLoading = false
 }: RiskAssessmentModalProps) {
-  // Get color based on risk score
-  const getColorClass = (score: number) => {
-    if (score >= 70) return "bg-red-500";
-    if (score >= 40) return "bg-yellow-500";
+  // If still loading, show skeleton UI
+  if (isLoading) {
+    return (
+      <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Risk Assessment</DialogTitle>
+            <DialogDescription>Loading risk data...</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  const { riskScore, riskLevel, adjustments, avoidanceStrategy, mlPrediction } = riskAssessment;
+
+  // Determine color based on risk score
+  const getScoreColor = (score: number) => {
+    if (score >= 70) return "bg-red-600";
+    if (score >= 50) return "bg-orange-500";
+    if (score >= 30) return "bg-yellow-500";
     return "bg-green-500";
   };
-  
-  // Get text color based on risk score
-  const getTextColorClass = (score: number) => {
-    if (score >= 70) return "text-red-600";
-    if (score >= 40) return "text-yellow-600";
-    return "text-green-600";
-  };
-  
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md md:max-w-xl">
+    <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl flex items-center gap-2">
-            {riskAssessment.severityFlag} Risk Assessment
-          </DialogTitle>
+          <DialogTitle>Risk Assessment: {medications.join(" + ")}</DialogTitle>
           <DialogDescription>
-            Detailed analysis of the potential interaction risk
+            Analysis of potential risks based on available data
           </DialogDescription>
         </DialogHeader>
-        
-        <div className="space-y-6 mt-4">
+
+        <div className="space-y-4 py-4">
           {/* Risk Score */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <h3 className="font-medium">Risk Score:</h3>
-              <span className={`font-bold text-lg ${getTextColorClass(riskAssessment.riskScore)}`}>
-                {riskAssessment.riskScore}/100
-              </span>
-            </div>
-            <Progress
-              value={riskAssessment.riskScore}
-              className={cn("h-3 w-full", getColorClass(riskAssessment.riskScore))}
-            />
-            <p className="text-sm text-gray-500">
-              {riskAssessment.riskScore >= 70 
-                ? "High risk - requires medical attention" 
-                : riskAssessment.riskScore >= 40 
-                ? "Moderate risk - caution advised"
-                : "Low risk - generally considered safe"}
-            </p>
-          </div>
-          
-          {/* Factors Considered */}
           <div>
-            <h3 className="font-medium mb-2">Risk Factors:</h3>
-            {riskAssessment.adjustments.length > 0 ? (
-              <ul className="list-disc list-inside space-y-1">
-                {riskAssessment.adjustments.map((adjustment, index) => (
-                  <li key={index} className="text-sm">
-                    {adjustment}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-gray-500 italic">
-                No specific risk factors identified.
-              </p>
+            <div className="flex justify-between mb-1">
+              <h4 className="font-medium text-sm">Risk Score: {riskScore}/100</h4>
+              <span className="text-sm font-bold">{riskLevel} Risk</span>
+            </div>
+            <Progress 
+              value={riskScore} 
+              className="h-2.5" 
+              indicatorClassName={getScoreColor(riskScore)}
+            />
+            
+            {/* ML Confidence */}
+            {mlPrediction && (
+              <div className="mt-1 text-xs text-gray-500">
+                ML Model Confidence: {Math.round(mlPrediction.confidence * 100)}%
+              </div>
             )}
           </div>
-          
-          {/* Avoidance Strategy */}
-          {riskAssessment.avoidanceStrategy && (
-            <div>
-              <h3 className="font-medium mb-2">Recommended Action:</h3>
-              <p className="text-sm border-l-2 border-blue-400 pl-3 py-1 bg-blue-50 rounded-r">
-                {riskAssessment.avoidanceStrategy}
-              </p>
-            </div>
-          )}
-          
-          {/* Disclaimer */}
-          <div className="text-xs text-gray-500 pt-2 border-t">
-            <p>
-              This risk assessment is based on available data and should not replace professional medical advice.
-              Always consult with your healthcare provider before making medication decisions.
-            </p>
+
+          {/* Risk Factors */}
+          <div>
+            <h4 className="font-medium mb-2">Risk Factors:</h4>
+            <ul className="list-disc pl-5 space-y-1 text-sm">
+              {adjustments.map((adjustment, index) => (
+                <li key={index}>{adjustment.description}</li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Recommendation */}
+          <div className="bg-gray-50 p-3 rounded border">
+            <h4 className="font-semibold mb-1">Recommendation:</h4>
+            <p className="text-sm">{avoidanceStrategy}</p>
           </div>
         </div>
       </DialogContent>

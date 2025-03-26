@@ -33,7 +33,7 @@ export function InteractionHeader({
             <Skeleton className="h-6 w-14 inline-block" />
           ) : (
             <>
-              <SeverityBadge severity={severity} />
+              <SeverityBadge severity={severity} severityFlag={severityFlag} />
               <span className="ml-1 text-lg" aria-hidden="true">
                 {severityFlag}
               </span>

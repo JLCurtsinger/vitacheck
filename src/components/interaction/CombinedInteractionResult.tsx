@@ -1,109 +1,100 @@
 
-import React, { useMemo } from "react";
-import { InteractionResult } from "@/lib/api-utils";
-import { processCombinedSeverity } from "@/lib/api/utils/combined-severity-utils";
-import { CombinedHeader } from "./combined/CombinedHeader";
-import { CombinedSeverityContainer } from "./combined/CombinedSeverityContainer";
-import { CombinedSummary } from "./combined/CombinedSummary";
-import { CombinedAdvice } from "./combined/CombinedAdvice";
-import { prepareRiskAssessment } from "@/lib/utils/risk-assessment";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { SeverityBadge } from './severity/SeverityBadge';
+import { CombinationResult } from '@/lib/api/types';
+import { RiskAssessmentOutput } from '@/lib/utils/risk-assessment/types';
+import { getInteractionRisk } from '../results/utils/risk-utils';
+import { RiskAssessmentButton } from './risk/RiskAssessmentButton';
+import { RiskAssessmentModal } from './RiskAssessmentModal';
 
 interface CombinedInteractionResultProps {
-  medications: string[];
-  interactions: InteractionResult[];
+  interaction: CombinationResult;
 }
 
-export function CombinedInteractionResult({ 
-  medications, 
-  interactions 
-}: CombinedInteractionResultProps) {
-  // Process all interactions to determine overall severity, confidence, etc.
-  const combinedResults = useMemo(() => {
-    return processCombinedSeverity(interactions);
-  }, [interactions]);
+export function CombinedInteractionResult({ interaction }: CombinedInteractionResultProps) {
+  const [showRiskModal, setShowRiskModal] = useState(false);
+  const [isRiskLoading, setIsRiskLoading] = useState(true);
+  const [riskAssessment, setRiskAssessment] = useState<RiskAssessmentOutput | null>(null);
   
-  // Create a risk assessment for the combined result
-  const riskAssessment = useMemo(() => {
-    return prepareRiskAssessment({
-      severity: combinedResults.severity === "severe" ? "severe" : 
-                combinedResults.severity === "moderate" ? "moderate" : "mild",
-      fdaReports: { 
-        signal: interactions.some(i => 
-          i.sources.some(s => s.name === "FDA" && s.severity !== "safe")
-        ), 
-        count: interactions.reduce((total, i) => 
-          total + (i.sources.find(s => s.name === "FDA")?.eventData?.totalEvents || 0), 0)
-      },
-      openFDA: { 
-        signal: interactions.some(i => 
-          i.sources.some(s => s.name === "OpenFDA Adverse Events" && s.severity !== "safe")
-        ),
-        count: interactions.reduce((total, i) => 
-          total + (i.sources.find(s => s.name === "OpenFDA Adverse Events")?.eventData?.totalEvents || 0), 0)
-      },
-      suppAI: { 
-        signal: interactions.some(i =>
-          i.sources.some(s => s.name.includes("AI") && s.severity !== "safe")
-        ) 
-      },
-      mechanism: { 
-        plausible: interactions.some(i =>
-          i.sources.some(s => s.name.includes("Mechanism") && s.severity !== "safe")
-        ) 
-      },
-      aiLiterature: { 
-        plausible: interactions.some(i =>
-          i.sources.some(s => s.name.includes("Literature") && s.severity !== "safe")
-        ) 
-      },
-      peerReports: { 
-        signal: interactions.some(i =>
-          i.sources.some(s => s.name.includes("Report") && s.severity !== "safe")
-        ) 
+  useEffect(() => {
+    // Load risk assessment data when the component mounts
+    let isMounted = true;
+    
+    async function loadRiskData() {
+      if (!interaction) return;
+      
+      try {
+        setIsRiskLoading(true);
+        // Get risk assessment for this interaction
+        const risk = await getInteractionRisk(interaction);
+        
+        // Only update state if the component is still mounted
+        if (isMounted) {
+          setRiskAssessment(risk);
+        }
+      } catch (error) {
+        console.error("Error loading risk assessment:", error);
+      } finally {
+        if (isMounted) {
+          setIsRiskLoading(false);
+        }
       }
-    });
-  }, [combinedResults.severity, interactions]);
-
-  // Determine if this is a high-risk combination
-  const isHighRisk = riskAssessment.riskScore >= 70;
-
+    }
+    
+    loadRiskData();
+    
+    // Cleanup function to prevent memory leaks
+    return () => {
+      isMounted = false;
+    };
+  }, [interaction]);
+  
+  // Don't display anything until interaction data is loaded
+  if (!interaction) {
+    return null;
+  }
+  
+  // Extract necessary data from the interaction
+  const { medications, severity } = interaction;
+  
+  // Get severity flag from risk assessment if available, otherwise determine based on severity
+  const severityFlag = riskAssessment?.severityFlag || (
+    severity === "severe" ? "🔴" : 
+    severity === "moderate" ? "🟡" : 
+    severity === "minor" ? "🟡" : 
+    severity === "safe" ? "🟢" : "🟡"
+  );
+  
   return (
-    <div className="p-6">
-      <CombinedHeader 
-        severity={combinedResults.severity}
-        confidenceScore={combinedResults.confidenceScore}
-        medications={medications}
-        aiValidated={interactions.some(i => i.aiValidated)}
-        severityFlag={riskAssessment.severityFlag}
-      />
+    <div className="border rounded-lg p-4 mb-4 shadow-sm">
+      <div className="flex items-start justify-between">
+        <div className="flex items-start space-x-2">
+          <div className="mt-0.5">
+            <SeverityBadge severityFlag={severityFlag} />
+          </div>
+          <div>
+            <h3 className="font-semibold text-lg">
+              {medications.join(" + ")}
+            </h3>
+            <p className="text-sm text-gray-500">
+              Combined Safety Assessment
+            </p>
+          </div>
+        </div>
+      </div>
       
-      {/* High Risk Warning Alert */}
-      {isHighRisk && (
-        <Alert variant="destructive" className="mt-1 mb-4 bg-red-50 border-red-200">
-          <AlertTriangle className="h-4 w-4 text-red-600" />
-          <AlertDescription className="text-red-600 font-medium">
-            ⚠️ High-risk combination. Consult a medical professional before use.
-          </AlertDescription>
-        </Alert>
+      <RiskAssessmentButton onClick={() => setShowRiskModal(true)} />
+      
+      {/* Risk Assessment Modal */}
+      {showRiskModal && riskAssessment && (
+        <RiskAssessmentModal 
+          isOpen={showRiskModal}
+          onClose={() => setShowRiskModal(false)}
+          riskAssessment={riskAssessment}
+          medications={medications}
+          isLoading={isRiskLoading}
+        />
       )}
-      
-      <CombinedSummary 
-        description={combinedResults.description}
-        warnings={combinedResults.combinedWarnings}
-        severity={combinedResults.severity}
-      />
-      
-      <CombinedSeverityContainer 
-        interactions={interactions}
-        totalMedications={medications.length}
-      />
-      
-      <CombinedAdvice 
-        severity={combinedResults.severity} 
-        medications={medications}
-      />
     </div>
   );
 }

@@ -1,39 +1,25 @@
 
-import { InteractionResult } from "@/lib/api/types";
-import { analyzeInteractionRisk } from "@/lib/utils/risk-assessment";
 import { RiskAssessmentOutput } from "@/lib/utils/risk-assessment/types";
+import { CombinationResult } from "@/lib/api/types";
+import { analyzeInteractionRisk } from "@/lib/utils/risk-assessment";
 
-/**
- * Analyzes an interaction and returns its risk assessment
- */
-export function getRiskAssessment(interaction: InteractionResult): RiskAssessmentOutput | null {
-  if (!interaction) return null;
-  
-  return analyzeInteractionRisk(interaction);
-}
-
-/**
- * Gets a combined risk assessment for multiple medications based on all interaction results
- */
-export function getCombinedRiskAssessment(
-  medications: string[] | undefined,
-  interactions: InteractionResult[]
-): RiskAssessmentOutput | null {
-  if (!medications || medications.length < 2 || !interactions.length) {
-    return null;
+export async function getInteractionRisk(interaction: CombinationResult): Promise<RiskAssessmentOutput> {
+  try {
+    // Analyze the interaction risk using the ML-enhanced system
+    const riskAssessment = await analyzeInteractionRisk(interaction);
+    return riskAssessment;
+  } catch (error) {
+    console.error("Error analyzing interaction risk:", error);
+    // Return a default risk assessment if analysis fails
+    return {
+      riskScore: 0,
+      severityFlag: '🟢',
+      riskLevel: 'Low',
+      adjustments: [],
+      avoidanceStrategy: 'Unable to analyze risk. Please consult a healthcare professional.',
+      inputData: {
+        severity: 'mild'
+      }
+    };
   }
-  
-  // Calculate highest risk from all interactions
-  let highestRiskScore = 0;
-  let highestRiskAssessment: RiskAssessmentOutput | null = null;
-  
-  for (const interaction of interactions) {
-    const risk = getRiskAssessment(interaction);
-    if (risk && risk.riskScore > highestRiskScore) {
-      highestRiskScore = risk.riskScore;
-      highestRiskAssessment = risk;
-    }
-  }
-  
-  return highestRiskAssessment;
 }
