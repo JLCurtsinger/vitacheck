@@ -1,3 +1,4 @@
+
 /**
  * API Interactions Processor
  * 
@@ -157,10 +158,15 @@ export async function processApiInteractions(
                         !source.description.toLowerCase().includes('no interaction');
       
       if (isRelevant) {
-        sources.push({
+        // Add debug log before pushing
+        logSourceSeverityIssues(source, 'Before push - RxNorm');
+        
+        // Validate and standardize the source before pushing
+        const validatedSource = validateStandardizedResponse({
           ...source,
-          // Confidence will be dynamically calculated in consensus-system.ts
+          source: "RxNorm"
         });
+        sources.push(validatedSource);
       }
     });
   }
@@ -175,10 +181,15 @@ export async function processApiInteractions(
                           source.description.toLowerCase().includes('reported'));
       
       if (hasEvidence || source.severity !== 'unknown') {
-        sources.push({
+        // Add debug log before pushing
+        logSourceSeverityIssues(source, 'Before push - SUPP.AI');
+        
+        // Validate and standardize the source before pushing
+        const validatedSource = validateStandardizedResponse({
           ...source,
-          // Confidence will be dynamically calculated in consensus-system.ts
+          source: "SUPP.AI"
         });
+        sources.push(validatedSource);
       }
     });
   }
@@ -193,10 +204,15 @@ export async function processApiInteractions(
                         source.description.toLowerCase().includes('interaction'));
       
       if (hasWarning || source.severity !== 'unknown') {
-        sources.push({
+        // Add debug log before pushing
+        logSourceSeverityIssues(source, 'Before push - FDA');
+        
+        // Validate and standardize the source before pushing
+        const validatedSource = validateStandardizedResponse({
           ...source,
-          // Confidence will be dynamically calculated in consensus-system.ts
+          source: "FDA"
         });
+        sources.push(validatedSource);
       }
     });
   }
@@ -204,6 +220,9 @@ export async function processApiInteractions(
   // Add adverse events as a source if found - always high confidence as it's real-world data
   const adverseEventSource = processAdverseEventsSource(adverseEventsResult);
   if (adverseEventSource) {
+    // Add debug log before pushing
+    logSourceSeverityIssues(adverseEventSource, 'Before push - OpenFDA Events');
+    
     // Create proper event data structure for the source
     const eventData = adverseEventsResult ? {
       totalEvents: adverseEventsResult.eventCount || 0,
@@ -212,11 +231,13 @@ export async function processApiInteractions(
       commonReactions: adverseEventsResult.commonReactions || []
     } : undefined;
     
-    sources.push({
+    // Validate and standardize before pushing
+    const validatedSource = validateStandardizedResponse({
       ...adverseEventSource,
       // For OpenFDA events, include the event data for confidence calculation
       eventData
     });
+    sources.push(validatedSource);
     
     // Log the event data to help with debugging
     console.log('OpenFDA Event Data added to source:', eventData);
@@ -232,8 +253,16 @@ export async function processApiInteractions(
                       aiAnalysisResult.description.toLowerCase().includes('risk'));
     
     if (hasInsight || aiAnalysisResult.severity !== "unknown") {
-      sources.push(aiAnalysisRawResult);
-      console.log('Added AI literature analysis:', aiAnalysisRawResult);
+      // Add debug log before pushing
+      logSourceSeverityIssues(aiAnalysisRawResult, 'Before push - AI Literature');
+      
+      // Validate and standardize before pushing
+      const validatedSource = validateStandardizedResponse({
+        ...aiAnalysisRawResult,
+        source: "AI Literature Analysis"
+      });
+      sources.push(validatedSource);
+      console.log('Added AI literature analysis:', validatedSource);
     }
   }
   
