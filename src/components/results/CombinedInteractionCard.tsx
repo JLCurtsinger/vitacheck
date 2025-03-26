@@ -102,7 +102,12 @@ export function CombinedInteractionCard({
                 <h3 className="font-medium mb-1">Risk Factors:</h3>
                 <ul className="list-disc list-inside space-y-1">
                   {risk.adjustments.map((adjustment, index) => (
-                    <li key={index}>{adjustment}</li>
+                    <li key={index}>
+                      {typeof adjustment === 'string' 
+                        ? adjustment 
+                        : adjustment.description
+                      }
+                    </li>
                   ))}
                 </ul>
               </div>

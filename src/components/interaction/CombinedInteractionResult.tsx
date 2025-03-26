@@ -1,14 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { SeverityBadge } from './severity/SeverityBadge';
-import { CombinationResult } from '@/lib/api/types';
+import { InteractionResult } from '@/lib/api-utils';
 import { RiskAssessmentOutput } from '@/lib/utils/risk-assessment/types';
 import { getInteractionRisk } from '../results/utils/risk-utils';
 import { RiskAssessmentButton } from './risk/RiskAssessmentButton';
 import { RiskAssessmentModal } from './RiskAssessmentModal';
 
 interface CombinedInteractionResultProps {
-  interaction: CombinationResult;
+  interaction: InteractionResult;
 }
 
 export function CombinedInteractionResult({ interaction }: CombinedInteractionResultProps) {
@@ -88,8 +88,8 @@ export function CombinedInteractionResult({ interaction }: CombinedInteractionRe
       {/* Risk Assessment Modal */}
       {showRiskModal && riskAssessment && (
         <RiskAssessmentModal 
-          isOpen={showRiskModal}
-          onClose={() => setShowRiskModal(false)}
+          open={showRiskModal}
+          onOpenChange={setShowRiskModal}
           riskAssessment={riskAssessment}
           medications={medications}
           isLoading={isRiskLoading}

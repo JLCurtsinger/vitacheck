@@ -24,14 +24,16 @@ export interface RiskAssessmentInput {
   };
 }
 
+export interface RiskAdjustment {
+  sources: string[];
+  description: string;
+}
+
 export interface RiskAssessmentOutput {
   riskScore: number;
   severityFlag: '🔴' | '🟡' | '🟢';
   riskLevel: 'Low' | 'Moderate' | 'High' | 'Lethal';
-  adjustments: {
-    sources: string[];
-    description: string;
-  }[];
+  adjustments: (RiskAdjustment | string)[];
   avoidanceStrategy: string;
   inputData: RiskAssessmentInput;
   modelConfidence?: number;

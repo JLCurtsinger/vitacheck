@@ -3,7 +3,6 @@ import { useMemo } from "react";
 import { InteractionResult } from "@/lib/api-utils";
 import { InteractionCard } from "./InteractionCard";
 import { getRiskAssessment } from "./utils/risk-utils";
-import { CombinationResult } from "@/lib/api/services/interaction-checker";
 
 interface InteractionGroupProps {
   interactions: InteractionResult[];
@@ -32,7 +31,7 @@ export function InteractionGroup({
     <div className="space-y-6">
       {interactions.map((interaction, index) => {
         const id = `${groupName}-${interaction.medications.join('-')}-${index}`;
-        const label = 'label' in interaction ? (interaction as CombinationResult).label : interaction.medications.join(' + ');
+        const label = 'label' in interaction ? interaction.label : interaction.medications.join(' + ');
         const risk = getRiskAssessment(interaction);
         
         return (

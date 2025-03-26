@@ -81,6 +81,7 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
           open={riskModalOpen}
           onOpenChange={setRiskModalOpen}
           riskAssessment={riskAssessment}
+          medications={interaction.medications}
         />
       )}
     </div>

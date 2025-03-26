@@ -6,24 +6,24 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { RiskAssessmentOutput } from '@/lib/utils/risk-assessment/types';
 
 interface RiskAssessmentModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   riskAssessment: RiskAssessmentOutput;
-  medications: string[];
+  medications?: string[];
   isLoading?: boolean;
 }
 
 export function RiskAssessmentModal({
-  isOpen,
-  onClose,
+  open,
+  onOpenChange,
   riskAssessment,
-  medications,
+  medications = [],
   isLoading = false
 }: RiskAssessmentModalProps) {
   // If still loading, show skeleton UI
   if (isLoading) {
     return (
-      <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Risk Assessment</DialogTitle>
@@ -50,10 +50,10 @@ export function RiskAssessmentModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Risk Assessment: {medications.join(" + ")}</DialogTitle>
+          <DialogTitle>Risk Assessment: {medications.join(" + ") || "Medication Interaction"}</DialogTitle>
           <DialogDescription>
             Analysis of potential risks based on available data
           </DialogDescription>
@@ -85,7 +85,12 @@ export function RiskAssessmentModal({
             <h4 className="font-medium mb-2">Risk Factors:</h4>
             <ul className="list-disc pl-5 space-y-1 text-sm">
               {adjustments.map((adjustment, index) => (
-                <li key={index}>{adjustment.description}</li>
+                <li key={index}>
+                  {typeof adjustment === 'string' 
+                    ? adjustment 
+                    : adjustment.description
+                  }
+                </li>
               ))}
             </ul>
           </div>
