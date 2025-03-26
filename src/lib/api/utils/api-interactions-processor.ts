@@ -7,23 +7,14 @@
  */
 
 import { InteractionSource, MedicationLookupResult, AdverseEventData, StandardizedApiResponse } from '../types';
-import { checkRxNormInteractions } from '../services/interactions/rxnorm-interactions';
-import { checkSuppAiInteractions } from '../services/interactions/suppai-interactions';
-import { checkFDAInteractions } from '../services/interactions/fda-interactions';
-import { getAdverseEvents } from '../openfda-events';
-import { queryAiLiteratureAnalysis } from '../services/ai-literature-analysis';
-import { processAdverseEventsSource } from './adverse-events-processor';
-import { 
-  standardizeApiResponse, 
-  extractEventData,
-  validateStandardizedResponse,
-  standardizedResponseToSource
-} from './api-response-standardizer';
-import { 
-  logSourceSeverityIssues, 
-  logApiResponseFormat, 
-  logStandardizedResponse 
-} from './debug-logger';
+import { createDefaultSource } from './severity-processor';
+import { processRxNormSources } from './interaction-processors/rxnorm-processor';
+import { processSuppAiSources } from './interaction-processors/suppai-processor';
+import { processFdaSources } from './interaction-processors/fda-processor';
+import { processAdverseEventsSources } from './interaction-processors/adverse-events-processor';
+import { processAiLiteratureSources } from './interaction-processors/ai-literature-processor';
+import { standardizeAndLogApiResults, enrichApiResults } from './interaction-processors/api-result-processor';
+import { fetchAllApiData } from './interaction-processors/parallel-api-fetcher';
 
 /**
  * Processes API queries for a medication pair
@@ -49,95 +40,39 @@ export async function processApiInteractions(
 }> {
   console.log(`Checking interactions between ${med1} (${med1Status.id || 'no id'}) and ${med2} (${med2Status.id || 'no id'})`);
 
-  // Query all available databases simultaneously with timeout handling for each
-  // This ensures that even if one API fails or times out, we'll still get results from others
-  const apiPromises = [
-    // Only check RxNorm if both medications have RxNorm IDs
-    med1Status.source === 'RxNorm' && med2Status.source === 'RxNorm' && med1Status.id && med2Status.id
-      ? checkRxNormInteractions(med1Status.id, med2Status.id, med1, med2).catch(err => {
-          console.error(`RxNorm API error: ${err.message}`);
-          return null;
-        })
-      : Promise.resolve(null),
-    
-    // SUPP.AI check with error handling
-    checkSuppAiInteractions(med1, med2).catch(err => {
-      console.error(`SUPP.AI API error: ${err.message}`);
-      return null;
-    }),
-    
-    // FDA check with error handling
-    checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || []),
-    
-    // OpenFDA Adverse Events check with error handling
-    getAdverseEvents(med1, med2).catch(err => {
-      console.error(`OpenFDA Adverse Events API error: ${err.message}`);
-      return null;
-    })
-  ];
+  // Fetch all API data in parallel
+  const {
+    rxnormRawResult,
+    suppaiRawResult,
+    fdaRawResult,
+    adverseEventsResult,
+    aiAnalysisRawResult
+  } = await fetchAllApiData(med1Status, med2Status, med1, med2);
   
-  // AI Analysis is run separately to ensure it doesn't delay API results
-  const aiAnalysisPromise = queryAiLiteratureAnalysis(med1, med2).catch(err => {
-    console.error(`AI Literature Analysis error: ${err.message}`);
-    return null;
-  });
-
-  // Wait for all API calls to complete (regardless of success/failure)
-  const apiResults = await Promise.all(apiPromises);
-  const [rxnormRawResult, suppaiRawResult, fdaRawResult, adverseEventsResult] = apiResults;
+  // Standardize and log API results
+  const {
+    rxnormResult,
+    suppaiResult,
+    fdaResult,
+    aiAnalysisResult
+  } = standardizeAndLogApiResults(
+    rxnormRawResult,
+    suppaiRawResult,
+    fdaRawResult,
+    aiAnalysisRawResult
+  );
   
-  // Try to get AI result but don't let it block the process
-  const aiAnalysisRawResult = await aiAnalysisPromise;
-  
-  // Log API response formats before standardization
-  logApiResponseFormat(rxnormRawResult, 'RxNorm');
-  logApiResponseFormat(suppaiRawResult, 'SUPP.AI');
-  logApiResponseFormat(fdaRawResult, 'FDA');
-  logApiResponseFormat(aiAnalysisRawResult, 'AI Literature');
-  
-  // Standardize each API response to ensure consistent structure
-  const rxnormResult = rxnormRawResult 
-    ? standardizeApiResponse("RxNorm", rxnormRawResult, rxnormRawResult.description || "") 
-    : null;
-    
-  const suppaiResult = suppaiRawResult 
-    ? standardizeApiResponse("SUPP.AI", suppaiRawResult, suppaiRawResult.description || "")
-    : null;
-    
-  const fdaResult = fdaRawResult 
-    ? standardizeApiResponse("FDA", fdaRawResult, fdaRawResult.description || "")
-    : null;
-    
-  const aiAnalysisResult = aiAnalysisRawResult 
-    ? standardizeApiResponse("AI Literature Analysis", aiAnalysisRawResult, aiAnalysisRawResult.description || "")
-    : null;
-  
-  // Log standardized responses
-  logStandardizedResponse(rxnormResult, 'RxNorm');
-  logStandardizedResponse(suppaiResult, 'SUPP.AI');
-  logStandardizedResponse(fdaResult, 'FDA');
-  logStandardizedResponse(aiAnalysisResult, 'AI Literature');
-
-  // Set severity and confidence from raw data for backward compatibility
-  if (rxnormResult && rxnormRawResult) {
-    rxnormResult.severity = rxnormRawResult.severity || "unknown";
-    rxnormResult.confidence = rxnormRawResult.sources?.[0]?.confidence || null;
-  }
-  
-  if (suppaiResult && suppaiRawResult) {
-    suppaiResult.severity = suppaiRawResult.severity || "unknown";
-    suppaiResult.confidence = suppaiRawResult.sources?.[0]?.confidence || null;
-  }
-  
-  if (fdaResult && fdaRawResult) {
-    fdaResult.severity = fdaRawResult.severity || "unknown";
-    fdaResult.confidence = fdaRawResult.sources?.[0]?.confidence || null;
-  }
-  
-  if (aiAnalysisResult && aiAnalysisRawResult) {
-    aiAnalysisResult.severity = aiAnalysisRawResult.severity || "unknown";
-    aiAnalysisResult.confidence = aiAnalysisRawResult.confidence || null;
-  }
+  // Enrich standardized results with raw data information
+  enrichApiResults(
+    rxnormResult,
+    suppaiResult,
+    fdaResult,
+    aiAnalysisResult,
+    rxnormRawResult,
+    suppaiRawResult,
+    fdaRawResult,
+    aiAnalysisRawResult
+  );
 
   console.log('API Results:', {
     rxnorm: rxnormResult ? `Found: ${rxnormResult.severity}` : 'No data',
@@ -150,135 +85,16 @@ export async function processApiInteractions(
   // Merge all sources from different APIs and add confidence values
   const sources: InteractionSource[] = [];
   
-  // Add RxNorm sources if available
-  if (rxnormResult && rxnormRawResult) {
-    rxnormRawResult.sources?.forEach((source: InteractionSource) => {
-      // Only add relevant sources with interaction data
-      const isRelevant = source.description && 
-                        !source.description.toLowerCase().includes('no interaction');
-      
-      if (isRelevant) {
-        // Add debug log before pushing
-        logSourceSeverityIssues(source, 'Before push - RxNorm');
-        
-        // Validate and standardize the source before pushing
-        const standardizedResponse = validateStandardizedResponse({
-          ...source,
-          source: "RxNorm"
-        });
-        
-        // Convert standardized response to InteractionSource and push
-        const validatedSource = standardizedResponseToSource(standardizedResponse);
-        sources.push(validatedSource);
-      }
-    });
-  }
+  // Process sources from each API
+  processRxNormSources(rxnormResult, rxnormRawResult, sources);
+  processSuppAiSources(suppaiResult, suppaiRawResult, sources);
+  processFdaSources(fdaResult, fdaRawResult, sources);
+  processAdverseEventsSources(adverseEventsResult, sources);
+  processAiLiteratureSources(aiAnalysisResult, aiAnalysisRawResult, sources);
   
-  // Add SUPP.AI sources if available
-  if (suppaiResult && suppaiRawResult) {
-    suppaiRawResult.sources?.forEach((source: InteractionSource) => {
-      // Filter to only include sources with actual evidence
-      const hasEvidence = source.description && 
-                         (source.description.toLowerCase().includes('evidence') ||
-                          source.description.toLowerCase().includes('study') ||
-                          source.description.toLowerCase().includes('reported'));
-      
-      if (hasEvidence || source.severity !== 'unknown') {
-        // Add debug log before pushing
-        logSourceSeverityIssues(source, 'Before push - SUPP.AI');
-        
-        // Validate and standardize the source before pushing
-        const standardizedResponse = validateStandardizedResponse({
-          ...source,
-          source: "SUPP.AI"
-        });
-        
-        // Convert standardized response to InteractionSource and push
-        const validatedSource = standardizedResponseToSource(standardizedResponse);
-        sources.push(validatedSource);
-      }
-    });
-  }
-  
-  // Add FDA sources if available
-  if (fdaResult && fdaRawResult) {
-    fdaRawResult.sources?.forEach((source: InteractionSource) => {
-      // FDA black box warnings are more reliable
-      const hasWarning = source.description && 
-                       (source.description.toLowerCase().includes('warning') ||
-                        source.description.toLowerCase().includes('caution') ||
-                        source.description.toLowerCase().includes('interaction'));
-      
-      if (hasWarning || source.severity !== 'unknown') {
-        // Add debug log before pushing
-        logSourceSeverityIssues(source, 'Before push - FDA');
-        
-        // Validate and standardize the source before pushing
-        const standardizedResponse = validateStandardizedResponse({
-          ...source,
-          source: "FDA"
-        });
-        
-        // Convert standardized response to InteractionSource and push
-        const validatedSource = standardizedResponseToSource(standardizedResponse);
-        sources.push(validatedSource);
-      }
-    });
-  }
-  
-  // Add adverse events as a source if found - always high confidence as it's real-world data
-  const adverseEventSource = processAdverseEventsSource(adverseEventsResult);
-  if (adverseEventSource) {
-    // Add debug log before pushing
-    logSourceSeverityIssues(adverseEventSource, 'Before push - OpenFDA Events');
-    
-    // Create proper event data structure for the source
-    const eventData = adverseEventsResult ? {
-      totalEvents: adverseEventsResult.eventCount || 0,
-      seriousEvents: adverseEventsResult.seriousCount || 0,
-      nonSeriousEvents: (adverseEventsResult.eventCount || 0) - (adverseEventsResult.seriousCount || 0),
-      commonReactions: adverseEventsResult.commonReactions || []
-    } : undefined;
-    
-    // Validate and standardize before pushing
-    const standardizedResponse = validateStandardizedResponse({
-      ...adverseEventSource,
-      // For OpenFDA events, include the event data for confidence calculation
-      eventData
-    });
-    
-    // Convert standardized response to InteractionSource and push
-    const validatedSource = standardizedResponseToSource(standardizedResponse);
-    sources.push(validatedSource);
-    
-    // Log the event data to help with debugging
-    console.log('OpenFDA Event Data added to source:', eventData);
-  }
-
-  // Add AI Literature Analysis result if available
-  if (aiAnalysisResult && aiAnalysisRawResult) {
-    // Only include AI results that provide meaningful interaction data
-    const hasInsight = aiAnalysisResult.description &&
-                     (aiAnalysisResult.description.toLowerCase().includes('study') || 
-                      aiAnalysisResult.description.toLowerCase().includes('research') ||
-                      aiAnalysisResult.description.toLowerCase().includes('evidence') ||
-                      aiAnalysisResult.description.toLowerCase().includes('risk'));
-    
-    if (hasInsight || aiAnalysisResult.severity !== "unknown") {
-      // Add debug log before pushing
-      logSourceSeverityIssues(aiAnalysisRawResult, 'Before push - AI Literature');
-      
-      // Validate and standardize before pushing
-      const standardizedResponse = validateStandardizedResponse({
-        ...aiAnalysisRawResult,
-        source: "AI Literature Analysis"
-      });
-      
-      // Convert standardized response to InteractionSource and push
-      const validatedSource = standardizedResponseToSource(standardizedResponse);
-      sources.push(validatedSource);
-      console.log('Added AI literature analysis:', validatedSource);
-    }
+  // Ensure we always have at least one source entry
+  if (sources.length === 0) {
+    sources.push(createDefaultSource());
   }
   
   return {
