@@ -1,3 +1,4 @@
+
 import { InteractionResult } from "@/lib/api-utils";
 import { CombinationResult } from "@/lib/api/services/interaction-checker";
 import { ErrorMessage } from "../interaction/ErrorMessage";
@@ -23,13 +24,29 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
   // Active tab state
   const [activeTab, setActiveTab] = useState<string>("all");
   
+  // Defensive filtering of interactions to prevent runtime errors
+  const validInteractions = useMemo(() => 
+    interactions?.filter(i => i && i.severity !== undefined && i.sources?.length > 0) || [], 
+    [interactions]
+  );
+  
+  // Log diagnostic information about the interactions
+  useEffect(() => {
+    console.log(`InteractionsList received ${interactions?.length || 0} interactions, ${validInteractions.length} valid`);
+    if (interactions?.length !== validInteractions.length) {
+      console.warn("Some invalid interactions were filtered out:", 
+        interactions?.filter(i => !i || i.severity === undefined || !i.sources || i.sources.length === 0)
+      );
+    }
+  }, [interactions, validInteractions]);
+  
   // Group interactions by type
   const groupedInteractions = useMemo(() => {
     // Check if interactions have the "type" property
-    const hasTypes = interactions.length > 0 && 'type' in interactions[0];
+    const hasTypes = validInteractions.length > 0 && 'type' in validInteractions[0];
     
     if (hasTypes) {
-      const typed = interactions as CombinationResult[];
+      const typed = validInteractions as CombinationResult[];
       return {
         singles: typed.filter(i => i.type === 'single'),
         pairs: typed.filter(i => i.type === 'pair'),
@@ -40,10 +57,10 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
     // Default behavior (backward compatibility)
     return {
       singles: [],
-      pairs: interactions,
+      pairs: validInteractions,
       triples: []
     };
-  }, [interactions]);
+  }, [validInteractions]);
   
   // Determine if we should show tabs based on the presence of multiple types
   const shouldShowTabs = useMemo(() => {
@@ -53,7 +70,7 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
   
   // Create stable interaction keys
   const interactionKeys = useMemo(() => {
-    return interactions.map((interaction, index) => {
+    return validInteractions.map((interaction, index) => {
       const label = 'label' in interaction ? (interaction as CombinationResult).label : interaction.medications.join('+');
       return {
         id: `${interaction.medications.sort().join('-')}-${index}`,
@@ -61,12 +78,12 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
         label
       };
     });
-  }, [interactions]);
+  }, [validInteractions]);
   
   // Fetch nutrient depletions for all medications combined
   const { depletions: allMedicationsDepletions } = useNutrientDepletions(
     medications || [], 
-    interactions
+    validInteractions
   );
   
   // Check if this is a single medication search
@@ -74,10 +91,10 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
   
   // Get adverse events data for single medication if available
   const singleMedicationAdverseEvents = useMemo(() => {
-    if (!isSingleMedication || interactions.length === 0) return null;
+    if (!isSingleMedication || validInteractions.length === 0) return null;
     
     // Find any source with eventData
-    const eventData = interactions[0]?.sources?.find(source => 
+    const eventData = validInteractions[0]?.sources?.find(source => 
       source.eventData && source.eventData.totalEvents > 0
     )?.eventData;
     
@@ -87,15 +104,15 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
       totalEvents: eventData.totalEvents,
       reactions: eventData.commonReactions || []
     };
-  }, [isSingleMedication, interactions]);
+  }, [isSingleMedication, validInteractions]);
   
   // Is this a combined interaction (more than 2 medications)
   const hasCombinedInteraction = medications && medications.length > 2;
   
   // Combined risk assessment
   const combinedRiskAssessment = useMemo(() => 
-    getCombinedRiskAssessment(medications, interactions), 
-    [medications, interactions]
+    getCombinedRiskAssessment(medications, validInteractions), 
+    [medications, validInteractions]
   );
   
   useEffect(() => {
@@ -133,24 +150,47 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
     toggleSection("combined");
   };
 
-  // Error states
-  if (interactions.length === 0) {
+  // Error states with improved messaging
+  if (!medications || medications.length === 0) {
     return (
       <div className="max-w-3xl mx-auto">
         <ErrorMessage
-          title="No Medications to Compare"
-          description="Please select at least two medications to check for interactions."
+          title="No Medications Selected"
+          description="Please select at least one medication to view information."
         />
       </div>
     );
+  }
+  
+  if (validInteractions.length === 0) {
+    // Different message based on number of medications
+    if (medications.length === 1) {
+      return (
+        <div className="max-w-3xl mx-auto">
+          <ErrorMessage
+            title="No Information Found"
+            description={`No specific information found for ${medications[0]}. Consult a healthcare provider for details about this medication.`}
+          />
+        </div>
+      );
+    } else {
+      return (
+        <div className="max-w-3xl mx-auto">
+          <ErrorMessage
+            title="No Interactions Found"
+            description="No interaction information found for this combination. This doesn't necessarily mean the combination is safe. Consult a healthcare provider before combining medications."
+          />
+        </div>
+      );
+    }
   }
   
   if (!hasAnyInteraction && !singleMedicationAdverseEvents && groupedInteractions.singles.length === 0) {
     return (
       <div className="max-w-3xl mx-auto">
         <ErrorMessage
-          title="No Interactions Found"
-          description="No information found for this combination. Consult a healthcare provider for more details."
+          title="No Known Interactions"
+          description="No known interactions were found for this combination. However, always consult a healthcare provider before combining medications."
         />
       </div>
     );
@@ -188,7 +228,7 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
             {hasCombinedInteraction && (
               <CombinedInteractionCard 
                 medications={medications || []}
-                interactions={interactions}
+                interactions={validInteractions}
                 isOpen={openSections["combined"]}
                 onToggle={toggleCombinedSection}
                 risk={combinedRiskAssessment}
@@ -197,7 +237,7 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
             
             {/* All Interactions */}
             <InteractionGroup 
-              interactions={interactions}
+              interactions={validInteractions}
               openSections={openSections}
               toggleSection={toggleSection}
               groupName="all"
@@ -260,7 +300,7 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
       {hasCombinedInteraction && (
         <CombinedInteractionCard 
           medications={medications || []}
-          interactions={interactions}
+          interactions={validInteractions}
           isOpen={openSections["combined"]}
           onToggle={toggleCombinedSection}
           risk={combinedRiskAssessment}
@@ -269,7 +309,7 @@ export function InteractionsList({ interactions, hasAnyInteraction, medications 
       
       {/* Individual Interactions */}
       <InteractionGroup 
-        interactions={interactions}
+        interactions={validInteractions}
         openSections={openSections}
         toggleSection={toggleSection}
         groupName="default"

@@ -1,140 +1,93 @@
-/**
- * Debug Logger
- * 
- * Utilities for logging debug information specific to interaction checking
- */
 
 import { InteractionSource, StandardizedApiResponse } from '../types';
 
 /**
- * Logs detailed information about sources before they are added to the final list
+ * Logs issues with source severity
  */
-export function logSourceSeverityIssues(
-  source: InteractionSource,
-  context: string = ''
-): void {
-  // Log the source details
-  console.log(`[Debug] Source severity check (${context}):`, {
-    name: source.name,
-    severity: source.severity,
-    confidence: source.confidence,
-    descriptionLength: source.description ? source.description.length : 0,
-    hasEventData: !!source.eventData
-  });
-  
-  // Check for potential issues
-  const issues = [];
-  
-  if (!source.severity || source.severity === 'unknown') {
-    issues.push('Missing or unknown severity');
-  }
-  
-  if (!source.description || source.description.length < 10) {
-    issues.push('Missing or very short description');
-  }
-  
-  if (source.confidence === undefined || source.confidence === null) {
-    issues.push('Missing confidence score');
-  } else if (source.confidence < 50) {
-    issues.push('Low confidence score');
-  }
-  
-  // Log any issues found
-  if (issues.length > 0) {
-    console.warn(`[Debug] Source "${source.name || 'Unnamed'}" has issues: ${issues.join(', ')}`);
+export function logSourceSeverityIssues(source: InteractionSource, context: string): void {
+  if (!source.severity) {
+    console.warn(`[${context}] Source missing severity:`, source);
   }
 }
 
 /**
- * Creates a diagnostic report for a complete interaction check
+ * Logs API response format
  */
-export function createInteractionDiagnosticReport(
-  medications: string[],
-  interactionResults: any,
-  rawResponses: Record<string, any>
-): void {
-  console.log('=================================================');
-  console.log(`INTERACTION DIAGNOSTIC REPORT: ${medications.join(' + ')}`);
-  console.log('=================================================');
-  
-  // Log the medications being checked
-  console.log('Medications:', medications);
-  
-  // Log the final interaction results
-  console.log('Final results:', {
-    severity: interactionResults.severity,
-    confidenceScore: interactionResults.confidenceScore,
-    sourcesCount: interactionResults.sources?.length || 0,
-    hasAdverseEvents: !!interactionResults.adverseEvents
-  });
-  
-  // Summarize sources by type
-  const sourceTypes = {};
-  if (interactionResults.sources) {
-    interactionResults.sources.forEach(source => {
-      const type = source.name || 'Unknown';
-      sourceTypes[type] = (sourceTypes[type] || 0) + 1;
-    });
-  }
-  
-  console.log('Sources by type:', sourceTypes);
-  
-  // Log source validation issues
-  if (interactionResults.sources) {
-    const issueCount = interactionResults.sources.filter(
-      s => !s.severity || s.severity === 'unknown' || !s.confidence
-    ).length;
-    
-    if (issueCount > 0) {
-      console.warn(`Found ${issueCount} sources with validation issues`);
-    }
-  }
-  
-  console.log('=================================================');
-  console.log('End of diagnostic report');
-  console.log('=================================================');
-}
-
-/**
- * Logs API response format details for debugging
- */
-export function logApiResponseFormat(
-  response: any,
-  sourceName: string
-): void {
+export function logApiResponseFormat(response: any, sourceName: string): void {
   if (!response) {
-    console.log(`[API Format] ${sourceName}: No response data`);
+    console.log(`[API Format] ${sourceName} response is null or undefined`);
     return;
   }
-
-  console.log(`[API Format] ${sourceName} response structure:`, {
-    hasInteractions: !!response.interactions || !!response.fullInteractionTypeGroup,
-    hasSources: Array.isArray(response.sources) && response.sources.length > 0,
-    descriptionLength: response.description ? response.description.length : 0,
-    severityValue: response.severity || 'none',
-    topLevelKeys: Object.keys(response).join(', ')
-  });
+  
+  // Log the shape/structure of the response
+  const responseKeys = Object.keys(response);
+  console.log(`[API Format] ${sourceName} response has ${responseKeys.length} root keys:`, responseKeys);
+  
+  // Check for interactions field
+  if (response.interactions) {
+    console.log(`[API Format] ${sourceName} has 'interactions' field with ${response.interactions.length} items`);
+  }
+  
+  // Check for fullInteractionTypeGroup field (RxNorm format)
+  if (response.fullInteractionTypeGroup) {
+    console.log(`[API Format] ${sourceName} has 'fullInteractionTypeGroup' with ${response.fullInteractionTypeGroup.length} groups`);
+  }
+  
+  // Check for sources field
+  if (response.sources) {
+    console.log(`[API Format] ${sourceName} has 'sources' field with ${response.sources.length} items`);
+  }
 }
 
 /**
- * Logs standardized response details for debugging
+ * Logs standardized API response
  */
-export function logStandardizedResponse(
-  response: StandardizedApiResponse | null,
-  sourceName: string
-): void {
+export function logStandardizedResponse(response: StandardizedApiResponse | null, sourceName: string): void {
   if (!response) {
-    console.log(`[Standardized] ${sourceName}: No standardized response`);
+    console.log(`[Standardized] ${sourceName} standardized response is null`);
     return;
   }
-
-  console.log(`[Standardized] ${sourceName} standardized data:`, {
-    // Fixed: Use properties that actually exist on StandardizedApiResponse
+  
+  console.log(`[Standardized] ${sourceName} response:`, {
+    source: response.source,
     severity: response.severity,
+    hasDescription: !!response.description,
     confidence: response.confidence,
-    descriptionLength: response.description ? response.description.length : 0,
-    hasValidDescription: response.description && response.description.length > 15,
-    // Fixed: StandardizedApiResponse might have source property rather than sources
-    source: response.source || 'none'
+    processed: response.processed,
+    hasEventData: !!response.eventData
   });
+  
+  // Check for missing required fields
+  if (!response.severity) {
+    console.warn(`[Standardized] ${sourceName} is missing severity!`);
+  }
+  
+  if (!response.description) {
+    console.warn(`[Standardized] ${sourceName} is missing description!`);
+  }
+}
+
+/**
+ * Logs diagnostic information for debugging purposes
+ */
+export function logDiagnosticInfo(message: string, data?: any): void {
+  console.log(`[Diagnostic] ${message}`, data || '');
+}
+
+/**
+ * Logs standardized severity data
+ */
+export function logSeverityData(
+  severity: string, 
+  confidenceScore: number, 
+  sources: InteractionSource[], 
+  context: string
+): void {
+  console.log(`[Severity] ${context} - Final severity: ${severity}, confidence: ${confidenceScore}, sources: ${sources.length}`);
+  
+  // Check for any sources without severity
+  const invalidSources = sources.filter(source => !source.severity);
+  if (invalidSources.length > 0) {
+    console.warn(`[Severity] ${context} - Found ${invalidSources.length} sources without severity!`);
+  }
 }

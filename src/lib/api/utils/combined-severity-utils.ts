@@ -12,6 +12,47 @@ import { mergeSources } from './source-merger';
  * @returns Combined severity assessment
  */
 export function processCombinedSeverity(interactions: InteractionResult[]) {
+  console.log(`Processing combined severity for ${interactions?.length || 0} interactions`);
+  
+  // Add defensive check for empty or undefined interactions array
+  if (!interactions || interactions.length === 0) {
+    console.warn("Empty interactions array passed to processCombinedSeverity");
+    return {
+      severity: "unknown" as const,
+      description: "No interaction data available",
+      confidenceScore: 0,
+      sources: [{
+        name: "No Data Available",
+        severity: "unknown" as const,
+        description: "No interaction data available"
+      }],
+      combinedWarnings: []
+    };
+  }
+  
+  // Filter out invalid interactions
+  const validInteractions = interactions.filter(interaction => 
+    interaction && interaction.severity !== undefined && interaction.sources && interaction.sources.length > 0
+  );
+
+  console.log(`Filtered ${interactions.length} interactions to ${validInteractions.length} valid interactions`);
+  
+  // If no valid interactions, return a fallback
+  if (validInteractions.length === 0) {
+    console.warn("No valid interactions after filtering");
+    return {
+      severity: "unknown" as const,
+      description: "Unable to determine interaction severity from available data",
+      confidenceScore: 0,
+      sources: [{
+        name: "No Data Available",
+        severity: "unknown" as const,
+        description: "No valid interaction data available"
+      }],
+      combinedWarnings: []
+    };
+  }
+  
   // Track counts of each severity level
   const severityCounts = {
     severe: 0,
@@ -22,7 +63,7 @@ export function processCombinedSeverity(interactions: InteractionResult[]) {
   };
   
   // Sort interactions by medication names for deterministic processing
-  const sortedInteractions = [...interactions].sort((a, b) => {
+  const sortedInteractions = [...validInteractions].sort((a, b) => {
     const nameA = a.medications.join('+');
     const nameB = b.medications.join('+');
     return nameA.localeCompare(nameB);
@@ -68,7 +109,16 @@ export function processCombinedSeverity(interactions: InteractionResult[]) {
     : 50; // Default if no confidence scores available
 
   // Collect all sources from all interactions
-  const allSources = sortedInteractions.flatMap(interaction => interaction.sources);
+  const allSources = sortedInteractions.flatMap(interaction => interaction.sources || []);
+  
+  // Ensure we have at least one source
+  if (allSources.length === 0) {
+    allSources.push({
+      name: "No Data Available",
+      severity: combinedSeverity,
+      description: "No source data available"
+    });
+  }
   
   // Merge sources from the same origin to avoid duplicates
   const mergedSources = mergeSources(allSources);
@@ -82,6 +132,8 @@ export function processCombinedSeverity(interactions: InteractionResult[]) {
     sortedInteractions.length, 
     severityCounts
   );
+  
+  console.log(`Combined severity result: ${combinedSeverity}, confidence: ${combinedConfidenceScore}, sources: ${mergedSources.length}`);
   
   return {
     severity: combinedSeverity,
