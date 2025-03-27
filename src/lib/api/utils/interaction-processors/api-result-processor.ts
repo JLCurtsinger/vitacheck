@@ -1,6 +1,6 @@
 
 import { StandardizedApiResponse } from '../../types';
-import { logApiResponseFormat, logStandardizedResponse } from '../debug-logger';
+import { logSourceSeverityIssues, logApiResponseFormat, logStandardizedResponse } from '../debug-logger';
 import { standardizeApiResponse } from '../api-response-standardizer';
 import { 
   logFullApiResponse, 

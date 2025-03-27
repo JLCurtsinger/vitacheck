@@ -1,4 +1,3 @@
-
 /**
  * Debug Logger
  * 
@@ -130,12 +129,12 @@ export function logStandardizedResponse(
   }
 
   console.log(`[Standardized] ${sourceName} standardized data:`, {
-    name: response.name,
+    // Fixed: Use properties that actually exist on StandardizedApiResponse
     severity: response.severity,
     confidence: response.confidence,
     descriptionLength: response.description ? response.description.length : 0,
     hasValidDescription: response.description && response.description.length > 15,
-    hasSources: Array.isArray(response.sources) && response.sources.length > 0,
-    sourceCount: Array.isArray(response.sources) ? response.sources.length : 0
+    // Fixed: StandardizedApiResponse might have source property rather than sources
+    source: response.source || 'none'
   });
 }
