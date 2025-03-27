@@ -5,7 +5,7 @@
  * Utilities for logging debug information specific to interaction checking
  */
 
-import { InteractionSource } from '../types';
+import { InteractionSource, StandardizedApiResponse } from '../types';
 
 /**
  * Logs detailed information about sources before they are added to the final list
@@ -94,4 +94,48 @@ export function createInteractionDiagnosticReport(
   console.log('=================================================');
   console.log('End of diagnostic report');
   console.log('=================================================');
+}
+
+/**
+ * Logs API response format details for debugging
+ */
+export function logApiResponseFormat(
+  response: any,
+  sourceName: string
+): void {
+  if (!response) {
+    console.log(`[API Format] ${sourceName}: No response data`);
+    return;
+  }
+
+  console.log(`[API Format] ${sourceName} response structure:`, {
+    hasInteractions: !!response.interactions || !!response.fullInteractionTypeGroup,
+    hasSources: Array.isArray(response.sources) && response.sources.length > 0,
+    descriptionLength: response.description ? response.description.length : 0,
+    severityValue: response.severity || 'none',
+    topLevelKeys: Object.keys(response).join(', ')
+  });
+}
+
+/**
+ * Logs standardized response details for debugging
+ */
+export function logStandardizedResponse(
+  response: StandardizedApiResponse | null,
+  sourceName: string
+): void {
+  if (!response) {
+    console.log(`[Standardized] ${sourceName}: No standardized response`);
+    return;
+  }
+
+  console.log(`[Standardized] ${sourceName} standardized data:`, {
+    name: response.name,
+    severity: response.severity,
+    confidence: response.confidence,
+    descriptionLength: response.description ? response.description.length : 0,
+    hasValidDescription: response.description && response.description.length > 15,
+    hasSources: Array.isArray(response.sources) && response.sources.length > 0,
+    sourceCount: Array.isArray(response.sources) ? response.sources.length : 0
+  });
 }
