@@ -2,36 +2,88 @@
  * Severity Determiner
  * 
  * This module determines the final severity based on weighted votes.
+ * Enhanced with detailed logging and fallback mechanisms.
  */
+
+import { logParsingIssue } from '../diagnostics/api-response-logger';
 
 /**
  * Determines the final severity based on weighted votes and special conditions
+ * Now with enhanced logging and fallback mechanisms
  */
 export function determineFinalSeverity(
   severityVotes: Record<string, number>,
   sourceWeights: { source: any, weight: number }[]
 ): "safe" | "minor" | "moderate" | "severe" | "unknown" {
-  // First check if we have any "severe" votes from high-confidence sources
-  const hasSevereFromHighConfidence = sourceWeights.some(({ source, weight }) => 
-    source.severity === "severe" && weight >= 0.6);
+  try {
+    console.log('[Severity Determiner] Processing severity votes:', severityVotes);
     
-  if (severityVotes.severe > 0 && hasSevereFromHighConfidence) {
-    return "severe";
-  }
-  
-  // Otherwise determine by highest weighted vote
-  // Process severity keys in a fixed order for deterministic results
-  const severityKeys: ("severe" | "moderate" | "minor" | "safe" | "unknown")[] = ["severe", "moderate", "minor", "safe", "unknown"];
-  
-  let finalSeverity: "safe" | "minor" | "moderate" | "severe" | "unknown" = "unknown";
-  let maxVote = 0;
-  
-  for (const severity of severityKeys) {
-    if (severityVotes[severity] > maxVote) {
-      maxVote = severityVotes[severity];
-      finalSeverity = severity;
+    // First check if we have any "severe" votes from high-confidence sources
+    const hasSevereFromHighConfidence = sourceWeights.some(({ source, weight }) => 
+      source.severity === "severe" && weight >= 0.6);
+      
+    if (severityVotes.severe > 0 && hasSevereFromHighConfidence) {
+      console.log('[Severity Determiner] Found severe rating from high-confidence source');
+      return "severe";
     }
+    
+    // Debug information about vote distribution
+    console.log('[Severity Determiner] Vote distribution:', {
+      severe: severityVotes.severe || 0,
+      moderate: severityVotes.moderate || 0,
+      minor: severityVotes.minor || 0,
+      safe: severityVotes.safe || 0,
+      unknown: severityVotes.unknown || 0
+    });
+    
+    // Otherwise determine by highest weighted vote
+    // Process severity keys in a fixed order for deterministic results
+    const severityKeys: ("severe" | "moderate" | "minor" | "safe" | "unknown")[] = ["severe", "moderate", "minor", "safe", "unknown"];
+    
+    let finalSeverity: "safe" | "minor" | "moderate" | "severe" | "unknown" = "unknown";
+    let maxVote = 0;
+    
+    for (const severity of severityKeys) {
+      const currentVote = severityVotes[severity] || 0;
+      if (currentVote > maxVote) {
+        maxVote = currentVote;
+        finalSeverity = severity;
+        console.log(`[Severity Determiner] New highest vote: ${severity} with ${currentVote}`);
+      }
+    }
+    
+    // Fallback mechanism: If all votes are zero or very low, but we have sources
+    if (maxVote < 0.1 && sourceWeights.length > 0) {
+      console.log('[Severity Determiner] Very low votes detected, applying fallback logic');
+      
+      // Try to find any explicit severity in sources
+      for (const { source } of sourceWeights) {
+        if (source.severity && source.severity !== "unknown") {
+          finalSeverity = source.severity;
+          console.log(`[Severity Determiner] Fallback: Using explicit severity "${finalSeverity}" from source`);
+          break;
+        }
+      }
+      
+      // If still unknown, use conservative approach for safety
+      if (finalSeverity === "unknown" && sourceWeights.length > 1) {
+        finalSeverity = "moderate"; // Conservative assumption when multiple sources but unclear severity
+        console.log('[Severity Determiner] Fallback: Using conservative "moderate" rating due to multiple sources');
+      }
+    }
+    
+    console.log(`[Severity Determiner] Final severity determined: ${finalSeverity}`);
+    return finalSeverity;
+  } catch (error) {
+    // Log the error and provide a fallback severity
+    logParsingIssue(
+      'Severity Determiner', 
+      { severityVotes, sourceWeights }, 
+      error instanceof Error ? error : String(error)
+    );
+    
+    // Conservative fallback in case of errors
+    console.error('[Severity Determiner] Error determining severity, using fallback "moderate"');
+    return "moderate";
   }
-  
-  return finalSeverity;
 }
