@@ -29,7 +29,11 @@ export function calculateConsensusScore(
   description: string;
   aiValidated: boolean;
 } {
+  console.log(`[Consensus Calculator] Starting consensus calculation with ${sources.length} sources`, 
+    sources.map(s => ({ name: s.name, severity: s.severity, confidence: s.confidence })));
+  
   if (!sources.length) {
+    console.log('[Consensus Calculator] No sources provided, returning unknown severity');
     return {
       severity: "unknown",
       confidenceScore: 0,
@@ -59,8 +63,13 @@ export function calculateConsensusScore(
   // Process sources and get their weights
   const { sourceWeights, aiValidated, totalWeight } = processSourcesWithWeights(sources);
   
+  console.log(`[Consensus Calculator] Processed source weights:`, 
+    sourceWeights.map(item => ({ name: item.source.name, severity: item.source.severity, weight: item.weight })));
+  console.log(`[Consensus Calculator] Total weight: ${totalWeight}, AI validated: ${aiValidated}`);
+  
   // If no sources have weight, return unknown
   if (totalWeight === 0) {
+    console.log('[Consensus Calculator] Total weight is zero, returning unknown severity');
     return {
       severity: "unknown",
       confidenceScore: 0,
@@ -75,7 +84,12 @@ export function calculateConsensusScore(
     const severity = source.severity || "unknown";
     severityVotes[severity] += weight;
     severityCounts[severity]++;
+    
+    console.log(`[Consensus Calculator] Added vote for "${severity}" with weight ${weight} from source "${source.name}"`);
   });
+
+  console.log(`[Consensus Calculator] Initial severity votes:`, severityVotes);
+  console.log(`[Consensus Calculator] Initial severity counts:`, severityCounts);
 
   // Factor in adverse events data if available
   const adverseEventData = processAdverseEvents(adverseEvents);
@@ -83,10 +97,14 @@ export function calculateConsensusScore(
     const { weight, severity, count } = adverseEventData;
     severityVotes[severity] += weight;
     severityCounts[severity] += count;
+    
+    console.log(`[Consensus Calculator] Added adverse event vote for "${severity}" with weight ${weight}`);
+    console.log(`[Consensus Calculator] Updated severity votes after adverse events:`, severityVotes);
   }
 
   // Determine the final severity based on weighted votes
   const finalSeverity = determineFinalSeverity(severityVotes, sourceWeights);
+  console.log(`[Consensus Calculator] Final determined severity: "${finalSeverity}"`);
 
   // Calculate confidence score
   const confidenceScore = calculateConfidenceScore(
@@ -98,6 +116,8 @@ export function calculateConsensusScore(
     aiValidated
   );
   
+  console.log(`[Consensus Calculator] Calculated confidence score: ${confidenceScore}%`);
+  
   // Generate a description that explains the consensus
   const sourcesToProcess = sources.filter(source => source && source.name);
   const description = determineConsensusDescription(
@@ -106,11 +126,30 @@ export function calculateConsensusScore(
     sourcesToProcess, 
     adverseEvents
   );
+  
+  console.log(`[Consensus Calculator] Generated consensus description: ${description.substring(0, 100)}...`);
 
-  return {
+  const result = {
     severity: finalSeverity,
     confidenceScore,
     description,
     aiValidated
   };
+
+  // Generate a diagnostic summary
+  console.log('[DIAGNOSTIC SUMMARY] Consensus calculation results:', {
+    rxNormSources: sources.filter(s => s.name === 'RxNorm').length,
+    suppAiSources: sources.filter(s => s.name === 'SUPP.AI').length,
+    fdaSources: sources.filter(s => s.name === 'FDA').length,
+    aiSources: sources.filter(s => s.name === 'AI Literature Analysis').length,
+    adverseEventSources: sources.filter(s => s.name === 'OpenFDA Adverse Events').length,
+    severityVotes,
+    severityCounts,
+    finalSeverity,
+    confidenceScore,
+    totalWeight,
+    aiValidated
+  });
+
+  return result;
 }

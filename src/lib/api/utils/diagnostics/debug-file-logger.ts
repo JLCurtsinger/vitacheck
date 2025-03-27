@@ -2,67 +2,50 @@
 /**
  * Debug File Logger
  * 
- * Provides utilities for logging debug information to files
- * for later analysis, especially useful for API debugging.
+ * Utility for writing debug logs to persistent storage
  */
 
-// In-memory storage for logs when file system is not available
-const memoryLogs: Record<string, any[]> = {};
-
 /**
- * Write debug data to a persistent log
- * In browser environment, this will store data in memory
- * In Node environment, this will write to files if possible
+ * Writes a debug log entry for later analysis
+ * 
+ * In a browser environment, this won't actually write to disk,
+ * but in a Node.js environment it could be configured to do so.
+ * For browser use, it logs to console and could be configured
+ * to send logs to a server endpoint.
  */
 export function writeToDebugLog(
   category: string,
-  identifier: string,
+  id: string,
   data: any
 ): void {
-  // Store in memory regardless of environment
-  if (!memoryLogs[category]) {
-    memoryLogs[category] = [];
-  }
+  // In browser, just log to console with structured format
+  console.log(`[DEBUG LOG] ${category}/${id}:`, data);
   
-  memoryLogs[category].push({
-    id: identifier,
-    timestamp: new Date().toISOString(),
-    ...data
-  });
-  
-  // Limit memory logs to avoid overwhelming memory
-  if (memoryLogs[category].length > 100) {
-    memoryLogs[category] = memoryLogs[category].slice(-100);
-  }
-  
-  // Try to use console.debug for less noisy logging
-  try {
-    console.debug(`[Debug Log] ${category}/${identifier} saved`);
-  } catch (e) {
-    // Fallback to regular log if debug not supported
-    console.log(`[Debug Log] ${category}/${identifier} saved`);
-  }
+  // In a production setup, this could be modified to:
+  // 1. Send logs to a server endpoint via fetch
+  // 2. Store in localStorage/indexedDB (with rotation)
+  // 3. Use a dedicated logging service
 }
 
 /**
- * Retrieve logs stored in memory
+ * Creates a diagnostic summary for a debugging session
  */
-export function getMemoryLogs(category?: string): Record<string, any[]> {
-  if (category) {
-    return { [category]: memoryLogs[category] || [] };
-  }
-  return { ...memoryLogs };
-}
-
-/**
- * Clear in-memory logs
- */
-export function clearMemoryLogs(category?: string): void {
-  if (category) {
-    memoryLogs[category] = [];
-  } else {
-    Object.keys(memoryLogs).forEach(key => {
-      memoryLogs[key] = [];
-    });
-  }
+export function createDiagnosticSummary(
+  sessionId: string,
+  results: Record<string, any>
+): void {
+  console.log('=================================================');
+  console.log(`DIAGNOSTIC SUMMARY (Session: ${sessionId})`);
+  console.log('=================================================');
+  
+  // Log overall statistics
+  console.log('Overall results:', results);
+  
+  // If we had specific categories to analyze, we could add them here
+  
+  console.log('=================================================');
+  console.log('End of diagnostic summary');
+  console.log('=================================================');
+  
+  // In a real implementation, this could also save to a file or send to a server
 }

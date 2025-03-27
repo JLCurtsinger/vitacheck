@@ -26,6 +26,16 @@ export function hasValidInteractionEvidence(
       return false;
     }
     
+    // Log source data for debugging
+    console.log(`[Validation] Checking source: ${source.name || 'Unnamed source'}`, {
+      hasSeverity: !!source.severity,
+      severityValue: source.severity,
+      descriptionLength: source.description ? source.description.length : 0,
+      hasConfidence: typeof source.confidence === 'number',
+      confidenceValue: source.confidence,
+      hasEventData: !!source.eventData
+    });
+    
     // Check for description content
     const hasDescription = source.description && 
                           typeof source.description === 'string' && 
@@ -50,6 +60,15 @@ export function hasValidInteractionEvidence(
     const isValid = (hasDescription && hasSeverity) || 
                     hasHighConfidence || 
                     hasEventData;
+    
+    // Log validation result with detailed reasons
+    console.log(`[Validation] Source "${source.name || 'Unnamed'}" validation result:`, {
+      isValid,
+      hasDescription,
+      hasSeverity,
+      hasHighConfidence,
+      hasEventData
+    });
     
     // Log validation failure details for debugging
     if (!isValid && rawData) {
@@ -94,6 +113,8 @@ export function applySourceValidationFallback(
       return source;
     }
     
+    console.log(`[Fallback] Attempting fallback validation for source: ${source.name || 'Unnamed source'}`);
+    
     // Create a copy to avoid mutating the original
     const enhancedSource: InteractionSource = { ...source };
     
@@ -106,32 +127,48 @@ export function applySourceValidationFallback(
           desc.includes('fatal') || 
           desc.includes('life-threatening')) {
         enhancedSource.severity = 'severe';
+        console.log(`[Fallback] Inferred severity "severe" from description for ${enhancedSource.name || 'Unknown'}`);
       } else if (desc.includes('moderate') || 
                 desc.includes('significant') || 
                 desc.includes('adjust') ||
                 desc.includes('monitor')) {
         enhancedSource.severity = 'moderate';
+        console.log(`[Fallback] Inferred severity "moderate" from description for ${enhancedSource.name || 'Unknown'}`);
       } else if (desc.includes('mild') || 
                 desc.includes('minor')) {
         enhancedSource.severity = 'minor';
+        console.log(`[Fallback] Inferred severity "minor" from description for ${enhancedSource.name || 'Unknown'}`);
       }
     }
     
     // Fallback 2: If raw data contains evidence count, use as confidence proxy
     if (rawData?.evidence_count && typeof rawData.evidence_count === 'number') {
       enhancedSource.confidence = Math.min(100, Math.max(1, rawData.evidence_count * 10));
+      console.log(`[Fallback] Set confidence to ${enhancedSource.confidence}% based on evidence count for ${enhancedSource.name || 'Unknown'}`);
     }
     
     // Fallback 3: If raw data contains intensity, map to severity
     if (rawData?.intensity && !enhancedSource.severity) {
       const intensity = rawData.intensity.toLowerCase();
-      if (intensity === 'high') enhancedSource.severity = 'severe';
-      else if (intensity === 'medium') enhancedSource.severity = 'moderate';
-      else if (intensity === 'low') enhancedSource.severity = 'minor';
+      if (intensity === 'high') {
+        enhancedSource.severity = 'severe';
+        console.log(`[Fallback] Set severity to "severe" based on high intensity for ${enhancedSource.name || 'Unknown'}`);
+      }
+      else if (intensity === 'medium') {
+        enhancedSource.severity = 'moderate';
+        console.log(`[Fallback] Set severity to "moderate" based on medium intensity for ${enhancedSource.name || 'Unknown'}`);
+      }
+      else if (intensity === 'low') {
+        enhancedSource.severity = 'minor';
+        console.log(`[Fallback] Set severity to "minor" based on low intensity for ${enhancedSource.name || 'Unknown'}`);
+      }
     }
     
     // Check if fallbacks made the source valid
-    if (hasValidInteractionEvidence(enhancedSource)) {
+    const nowValid = hasValidInteractionEvidence(enhancedSource);
+    console.log(`[Fallback] Source "${enhancedSource.name || 'Unknown'}" after fallback: ${nowValid ? 'Valid' : 'Still invalid'}`);
+    
+    if (nowValid) {
       console.log(`[Fallback] Recovered source data for ${enhancedSource.name || 'Unknown'}`);
       return enhancedSource;
     }

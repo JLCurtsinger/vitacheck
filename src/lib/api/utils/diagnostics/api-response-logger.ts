@@ -106,30 +106,57 @@ export function validateApiSchema(
  * Check if the response contains any meaningful interaction data
  */
 export function hasValidInteractionData(response: any): boolean {
+  // Enhanced logging for interaction data detection
+  console.log('[hasValidInteractionData] Checking response for valid interaction data');
+  
   // Check for common indicators of interaction data
-  if (!response) return false;
+  if (!response) {
+    console.log('[hasValidInteractionData] Response is null or undefined');
+    return false;
+  }
+  
+  // Log the key structure of the response
+  console.log('[hasValidInteractionData] Response keys:', Object.keys(response));
   
   // Check for interaction array
   if (Array.isArray(response.interactions) && response.interactions.length > 0) {
+    console.log(`[hasValidInteractionData] Found ${response.interactions.length} interactions in interactions array`);
     return true;
   }
   
   // Check for sources array with descriptions
-  if (Array.isArray(response.sources) && 
-      response.sources.some((s: any) => s.description && s.description.length > 10)) {
-    return true;
+  if (Array.isArray(response.sources)) {
+    const validSources = response.sources.filter((s: any) => s && s.description && s.description.length > 10);
+    console.log(`[hasValidInteractionData] Found ${validSources.length} valid sources out of ${response.sources.length} total sources`);
+    
+    if (validSources.length > 0) {
+      return true;
+    }
   }
   
   // Check for fullInteractionType (RxNorm style)
   if (response.fullInteractionTypeGroup && 
       response.fullInteractionTypeGroup.length > 0 &&
       response.fullInteractionTypeGroup[0].fullInteractionType) {
+    console.log(`[hasValidInteractionData] Found RxNorm fullInteractionType data`);
     return true;
   }
   
   // Check for direct description field
   if (response.description && response.description.length > 10) {
+    console.log(`[hasValidInteractionData] Found direct description field (${response.description.length} chars)`);
     return true;
+  }
+  
+  console.log('[hasValidInteractionData] No valid interaction data detected');
+  
+  // Log more details if available
+  if (response.count !== undefined) {
+    console.log(`[hasValidInteractionData] Response has count: ${response.count}`);
+  }
+  
+  if (response.message) {
+    console.log(`[hasValidInteractionData] Response message: ${response.message}`);
   }
   
   return false;

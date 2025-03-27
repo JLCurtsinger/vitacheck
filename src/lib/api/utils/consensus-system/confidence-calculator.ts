@@ -33,7 +33,11 @@ export function calculateConfidenceScore(
     const primaryVote = severityVotes[finalSeverity] || 0;
     let confidenceScore = totalWeight > 0 ? Math.round((primaryVote / totalWeight) * 100) : 0;
     
-    console.log(`[Confidence Calculator] Base confidence from votes: ${confidenceScore}%`);
+    console.log(`[Confidence Calculator] Base confidence from votes: ${confidenceScore}%`, {
+      primaryVote,
+      totalWeight,
+      calculation: totalWeight > 0 ? `${primaryVote} / ${totalWeight} * 100 = ${confidenceScore}` : 'No weight'
+    });
     
     // Apply additional confidence adjustments with detailed logging
     if (sourceWeights.length >= 3) {
