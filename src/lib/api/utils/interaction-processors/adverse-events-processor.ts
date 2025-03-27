@@ -1,4 +1,3 @@
-
 import { InteractionSource, AdverseEventData } from '../../types';
 import { logSourceSeverityIssues } from '../debug-logger';
 import { validateStandardizedResponse, standardizedResponseToSource } from '../api-response-standardizer';
