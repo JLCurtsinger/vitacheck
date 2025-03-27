@@ -1,4 +1,3 @@
-
 /**
  * Interaction Validator
  * 
