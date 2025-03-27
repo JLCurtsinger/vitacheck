@@ -1,3 +1,4 @@
+
 /**
  * Interaction Validator
  * 
@@ -184,7 +185,7 @@ function testSourceValidation(): Array<{testName: string, success: boolean, deta
   };
   
   try {
-    // Fixed: Correctly passing both required arguments to the determineFinalSeverity function
+    // Fixed: Passing both required arguments to determineFinalSeverity
     const severity = determineFinalSeverity(severityVotes, sourceWeights);
     
     results.push({
