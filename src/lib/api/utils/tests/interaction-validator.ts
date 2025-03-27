@@ -185,7 +185,7 @@ function testSourceValidation(): Array<{testName: string, success: boolean, deta
   };
   
   try {
-    // Fixed: Adding null as the second argument to match the function signature
+    // Fixed: Correctly passing both required arguments to the determineFinalSeverity function
     const severity = determineFinalSeverity(severityVotes, sourceWeights);
     
     results.push({
