@@ -18,8 +18,8 @@ export function testConsensusCalculation(
   try {
     console.log(`[Validation Test] Running test: ${testName}`);
     
-    // Call the consensus calculation function
-    const consensus = calculateConsensusScore(sources);
+    // Call the consensus calculation function with both required arguments
+    const consensus = calculateConsensusScore(sources, null);
     
     // Validate that we got a result with expected fields
     const hasValidResult = consensus && 
