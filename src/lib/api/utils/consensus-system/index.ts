@@ -13,3 +13,7 @@ export { calculateConsensusScore } from './consensus-calculator';
 export { determineSourceWeight } from './source-weight';
 export { hasValidInteractionEvidence } from './source-validation';
 export { determineConsensusDescription } from './description-generator';
+export { SEVERE_EVENT_THRESHOLD } from './adverse-event-processor';
+export { processSourcesWithWeights } from './source-processor';
+export { calculateConfidenceScore } from './confidence-calculator';
+export { determineFinalSeverity } from './severity-determiner';

@@ -1,3 +1,4 @@
+
 /**
  * Consensus Score Calculator
  * 
@@ -6,12 +7,11 @@
  */
 
 import { InteractionSource, AdverseEventData } from '../../types';
-import { determineSourceWeight } from './source-weight';
-import { hasValidInteractionEvidence } from './source-validation';
+import { processSourcesWithWeights } from './source-processor';
+import { processAdverseEvents } from './adverse-event-processor';
+import { calculateConfidenceScore } from './confidence-calculator';
+import { determineFinalSeverity } from './severity-determiner';
 import { determineConsensusDescription } from './description-generator';
-
-// Threshold for considering a severe adverse event rate significant
-const SEVERE_EVENT_THRESHOLD = 0.05; // 5% of total events
 
 /**
  * Calculates a weighted severity score based on multiple sources
@@ -56,46 +56,8 @@ export function calculateConsensusScore(
     unknown: 0
   };
 
-  let totalWeight = 0;
-  let aiValidated = false;
-  
-  // Sort sources by name for deterministic processing order
-  const sortedSources = [...sources].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-  
-  // Filter sources to only include those with valid interaction evidence
-  const validSources = sortedSources.filter(source => {
-    // Safely check if source exists and has valid properties
-    if (!source) return false;
-    return hasValidInteractionEvidence(source);
-  });
-  
-  // If we have no valid sources, but have some sources, use all sources
-  // This prevents completely blank results when only general information is available
-  const sourcesToProcess = validSources.length > 0 ? validSources : sortedSources;
-  
-  // Process each source in deterministic order and collect their weights
-  const sourceWeights: { source: InteractionSource, weight: number }[] = [];
-  
-  sourcesToProcess.forEach(source => {
-    // Skip invalid sources
-    if (!source || !source.name) return;
-    
-    // Get the dynamic weight for this source based on evidence quality
-    const weight = determineSourceWeight(source);
-    
-    // Only include sources with positive weight
-    if (weight <= 0) return;
-    
-    sourceWeights.push({ source, weight });
-    
-    // Check if this is AI validation
-    if (source.name === 'AI Literature Analysis') {
-      aiValidated = true;
-    }
-  });
-
-  // Calculate total weight from all valid sources
-  totalWeight = sourceWeights.reduce((sum, item) => sum + item.weight, 0);
+  // Process sources and get their weights
+  const { sourceWeights, aiValidated, totalWeight } = processSourcesWithWeights(sources);
   
   // If no sources have weight, return unknown
   if (totalWeight === 0) {
@@ -107,7 +69,7 @@ export function calculateConsensusScore(
     };
   }
   
-  // Add weighted votes
+  // Add weighted votes from source weights
   sourceWeights.forEach(({ source, weight }) => {
     // Safely handle severity - default to unknown if not present
     const severity = source.severity || "unknown";
@@ -116,77 +78,34 @@ export function calculateConsensusScore(
   });
 
   // Factor in adverse events data if available
-  if (adverseEvents && adverseEvents.eventCount > 0) {
-    const adverseEventWeight = 0.95; // High confidence for real-world data
-    totalWeight += adverseEventWeight;
-    
-    // Calculate percentage of serious events
-    const seriousPercentage = adverseEvents.seriousCount / adverseEvents.eventCount;
-    
-    if (seriousPercentage >= SEVERE_EVENT_THRESHOLD) {
-      // Significant serious events -> severe
-      severityVotes.severe += adverseEventWeight;
-      severityCounts.severe++;
-    } else if (adverseEvents.seriousCount > 0) {
-      // Some serious events but below threshold -> moderate
-      severityVotes.moderate += adverseEventWeight;
-      severityCounts.moderate++;
-    } else if (adverseEvents.eventCount > 10) {
-      // Many non-serious events -> minor
-      severityVotes.minor += adverseEventWeight;
-      severityCounts.minor++;
-    } else {
-      // Few non-serious events -> considered safe
-      severityVotes.safe += (adverseEventWeight * 0.5); // Half weight for this case
-      severityCounts.safe++;
-    }
+  const adverseEventData = processAdverseEvents(adverseEvents);
+  if (adverseEventData) {
+    const { weight, severity, count } = adverseEventData;
+    severityVotes[severity] += weight;
+    severityCounts[severity] += count;
   }
 
   // Determine the final severity based on weighted votes
-  let finalSeverity: "safe" | "minor" | "moderate" | "severe" | "unknown" = "unknown";
-  let maxVote = 0;
+  const finalSeverity = determineFinalSeverity(severityVotes, sourceWeights);
 
-  // First check if we have any "severe" votes from high-confidence sources
-  const hasSevereFromHighConfidence = sourceWeights.some(({ source, weight }) => 
-    source.severity === "severe" && weight >= 0.6);
-    
-  if (severityVotes.severe > 0 && hasSevereFromHighConfidence) {
-    finalSeverity = "severe";
-  } else {
-    // Otherwise determine by highest weighted vote
-    // Process severity keys in a fixed order for deterministic results
-    const severityKeys: (keyof typeof severityVotes)[] = ["severe", "moderate", "minor", "safe", "unknown"];
-    
-    for (const severity of severityKeys) {
-      if (severityVotes[severity] > maxVote) {
-        maxVote = severityVotes[severity];
-        finalSeverity = severity;
-      }
-    }
-  }
-
-  // Calculate confidence score (0-100%) based on the weighted average
-  const primaryVote = severityVotes[finalSeverity];
-  let confidenceScore = totalWeight > 0 ? Math.round((primaryVote / totalWeight) * 100) : 0;
-  
-  // Apply additional confidence adjustments
-  if (sourceWeights.length >= 3) {
-    confidenceScore = Math.min(100, confidenceScore + 5);
-  }
-  
-  // Adjust confidence based on source agreement
-  const allAgree = Object.values(severityCounts).filter(count => count > 0).length === 1;
-  if (allAgree && sourceWeights.length > 1) {
-    confidenceScore = Math.min(100, confidenceScore + 10);
-  }
-  
-  // AI validation adjustment
-  if (aiValidated && severityCounts[finalSeverity] > 1) {
-    confidenceScore = Math.min(100, confidenceScore + 5);
-  }
+  // Calculate confidence score
+  const confidenceScore = calculateConfidenceScore(
+    finalSeverity,
+    severityVotes,
+    totalWeight,
+    sourceWeights,
+    severityCounts,
+    aiValidated
+  );
   
   // Generate a description that explains the consensus
-  let description = determineConsensusDescription(finalSeverity, confidenceScore, sourcesToProcess, adverseEvents);
+  const sourcesToProcess = sources.filter(source => source && source.name);
+  const description = determineConsensusDescription(
+    finalSeverity, 
+    confidenceScore, 
+    sourcesToProcess, 
+    adverseEvents
+  );
 
   return {
     severity: finalSeverity,
