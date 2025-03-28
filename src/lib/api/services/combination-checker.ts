@@ -1,43 +1,14 @@
 
-import { InteractionResult, MedicationLookupResult, InteractionSource } from '../types';
-import { processMedicationLookups, validateMedicationPair } from '../utils/medication-lookup-utils';
-import { processMedicationPair, createFallbackInteractionResult } from '../utils/pair-processing-utils';
-import { processMedicationTriple } from '../utils/triple-processing-utils';
+import { InteractionResult, MedicationLookupResult } from '../types';
+import { processMedicationLookups } from '../utils/medication-lookup-utils';
+import { CombinationResult } from './combination-types';
+import { processCombination } from './processors/combination-processor';
+import { createFallbackCombinationResult } from './processors/fallback-processor';
 import { 
   generateSingleCombinations, 
   generatePairCombinations, 
   generateTripleCombinations 
 } from '../../utils/combination-utils';
-
-export interface CombinationResult extends InteractionResult {
-  type: 'single' | 'pair' | 'triple';
-  label: string;
-}
-
-/**
- * Creates a fallback combination result
- */
-function createFallbackCombinationResult(
-  medications: string[],
-  type: 'single' | 'pair' | 'triple',
-  error?: string
-): CombinationResult {
-  const label = medications.join(' + ');
-  const description = error || `No data available for this ${type} combination.`;
-  
-  return {
-    medications,
-    severity: "unknown",
-    description,
-    sources: [{
-      name: "No data available",
-      severity: "unknown",
-      description
-    }],
-    type,
-    label
-  };
-}
 
 /**
  * Check all possible combinations of medications (singles, pairs, triples)
@@ -70,12 +41,8 @@ export async function checkAllCombinations(medications: string[]): Promise<Combi
     // Process single medications
     for (const [med] of singles) {
       try {
-        const result = await processSingleMedication(med, medicationStatuses);
-        results.push({
-          ...result,
-          type: 'single',
-          label: med
-        });
+        const result = await processCombination([med], 'single', medicationStatuses);
+        results.push(result);
       } catch (error) {
         console.error(`Error processing single medication ${med}:`, error);
         results.push(createFallbackCombinationResult([med], 'single', 
@@ -88,42 +55,8 @@ export async function checkAllCombinations(medications: string[]): Promise<Combi
     // Process medication pairs
     for (const [med1, med2] of pairs) {
       try {
-        const { isValid, error } = validateMedicationPair(med1, med2, medicationStatuses);
-        
-        if (!isValid) {
-          results.push({
-            medications: [med1, med2],
-            severity: "unknown",
-            description: error || "Unknown error occurred",
-            sources: [{
-              name: "No data available",
-              severity: "unknown",
-              description: error || "Unknown error occurred"
-            }],
-            type: 'pair',
-            label: `${med1} + ${med2}`
-          });
-          continue;
-        }
-        
-        const pairResult = await processMedicationPair(med1, med2, medicationStatuses);
-        
-        // Verify the pair result is valid
-        if (!pairResult || !pairResult.severity || !pairResult.sources || pairResult.sources.length === 0) {
-          console.warn(`Invalid pair result for ${med1} + ${med2}, using fallback`);
-          const fallback = createFallbackInteractionResult(med1, med2);
-          results.push({
-            ...fallback,
-            type: 'pair',
-            label: `${med1} + ${med2}`
-          });
-        } else {
-          results.push({
-            ...pairResult,
-            type: 'pair',
-            label: `${med1} + ${med2}`
-          });
-        }
+        const result = await processCombination([med1, med2], 'pair', medicationStatuses);
+        results.push(result);
       } catch (error) {
         console.error(`Error processing medication pair ${med1} + ${med2}:`, error);
         results.push(createFallbackCombinationResult([med1, med2], 'pair', 
@@ -136,19 +69,8 @@ export async function checkAllCombinations(medications: string[]): Promise<Combi
     // Process medication triples if available
     for (const [med1, med2, med3] of triples) {
       try {
-        const tripleResult = await processMedicationTriple(med1, med2, med3, medicationStatuses);
-        
-        // Verify the triple result is valid
-        if (!tripleResult || !tripleResult.severity || !tripleResult.sources || tripleResult.sources.length === 0) {
-          console.warn(`Invalid triple result for ${med1} + ${med2} + ${med3}, using fallback`);
-          results.push(createFallbackCombinationResult([med1, med2, med3], 'triple'));
-        } else {
-          results.push({
-            ...tripleResult,
-            type: 'triple',
-            label: `${med1} + ${med2} + ${med3}`
-          });
-        }
+        const result = await processCombination([med1, med2, med3], 'triple', medicationStatuses);
+        results.push(result);
       } catch (error) {
         console.error(`Error processing medication triple ${med1} + ${med2} + ${med3}:`, error);
         results.push(createFallbackCombinationResult([med1, med2, med3], 'triple', 
@@ -186,57 +108,4 @@ export async function checkAllCombinations(medications: string[]): Promise<Combi
       ];
     }
   }
-}
-
-/**
- * Process a single medication for adverse events and warnings
- */
-async function processSingleMedication(
-  medication: string,
-  medicationStatuses: Map<string, MedicationLookupResult>
-): Promise<InteractionResult> {
-  const medStatus = medicationStatuses.get(medication);
-  
-  if (!medStatus) {
-    console.warn(`Medication status not found for ${medication}`);
-    return {
-      medications: [medication],
-      severity: "unknown",
-      description: "Medication information not found",
-      sources: [{
-        name: "No data available",
-        severity: "unknown",
-        description: "Medication information not found"
-      }]
-    };
-  }
-  
-  // For single medications, we just use the warnings as sources
-  const sources: InteractionSource[] = medStatus.warnings && medStatus.warnings.length > 0 
-    ? medStatus.warnings.map(warning => ({
-        name: "FDA Warnings",
-        severity: "minor" as const,
-        description: warning
-      })) 
-    : [{
-        name: "FDA Information",
-        severity: "unknown" as const,
-        description: "No specific warnings found for this medication"
-      }];
-  
-  // Ensure sources array is not empty
-  if (sources.length === 0) {
-    sources.push({
-      name: "No Data Available",
-      severity: "unknown" as const,
-      description: "No information available for this medication"
-    });
-  }
-  
-  return {
-    medications: [medication],
-    severity: sources[0].severity,
-    description: `Information about ${medication}`,
-    sources
-  };
 }

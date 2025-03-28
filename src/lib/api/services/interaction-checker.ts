@@ -3,7 +3,7 @@ import { InteractionResult } from '../types';
 import { checkAllCombinations } from './combination-checker';
 
 // Use export type for re-exporting types when isolatedModules is enabled
-export type { CombinationResult } from './combination-checker';
+export type { CombinationResult } from './combination-types';
 
 /**
  * Enhanced interaction checker that processes single, pair, and triple combinations
