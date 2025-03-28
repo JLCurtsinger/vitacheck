@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { InteractionResult } from "@/lib/api-utils";
-import { CombinationResult } from "@/lib/api/services/interaction-checker";
+import { CombinationResult } from "@/lib/api/medication-service";
 import { getCombinedRiskAssessment } from "../utils/risk-utils";
 
 export function useInteractionDisplay(

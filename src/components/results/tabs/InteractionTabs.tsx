@@ -5,7 +5,7 @@ import { InteractionGroup } from "../InteractionGroup";
 import { CombinedInteractionCard } from "../CombinedInteractionCard";
 import { SingleMedicationView } from "../SingleMedicationView";
 import { InteractionResult } from "@/lib/api-utils";
-import { CombinationResult } from "@/lib/api/services/interaction-checker";
+import { CombinationResult } from "@/lib/api/medication-service";
 import { RiskAssessmentOutput } from "@/lib/utils/risk-assessment/types";
 
 interface InteractionTabsProps {
