@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from "react";
 import { InteractionResult } from "@/lib/api-utils";
 import { CombinationResult } from "@/lib/api/services/interaction-checker";
@@ -19,6 +20,7 @@ export function useInteractionDisplay(
     const hasTypes = validInteractions.length > 0 && 'type' in validInteractions[0];
     
     if (hasTypes) {
+      // If the interactions already have types, we can cast them directly
       const typed = validInteractions as CombinationResult[];
       return {
         singles: typed.filter(i => i.type === 'single'),
@@ -28,10 +30,15 @@ export function useInteractionDisplay(
     }
     
     // Default behavior (backward compatibility)
+    // Convert InteractionResult[] to CombinationResult[] by adding the missing properties
     return {
-      singles: [],
-      pairs: validInteractions,
-      triples: []
+      singles: [] as CombinationResult[],
+      pairs: validInteractions.map(interaction => ({
+        ...interaction,
+        type: 'pair' as const,
+        label: interaction.medications.join(' + ')
+      })) as CombinationResult[],
+      triples: [] as CombinationResult[]
     };
   }, [validInteractions]);
   

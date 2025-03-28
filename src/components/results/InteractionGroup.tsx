@@ -41,7 +41,7 @@ export function InteractionGroup({
             id={id}
             label={label}
             isOpen={openSections[id] !== false}
-            onToggle={toggleSection}
+            onToggle={() => toggleSection(id)}
             risk={risk}
           />
         );
