@@ -148,6 +148,10 @@ export function getFDALabelNutrientDepletions(fdaWarnings: string[]): string[] {
   return detectedDepletions;
 }
 
+// Import the new DB functions
+import { findOrCreateSubstance } from "../db/substances";
+import { createNutrientDepletion, getNutrientDepletionsByMedicationName, getNutrientDepletionsBySubstanceId } from "../db/nutrient-depletions";
+
 /**
  * Get nutrient depletions from Supabase for a medication
  */
@@ -155,20 +159,28 @@ export async function getDatabaseNutrientDepletions(medicationName: string): Pro
   if (!medicationName) return null;
   
   try {
-    const normalizedMed = medicationName.toLowerCase().trim();
+    // First try to get the depletions by substance_id if possible
+    const substance = await findOrCreateSubstance(medicationName.toLowerCase().trim());
     
-    const { data, error } = await supabase
-      .from('nutrient_depletions')
-      .select('depleted_nutrient, source')
-      .ilike('medication_name', `%${normalizedMed}%`);
-    
-    if (error) {
-      console.error('Error fetching nutrient depletions from database:', error);
-      return null;
+    let depletions;
+    if (substance) {
+      // Try to get depletions using the substance_id first (new schema)
+      const { data: bySubstanceId } = await getNutrientDepletionsBySubstanceId(substance.id);
+      depletions = bySubstanceId;
+      
+      // If no results, fall back to the medication_name (old schema)
+      if (!depletions || depletions.length === 0) {
+        const { data: byName } = await getNutrientDepletionsByMedicationName(medicationName.toLowerCase().trim());
+        depletions = byName;
+      }
+    } else {
+      // If substance not found, search by medication name
+      const { data } = await getNutrientDepletionsByMedicationName(medicationName.toLowerCase().trim());
+      depletions = data;
     }
     
-    if (data && data.length > 0) {
-      const nutrients = data.map(item => item.depleted_nutrient);
+    if (depletions && depletions.length > 0) {
+      const nutrients = depletions.map(item => item.depleted_nutrient);
       return {
         nutrients,
         source: 'Database'
@@ -188,12 +200,30 @@ export async function getDatabaseNutrientDepletions(medicationName: string): Pro
 export async function saveNutrientDepletions(depletions: NutrientDepletion[]): Promise<void> {
   try {
     for (const depletion of depletions) {
+      // First, try to find or create the substance
+      const substance = await findOrCreateSubstance(
+        depletion.medication.toLowerCase(),
+        'medication',
+        'User'
+      );
+      
       for (const nutrient of depletion.depletedNutrients) {
         // Only use the first source for simplicity
         const source = depletion.sources[0] || 'Unknown';
         
         try {
-          // Call the Edge Function instead of direct database insert
+          // First try to save via our new database function
+          if (substance) {
+            await createNutrientDepletion({
+              medication_name: depletion.medication.toLowerCase(),
+              depleted_nutrient: nutrient,
+              source: source,
+              substance_id: substance.id
+            });
+            continue; // Skip the edge function if direct DB save succeeded
+          }
+          
+          // Fall back to the Edge Function if direct DB save failed
           const response = await fetch('/.netlify/functions/logNutrientDepletion', {
             method: 'POST',
             headers: {
@@ -211,7 +241,7 @@ export async function saveNutrientDepletions(depletions: NutrientDepletion[]): P
             console.error('Error saving nutrient depletion via Edge Function:', errorData);
           }
         } catch (error) {
-          console.error('Error calling logNutrientDepletion Edge Function:', error);
+          console.error('Error saving nutrient depletion:', error);
           // Continue with the loop even if one request fails
         }
       }

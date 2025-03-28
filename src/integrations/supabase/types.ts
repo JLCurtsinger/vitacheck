@@ -39,6 +39,86 @@ export type Database = {
         }
         Relationships: []
       }
+      interactions: {
+        Row: {
+          api_responses: Json | null
+          confidence_level: number | null
+          first_detected: string
+          flagged_by_user: boolean | null
+          id: string
+          interaction_detected: boolean
+          last_checked: string
+          notes: string | null
+          risk_score: number | null
+          severity: string | null
+          sources: string[] | null
+          substance_a_id: string
+          substance_b_id: string
+          updated_at: string
+        }
+        Insert: {
+          api_responses?: Json | null
+          confidence_level?: number | null
+          first_detected?: string
+          flagged_by_user?: boolean | null
+          id?: string
+          interaction_detected?: boolean
+          last_checked?: string
+          notes?: string | null
+          risk_score?: number | null
+          severity?: string | null
+          sources?: string[] | null
+          substance_a_id: string
+          substance_b_id: string
+          updated_at?: string
+        }
+        Update: {
+          api_responses?: Json | null
+          confidence_level?: number | null
+          first_detected?: string
+          flagged_by_user?: boolean | null
+          id?: string
+          interaction_detected?: boolean
+          last_checked?: string
+          notes?: string | null
+          risk_score?: number | null
+          severity?: string | null
+          sources?: string[] | null
+          substance_a_id?: string
+          substance_b_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interactions_substance_a_id_fkey"
+            columns: ["substance_a_id"]
+            isOneToOne: false
+            referencedRelation: "substance_experiences"
+            referencedColumns: ["substance_id"]
+          },
+          {
+            foreignKeyName: "interactions_substance_a_id_fkey"
+            columns: ["substance_a_id"]
+            isOneToOne: false
+            referencedRelation: "substances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interactions_substance_b_id_fkey"
+            columns: ["substance_b_id"]
+            isOneToOne: false
+            referencedRelation: "substance_experiences"
+            referencedColumns: ["substance_id"]
+          },
+          {
+            foreignKeyName: "interactions_substance_b_id_fkey"
+            columns: ["substance_b_id"]
+            isOneToOne: false
+            referencedRelation: "substances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ml_risk_predictions: {
         Row: {
           actual_risk: string | null
@@ -82,6 +162,7 @@ export type Database = {
           id: string
           medication_name: string
           source: string
+          substance_id: string | null
         }
         Insert: {
           created_at?: string
@@ -89,6 +170,7 @@ export type Database = {
           id?: string
           medication_name: string
           source: string
+          substance_id?: string | null
         }
         Update: {
           created_at?: string
@@ -96,12 +178,76 @@ export type Database = {
           id?: string
           medication_name?: string
           source?: string
+          substance_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nutrient_depletions_substance_id_fkey"
+            columns: ["substance_id"]
+            isOneToOne: false
+            referencedRelation: "substance_experiences"
+            referencedColumns: ["substance_id"]
+          },
+          {
+            foreignKeyName: "nutrient_depletions_substance_id_fkey"
+            columns: ["substance_id"]
+            isOneToOne: false
+            referencedRelation: "substances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      substances: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_name: string
+          id: string
+          name: string
+          origin: Database["public"]["Enums"]["substance_origin"]
+          rxcui: string | null
+          type: Database["public"]["Enums"]["substance_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_name: string
+          id?: string
+          name: string
+          origin: Database["public"]["Enums"]["substance_origin"]
+          rxcui?: string | null
+          type: Database["public"]["Enums"]["substance_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          id?: string
+          name?: string
+          origin?: Database["public"]["Enums"]["substance_origin"]
+          rxcui?: string | null
+          type?: Database["public"]["Enums"]["substance_type"]
+          updated_at?: string
         }
         Relationships: []
       }
     }
     Views: {
-      [_ in never]: never
+      substance_experiences: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          downvotes: number | null
+          id: string | null
+          medication_name: string | null
+          sentiment: string | null
+          substance_id: string | null
+          upvotes: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       gtrgm_compress: {
@@ -152,7 +298,8 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      substance_origin: "RxNorm" | "SUPP.AI" | "openFDA" | "Erowid" | "User"
+      substance_type: "medication" | "supplement"
     }
     CompositeTypes: {
       [_ in never]: never
