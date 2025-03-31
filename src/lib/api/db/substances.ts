@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { Substance, SubstanceOrigin, SubstanceType, DbResult } from "./types";
+import { normalizeMedicationName } from "../utils/name-normalizer";
 
 /**
  * Get a substance by name
@@ -8,10 +9,12 @@ import { Substance, SubstanceOrigin, SubstanceType, DbResult } from "./types";
  * @returns Substance data or null if not found
  */
 export async function getSubstanceByName(name: string): Promise<DbResult<Substance>> {
+  const normalizedName = normalizeMedicationName(name);
+  
   const { data, error } = await supabase
     .from('substances')
     .select('*')
-    .ilike('name', name)
+    .ilike('name', normalizedName)
     .maybeSingle();
   
   return { data, error };
@@ -62,10 +65,12 @@ export async function getSubstances(
  * @returns Created substance or error
  */
 export async function createSubstance(substance: Omit<Substance, 'id' | 'created_at' | 'updated_at'>): Promise<DbResult<Substance>> {
+  const normalizedName = normalizeMedicationName(substance.name);
+  
   const { data, error } = await supabase
     .from('substances')
     .insert({
-      name: substance.name.toLowerCase().trim(), // Store name in lowercase
+      name: normalizedName, // Store name in normalized form
       display_name: substance.display_name,
       type: substance.type,
       rxcui: substance.rxcui,
@@ -90,10 +95,18 @@ export async function findOrCreateSubstance(
   type: SubstanceType = 'medication',
   origin: SubstanceOrigin = 'User'
 ): Promise<Substance | null> {
+  if (!name) {
+    console.error('Cannot find or create substance: name is empty');
+    return null;
+  }
+  
+  const normalizedName = normalizeMedicationName(name);
+  
   // First try to find the substance
-  const { data: existingSubstance } = await getSubstanceByName(name);
+  const { data: existingSubstance } = await getSubstanceByName(normalizedName);
   
   if (existingSubstance) {
+    console.log(`Found existing substance: ${normalizedName}`);
     return existingSubstance;
   }
   
@@ -104,7 +117,7 @@ export async function findOrCreateSubstance(
     .join(' ');
     
   const { data: newSubstance, error } = await createSubstance({
-    name: name.toLowerCase(),
+    name: normalizedName,
     display_name: displayName,
     type,
     origin
@@ -115,5 +128,6 @@ export async function findOrCreateSubstance(
     return null;
   }
   
+  console.log(`Created new substance: ${normalizedName}`);
   return newSubstance;
 }

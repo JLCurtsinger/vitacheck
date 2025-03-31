@@ -1,5 +1,5 @@
-
 import { getGenericName, isBrandName } from "@/services/medication/brand-to-generic";
+import { normalizeMedicationName } from "@/lib/api/utils/name-normalizer";
 
 /**
  * Utility functions for formatting medication names
@@ -103,6 +103,7 @@ export function spellcheckMedication(medicationName: string): string {
  * 2. Spellcheck
  * 3. Convert brand to generic if applicable
  * 4. Normalize capitalization
+ * 5. Database normalization if storing
  */
 export function prepareMedicationNameForApi(medicationName: string): string {
   if (!medicationName) return "";
@@ -142,4 +143,16 @@ export function prepareMedicationForDisplay(medicationName: string): {
     genericName: normalizeMedicationName(genericName),
     isBrand
   };
+}
+
+/**
+ * Normalize medication name for database storage
+ * This function ensures names are consistently stored in the database
+ * to prevent duplicates
+ */
+export function prepareMedicationNameForStorage(medicationName: string): string {
+  if (!medicationName) return "";
+  
+  // Use the shared name normalizer
+  return normalizeMedicationName(medicationName);
 }

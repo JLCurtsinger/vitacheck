@@ -1,5 +1,6 @@
 
 import { Handler } from '@netlify/functions';
+import { normalizeMedicationName } from '../../../src/lib/api/utils/name-normalizer';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,6 +53,9 @@ const handler: Handler = async (event) => {
       };
     }
 
+    // Normalize medication name
+    const normalizedMedication = normalizeMedicationName(requestData.medication_name);
+
     // Call the Supabase Edge Function to handle the actual database operation
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_KEY;
@@ -89,7 +93,7 @@ const handler: Handler = async (event) => {
         'Authorization': `Bearer ${supabaseKey}`
       },
       body: JSON.stringify({
-        medication_name: requestData.medication_name,
+        medication_name: normalizedMedication,
         depleted_nutrient: requestData.depleted_nutrient,
         source: requestData.source
       })

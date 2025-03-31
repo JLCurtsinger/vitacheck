@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { NutrientDepletion, DbResult } from "./types";
 import { findOrCreateSubstance } from "./substances";
+import { normalizeMedicationName } from "../utils/name-normalizer";
 
 /**
  * Get nutrient depletions for a substance by its ID
@@ -27,12 +28,41 @@ export async function getNutrientDepletionsBySubstanceId(
 export async function getNutrientDepletionsByMedicationName(
   medicationName: string
 ): Promise<DbResult<NutrientDepletion[]>> {
+  const normalizedName = normalizeMedicationName(medicationName);
+  
   const { data, error } = await supabase
     .from('nutrient_depletions')
     .select('*')
-    .ilike('medication_name', medicationName);
+    .ilike('medication_name', normalizedName);
   
   return { data, error };
+}
+
+/**
+ * Check if a nutrient depletion already exists
+ * @param medicationName Medication name
+ * @param depletedNutrient Nutrient being depleted
+ * @returns Boolean indicating if the depletion exists
+ */
+export async function checkNutrientDepletionExists(
+  medicationName: string,
+  depletedNutrient: string
+): Promise<boolean> {
+  const normalizedName = normalizeMedicationName(medicationName);
+  
+  const { data, error } = await supabase
+    .from('nutrient_depletions')
+    .select('id')
+    .ilike('medication_name', normalizedName)
+    .eq('depleted_nutrient', depletedNutrient)
+    .maybeSingle();
+  
+  if (error) {
+    console.error('Error checking for existing nutrient depletion:', error);
+    return false;
+  }
+  
+  return !!data;
 }
 
 /**
@@ -43,12 +73,22 @@ export async function getNutrientDepletionsByMedicationName(
 export async function createNutrientDepletion(
   depletion: Pick<NutrientDepletion, 'medication_name' | 'depleted_nutrient' | 'source'> & { substance_id?: string }
 ): Promise<DbResult<NutrientDepletion>> {
+  const normalizedName = normalizeMedicationName(depletion.medication_name);
+  
+  // Check if this nutrient depletion already exists
+  const exists = await checkNutrientDepletionExists(normalizedName, depletion.depleted_nutrient);
+  
+  if (exists) {
+    console.log(`Nutrient depletion already exists for ${normalizedName} - ${depletion.depleted_nutrient}`);
+    return { data: null, error: null }; // Return null without an error to indicate it was skipped
+  }
+  
   // If no substance_id is provided, try to find or create the substance
   let substanceId = depletion.substance_id;
   
   if (!substanceId) {
     const substance = await findOrCreateSubstance(
-      depletion.medication_name, 
+      normalizedName, 
       'medication',
       'User'
     );
@@ -61,13 +101,19 @@ export async function createNutrientDepletion(
   const { data, error } = await supabase
     .from('nutrient_depletions')
     .insert({
-      medication_name: depletion.medication_name.toLowerCase(),
+      medication_name: normalizedName,
       depleted_nutrient: depletion.depleted_nutrient,
       source: depletion.source,
       substance_id: substanceId
     })
     .select()
     .maybeSingle();
+  
+  if (error) {
+    console.error('Error creating nutrient depletion:', error);
+  } else {
+    console.log(`Successfully created nutrient depletion for ${normalizedName} - ${depletion.depleted_nutrient}`);
+  }
   
   return { data, error };
 }

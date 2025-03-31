@@ -13,6 +13,27 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 }
 
+/**
+ * Normalize a medication name for database storage
+ */
+function normalizeMedicationName(name: string): string {
+  if (!name) return '';
+  
+  // Convert to lowercase and trim
+  let normalized = name.toLowerCase().trim();
+  
+  // Remove content inside parentheses including the parentheses
+  normalized = normalized.replace(/\s*\([^)]*\)/g, '');
+  
+  // Remove special characters (commas, periods, etc.)
+  normalized = normalized.replace(/[,.;:#!?'"]/g, '');
+  
+  // Replace multiple spaces with a single space
+  normalized = normalized.replace(/\s+/g, ' ');
+  
+  return normalized.trim();
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -36,7 +57,7 @@ serve(async (req) => {
     
     // Parse the request body
     const requestData = await req.json()
-    const { medication_name, depleted_nutrient, source } = requestData
+    let { medication_name, depleted_nutrient, source } = requestData
     
     // Validate required fields
     if (!medication_name || !depleted_nutrient || !source) {
@@ -48,13 +69,16 @@ serve(async (req) => {
       )
     }
     
-    console.log(`Processing nutrient depletion: ${medication_name} - ${depleted_nutrient} from ${source}`)
+    // Normalize the medication name
+    const normalizedMedication = normalizeMedicationName(medication_name);
+    
+    console.log(`Processing nutrient depletion: ${normalizedMedication} - ${depleted_nutrient} from ${source}`)
     
     // Check if entry already exists to avoid duplicates
     const { data: existingData, error: queryError } = await supabase
       .from('nutrient_depletions')
       .select('id')
-      .eq('medication_name', medication_name.toLowerCase())
+      .ilike('medication_name', normalizedMedication)
       .eq('depleted_nutrient', depleted_nutrient)
       .limit(1)
     
@@ -68,12 +92,47 @@ serve(async (req) => {
     
     // Only insert if this is a new entry
     if (!existingData || existingData.length === 0) {
+      // Try to find or create a substance first
+      const { data: substanceData } = await supabase
+        .from('substances')
+        .select('id')
+        .ilike('name', normalizedMedication)
+        .limit(1);
+        
+      let substanceId = null;
+      
+      if (!substanceData || substanceData.length === 0) {
+        // Create a new substance
+        const displayName = medication_name
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+          .join(' ');
+          
+        const { data: newSubstance } = await supabase
+          .from('substances')
+          .insert({
+            name: normalizedMedication,
+            display_name: displayName,
+            type: 'medication',
+            origin: 'User'
+          })
+          .select('id')
+          .single();
+          
+        if (newSubstance) {
+          substanceId = newSubstance.id;
+        }
+      } else {
+        substanceId = substanceData[0].id;
+      }
+      
       const { data, error: insertError } = await supabase
         .from('nutrient_depletions')
         .insert({
-          medication_name: medication_name.toLowerCase(),
+          medication_name: normalizedMedication,
           depleted_nutrient: depleted_nutrient,
-          source: source
+          source: source,
+          substance_id: substanceId
         })
         .select()
       

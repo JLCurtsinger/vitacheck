@@ -1,7 +1,7 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Interaction, DbResult } from "./types";
 import { findOrCreateSubstance } from "./substances";
+import { normalizeMedicationName } from "../utils/name-normalizer";
 
 /**
  * Get an interaction between two substances by their IDs
@@ -45,17 +45,54 @@ export async function getInteractionsBySubstanceId(
 }
 
 /**
- * Create a new interaction record
- * @param interaction Interaction data to create
- * @returns Created interaction or error
+ * Create a new interaction record or update if it already exists
+ * @param interaction Interaction data to create or update
+ * @returns Created/Updated interaction or error
  */
-export async function createInteraction(
-  interaction: Omit<Interaction, 'id' | 'first_detected' | 'last_checked' | 'updated_at'>
+export async function createOrUpdateInteraction(
+  interaction: Omit<Interaction, 'id' | 'first_detected' | 'updated_at'>
 ): Promise<DbResult<Interaction>> {
   // Ensure substance_a_id < substance_b_id per our constraint
   const [substanceAId, substanceBId] = interaction.substance_a_id < interaction.substance_b_id
     ? [interaction.substance_a_id, interaction.substance_b_id]
     : [interaction.substance_b_id, interaction.substance_a_id];
+  
+  // Check if the interaction already exists
+  const { data: existingInteraction } = await getInteractionBySubstanceIds(
+    substanceAId,
+    substanceBId
+  );
+  
+  if (existingInteraction) {
+    // Update the existing interaction
+    console.log(`Updating existing interaction between substance IDs: ${substanceAId} and ${substanceBId}`);
+    
+    const { data, error } = await supabase
+      .from('interactions')
+      .update({
+        interaction_detected: interaction.interaction_detected,
+        severity: interaction.severity,
+        risk_score: interaction.risk_score,
+        confidence_level: interaction.confidence_level,
+        sources: interaction.sources,
+        api_responses: interaction.api_responses,
+        notes: interaction.notes,
+        flagged_by_user: interaction.flagged_by_user,
+        last_checked: new Date().toISOString()
+      })
+      .eq('id', existingInteraction.id)
+      .select()
+      .maybeSingle();
+    
+    if (error) {
+      console.error('Error updating interaction:', error);
+    }
+    
+    return { data, error };
+  }
+  
+  // Create a new interaction if it doesn't exist
+  console.log(`Creating new interaction between substance IDs: ${substanceAId} and ${substanceBId}`);
   
   const { data, error } = await supabase
     .from('interactions')
@@ -74,6 +111,12 @@ export async function createInteraction(
     .select()
     .maybeSingle();
   
+  if (error) {
+    console.error('Error creating interaction:', error);
+  } else {
+    console.log('Successfully created new interaction:', data);
+  }
+  
   return { data, error };
 }
 
@@ -87,9 +130,18 @@ export async function findOrCreateInteractionByNames(
   medicationA: string,
   medicationB: string
 ): Promise<Interaction | null> {
+  // Normalize medication names
+  const normalizedMedA = normalizeMedicationName(medicationA);
+  const normalizedMedB = normalizeMedicationName(medicationB);
+  
+  if (!normalizedMedA || !normalizedMedB) {
+    console.error('Cannot find or create interaction: medication name(s) are empty after normalization');
+    return null;
+  }
+  
   // Find or create the substances
-  const substanceA = await findOrCreateSubstance(medicationA);
-  const substanceB = await findOrCreateSubstance(medicationB);
+  const substanceA = await findOrCreateSubstance(normalizedMedA);
+  const substanceB = await findOrCreateSubstance(normalizedMedB);
   
   if (!substanceA || !substanceB) {
     console.error('Could not find or create substances for interaction');
@@ -103,11 +155,14 @@ export async function findOrCreateInteractionByNames(
   );
   
   if (existingInteraction) {
+    console.log(`Found existing interaction between ${normalizedMedA} and ${normalizedMedB}`);
     return existingInteraction;
   }
   
   // Create a new interaction if it doesn't exist
-  const { data: newInteraction, error } = await createInteraction({
+  console.log(`Creating new interaction between ${normalizedMedA} and ${normalizedMedB}`);
+  
+  const { data: newInteraction, error } = await createOrUpdateInteraction({
     substance_a_id: substanceA.id < substanceB.id ? substanceA.id : substanceB.id,
     substance_b_id: substanceA.id < substanceB.id ? substanceB.id : substanceA.id,
     interaction_detected: false // Default until we detect an interaction
@@ -118,5 +173,6 @@ export async function findOrCreateInteractionByNames(
     return null;
   }
   
+  console.log('Successfully created new interaction');
   return newInteraction;
 }
