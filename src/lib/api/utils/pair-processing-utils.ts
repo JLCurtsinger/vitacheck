@@ -15,6 +15,8 @@ import { generateMedicationPairs } from './medication-pairs';
 import { hasInteractionCache, getCachedInteractionResult, cacheInteractionResult } from './interaction-cache';
 import { checkForHighRiskPair } from './high-risk-checker';
 import { processApiInteractions } from './api-interactions-processor';
+import { findOrCreateInteractionByNames } from '@/lib/api/db/interactions';
+import { useToast } from '@/hooks/use-toast';
 
 // Session-level cache for API interactions
 const apiInteractionsCache = new Map<string, any>();
@@ -55,12 +57,14 @@ export function createFallbackInteractionResult(
 
 /**
  * Processes a pair of medications to determine potential interactions
+ * and saves the results to the database
  * 
  * This function:
  * 1. Queries multiple medical databases (RxNorm, SUPP.AI, FDA) simultaneously
  * 2. Aggregates and merges the results from all sources
  * 3. Determines the final severity rating based on all available data
  * 4. Ensures interactions are always displayed if any API detects them
+ * 5. Saves the processed interaction to the database
  * 
  * @param med1 - First medication name
  * @param med2 - Second medication name
@@ -98,6 +102,8 @@ export async function processMedicationPair(
     // First check for known high-risk combinations
     const highRiskResult = checkForHighRiskPair(med1, med2);
     if (highRiskResult) {
+      // Save high-risk interaction to the database
+      await saveInteractionToDatabase(med1, med2, highRiskResult);
       return highRiskResult;
     }
 
@@ -162,6 +168,9 @@ export async function processMedicationPair(
       confidenceScore: result.confidenceScore
     });
     
+    // Save the processed interaction to the database
+    await saveInteractionToDatabase(med1, med2, result);
+    
     // Cache the result for future lookups
     cacheInteractionResult(med1, med2, result);
 
@@ -172,3 +181,53 @@ export async function processMedicationPair(
       `An error occurred while processing this medication pair: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
+
+/**
+ * Saves interaction result to the database
+ * 
+ * @param med1 First medication name
+ * @param med2 Second medication name
+ * @param result Interaction result
+ */
+async function saveInteractionToDatabase(
+  med1: string,
+  med2: string,
+  result: InteractionResult
+): Promise<void> {
+  try {
+    // Create or find the interaction in the database
+    const dbInteraction = await findOrCreateInteractionByNames(med1, med2);
+    
+    if (!dbInteraction) {
+      console.error(`Failed to save interaction between ${med1} and ${med2} to database`);
+      return;
+    }
+    
+    // Extract source names for storage
+    const sourceNames = result.sources.map(source => source.name);
+    
+    // Update the interaction with the processed data
+    const { error } = await supabase
+      .from('interactions')
+      .update({
+        interaction_detected: result.severity !== "safe" && result.severity !== "unknown",
+        severity: result.severity,
+        risk_score: result.confidenceScore,
+        confidence_level: result.confidenceScore,
+        sources: sourceNames,
+        last_checked: new Date().toISOString()
+      })
+      .eq('id', dbInteraction.id);
+    
+    if (error) {
+      console.error(`Error saving interaction between ${med1} and ${med2} to database:`, error);
+    } else {
+      console.log(`Successfully saved interaction between ${med1} and ${med2} to database`);
+    }
+  } catch (error) {
+    console.error(`Error in saveInteractionToDatabase for ${med1} + ${med2}:`, error);
+  }
+}
+
+// Import supabase client for database operations
+import { supabase } from "@/integrations/supabase/client";

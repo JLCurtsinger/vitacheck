@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Interaction, DbResult } from "./types";
 import { findOrCreateSubstance } from "./substances";
@@ -50,7 +51,7 @@ export async function getInteractionsBySubstanceId(
  * @returns Created/Updated interaction or error
  */
 export async function createOrUpdateInteraction(
-  interaction: Omit<Interaction, 'id' | 'first_detected' | 'updated_at'>
+  interaction: Omit<Interaction, "id" | "first_detected" | "updated_at">
 ): Promise<DbResult<Interaction>> {
   // Ensure substance_a_id < substance_b_id per our constraint
   const [substanceAId, substanceBId] = interaction.substance_a_id < interaction.substance_b_id
@@ -86,6 +87,8 @@ export async function createOrUpdateInteraction(
     
     if (error) {
       console.error('Error updating interaction:', error);
+    } else {
+      console.log('Successfully updated interaction:', data);
     }
     
     return { data, error };
@@ -107,7 +110,7 @@ export async function createOrUpdateInteraction(
       api_responses: interaction.api_responses,
       notes: interaction.notes,
       flagged_by_user: interaction.flagged_by_user,
-      last_checked: new Date().toISOString() // Add the missing last_checked field
+      last_checked: new Date().toISOString()
     })
     .select()
     .maybeSingle();
@@ -140,9 +143,13 @@ export async function findOrCreateInteractionByNames(
     return null;
   }
   
+  // Sort medication names alphabetically for consistent storage
+  const [sortedMedA, sortedMedB] = [normalizedMedA, normalizedMedB].sort();
+  console.log(`Normalized medications for database: ${sortedMedA} and ${sortedMedB}`);
+  
   // Find or create the substances
-  const substanceA = await findOrCreateSubstance(normalizedMedA);
-  const substanceB = await findOrCreateSubstance(normalizedMedB);
+  const substanceA = await findOrCreateSubstance(sortedMedA);
+  const substanceB = await findOrCreateSubstance(sortedMedB);
   
   if (!substanceA || !substanceB) {
     console.error('Could not find or create substances for interaction');
@@ -156,18 +163,18 @@ export async function findOrCreateInteractionByNames(
   );
   
   if (existingInteraction) {
-    console.log(`Found existing interaction between ${normalizedMedA} and ${normalizedMedB}`);
+    console.log(`Found existing interaction between ${sortedMedA} and ${sortedMedB}`);
     return existingInteraction;
   }
   
   // Create a new interaction if it doesn't exist
-  console.log(`Creating new interaction between ${normalizedMedA} and ${normalizedMedB}`);
+  console.log(`Creating new interaction between ${sortedMedA} and ${sortedMedB}`);
   
   const { data: newInteraction, error } = await createOrUpdateInteraction({
     substance_a_id: substanceA.id < substanceB.id ? substanceA.id : substanceB.id,
     substance_b_id: substanceA.id < substanceB.id ? substanceB.id : substanceA.id,
     interaction_detected: false, // Default until we detect an interaction
-    last_checked: new Date().toISOString() // Add the missing last_checked field
+    last_checked: new Date().toISOString()
   });
   
   if (error) {
@@ -175,6 +182,6 @@ export async function findOrCreateInteractionByNames(
     return null;
   }
   
-  console.log('Successfully created new interaction');
+  console.log('Successfully created new interaction:', newInteraction);
   return newInteraction;
 }
