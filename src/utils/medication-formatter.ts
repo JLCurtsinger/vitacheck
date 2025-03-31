@@ -1,6 +1,6 @@
 
 import { getGenericName, isBrandName } from "@/services/medication/brand-to-generic";
-import { normalizeMedicationName as normalizeNameForDatabase } from "@/lib/api/utils/name-normalizer";
+import { normalizeMedicationName as normalizeForDatabase } from "@/lib/api/utils/name-normalizer";
 
 /**
  * Utility functions for formatting medication names
@@ -155,5 +155,5 @@ export function prepareMedicationNameForStorage(medicationName: string): string 
   if (!medicationName) return "";
   
   // Use the shared name normalizer
-  return normalizeNameForDatabase(medicationName);
+  return normalizeForDatabase(medicationName);
 }
