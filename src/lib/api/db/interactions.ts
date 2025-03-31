@@ -106,7 +106,8 @@ export async function createOrUpdateInteraction(
       sources: interaction.sources,
       api_responses: interaction.api_responses,
       notes: interaction.notes,
-      flagged_by_user: interaction.flagged_by_user
+      flagged_by_user: interaction.flagged_by_user,
+      last_checked: new Date().toISOString() // Add the missing last_checked field
     })
     .select()
     .maybeSingle();
@@ -165,7 +166,8 @@ export async function findOrCreateInteractionByNames(
   const { data: newInteraction, error } = await createOrUpdateInteraction({
     substance_a_id: substanceA.id < substanceB.id ? substanceA.id : substanceB.id,
     substance_b_id: substanceA.id < substanceB.id ? substanceB.id : substanceA.id,
-    interaction_detected: false // Default until we detect an interaction
+    interaction_detected: false, // Default until we detect an interaction
+    last_checked: new Date().toISOString() // Add the missing last_checked field
   });
   
   if (error) {
