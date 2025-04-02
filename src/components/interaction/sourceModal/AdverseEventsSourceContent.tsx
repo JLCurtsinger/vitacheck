@@ -1,13 +1,13 @@
 
-import React, { useState } from "react";
+import React from "react";
 import { InteractionSource, AdverseEventData } from "@/lib/api/types";
 import { SeverityConfidenceSection } from "./SeverityConfidenceSection";
 import { AdverseEventsSection } from "./AdverseEventsSection";
 import { DetailsSection } from "./DetailsSection";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { SourceMetadataSection } from "./SourceMetadataSection";
 import { getSourceDisclaimer, getSourceContribution } from "./utils";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 
 interface SourceData extends InteractionSource {
   adverseEvents?: AdverseEventData;
@@ -16,11 +16,14 @@ interface SourceData extends InteractionSource {
 interface AdverseEventsSourceContentProps {
   data: SourceData[];
   sourceName: string;
+  clinicianView?: boolean;
 }
 
-export function AdverseEventsSourceContent({ data, sourceName }: AdverseEventsSourceContentProps) {
-  const [clinicianView, setClinicianView] = useState(false);
-  
+export function AdverseEventsSourceContent({ 
+  data, 
+  sourceName,
+  clinicianView = false
+}: AdverseEventsSourceContentProps) {
   if (data.length === 0) {
     return (
       <div className="p-6 text-center">
@@ -31,30 +34,38 @@ export function AdverseEventsSourceContent({ data, sourceName }: AdverseEventsSo
   
   // Get adverse event data from the first item if available
   const adverseEvents = data[0]?.adverseEvents;
+  const hasFallbackMode = data[0]?.fallbackMode;
   
   return (
     <div className="pb-6">
-      {/* Clinician View Toggle */}
-      <div className="flex items-center justify-end space-x-2 mb-4 sticky top-0 bg-white p-2 z-10 rounded-md border border-gray-100 shadow-sm">
-        <Label htmlFor="clinician-view" className="text-sm font-medium">
-          Clinician View
-        </Label>
-        <Switch
-          id="clinician-view"
-          checked={clinicianView}
-          onCheckedChange={setClinicianView}
-        />
-      </div>
+      {/* Source Metadata - now with clinicianView prop */}
+      <SourceMetadataSection 
+        data={data} 
+        sourceName={sourceName} 
+        isClinicianView={clinicianView}
+      />
       
-      {/* Source Metadata */}
-      <SourceMetadataSection data={data} sourceName={sourceName} />
+      {/* Display fallback mode message in clinician view */}
+      {clinicianView && hasFallbackMode && (
+        <Alert className="bg-amber-50 border-amber-200 mb-4">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800">Fallback Processing Applied</AlertTitle>
+          <AlertDescription className="text-amber-700 text-sm">
+            {data[0]?.fallbackReason || 'This data was processed using fallback logic due to schema inconsistencies.'}
+          </AlertDescription>
+        </Alert>
+      )}
       
       {/* Severity and confidence section */}
-      <SeverityConfidenceSection data={data} />
+      <SeverityConfidenceSection data={data} clinicianView={clinicianView} />
       
       {/* Adverse Events Summary */}
       {adverseEvents && (
-        <AdverseEventsSection adverseEvents={adverseEvents} />
+        <AdverseEventsSection 
+          adverseEvents={adverseEvents} 
+          clinicianView={clinicianView} 
+          showFallbackNotice={hasFallbackMode}
+        />
       )}
       
       {/* Raw Details - Shown based on clinician view toggle */}

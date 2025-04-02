@@ -1,48 +1,43 @@
 
-import React from "react";
-import { AdverseEventData, InteractionSource } from "@/lib/api/types";
-import { AdverseEventsSourceContent } from "./AdverseEventsSourceContent";
+import { InteractionSource } from "@/lib/api/types";
 import { FDASourceContent } from "./FDASourceContent";
-import { AILiteratureSourceContent } from "./AILiteratureSourceContent";
-import { DefaultSourceContent } from "./DefaultSourceContent";
 import { RxNormSourceContent } from "./RxNormSourceContent";
 import { SuppAISourceContent } from "./SuppAISourceContent";
-
-// Extended interface to handle different source-specific data
-interface SourceData extends InteractionSource {
-  adverseEvents?: AdverseEventData;
-  // Add other source-specific fields as needed
-}
+import { AdverseEventsSourceContent } from "./AdverseEventsSourceContent";
+import { AILiteratureSourceContent } from "./AILiteratureSourceContent";
+import { GenericSourceContent } from "./GenericSourceContent";
 
 interface SourceContentRouterProps {
   sourceName: string;
-  data: SourceData[];
+  data: InteractionSource[];
   medications: string[];
+  clinicianView?: boolean;
 }
 
-export function SourceContentRouter({ sourceName, data, medications }: SourceContentRouterProps) {
-  if (data.length === 0) {
-    return (
-      <div className="p-6 text-center">
-        <p className="text-gray-600">No detailed information available for this source.</p>
-      </div>
-    );
+export function SourceContentRouter({ 
+  sourceName, 
+  data, 
+  medications,
+  clinicianView = false
+}: SourceContentRouterProps) {
+  // Route to the appropriate source content component based on the source name
+  switch (sourceName) {
+    case "FDA":
+      return <FDASourceContent data={data} sourceName={sourceName} clinicianView={clinicianView} />;
+      
+    case "RxNorm":
+      return <RxNormSourceContent data={data} sourceName={sourceName} clinicianView={clinicianView} />;
+      
+    case "SUPP.AI":
+      return <SuppAISourceContent data={data} sourceName={sourceName} clinicianView={clinicianView} />;
+    
+    case "OpenFDA Adverse Events":
+      return <AdverseEventsSourceContent data={data} sourceName={sourceName} clinicianView={clinicianView} />;
+      
+    case "AI Literature Analysis":
+      return <AILiteratureSourceContent data={data} sourceName={sourceName} medications={medications} clinicianView={clinicianView} />;
+      
+    default:
+      return <GenericSourceContent data={data} sourceName={sourceName} clinicianView={clinicianView} />;
   }
-  
-  // Route to the appropriate component based on the source name
-  const sourceNameUpper = sourceName.toUpperCase();
-  
-  if (sourceNameUpper.includes("ADVERSE")) {
-    return <AdverseEventsSourceContent data={data} sourceName={sourceName} />;
-  } else if (sourceNameUpper.includes("FDA")) {
-    return <FDASourceContent data={data} medications={medications} sourceName={sourceName} />;
-  } else if (sourceNameUpper.includes("RXNORM")) {
-    return <RxNormSourceContent data={data} medications={medications} />;
-  } else if (sourceNameUpper.includes("SUPP.AI")) {
-    return <SuppAISourceContent data={data} medications={medications} />;
-  } else if (sourceNameUpper.includes("AI") || sourceNameUpper.includes("LITERATURE")) {
-    return <AILiteratureSourceContent data={data} medications={medications} />;
-  }
-  
-  return <DefaultSourceContent data={data} />;
 }

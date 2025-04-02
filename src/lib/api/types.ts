@@ -1,4 +1,3 @@
-
 /**
  * API Types
  * 
@@ -35,6 +34,8 @@ export interface StandardizedApiResponse {
     seriousPercentage?: number;
     commonReactions?: string[];
   };
+  fallbackMode?: boolean; // Flag to indicate if fallback processing was used
+  fallbackReason?: string; // Reason for using fallback processing
 }
 
 /**
@@ -58,6 +59,8 @@ export interface InteractionSource {
   date?: string; // Date when the data was retrieved
   tags?: string[]; // Tags associated with the data
   processed?: boolean; // Whether the data has been processed
+  fallbackMode?: boolean; // Flag to indicate if fallback processing was used
+  fallbackReason?: string; // Description of fallback processing applied
 }
 
 /**

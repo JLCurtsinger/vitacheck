@@ -3,7 +3,7 @@
  * Source Validation
  * 
  * Enhanced validation for interaction data sources with detailed 
- * error reporting and fallback mechanisms.
+ * error reporting and improved fallback mechanisms.
  */
 
 import { InteractionSource } from '../../types';
@@ -11,7 +11,7 @@ import { logParsingIssue } from '../diagnostics/api-response-logger';
 
 /**
  * Validates if a source has sufficient evidence of an interaction
- * Enhanced with detailed logging for validation failures
+ * Enhanced with detailed logging for validation failures and fallbacks
  */
 export function hasValidInteractionEvidence(
   source: InteractionSource,
@@ -33,8 +33,29 @@ export function hasValidInteractionEvidence(
       descriptionLength: source.description ? source.description.length : 0,
       hasConfidence: typeof source.confidence === 'number',
       confidenceValue: source.confidence,
-      hasEventData: !!source.eventData
+      hasEventData: !!source.eventData,
+      fallbackMode: source.fallbackMode
     });
+    
+    // If this source is using fallback mode, we use more relaxed validation
+    if (source.fallbackMode) {
+      console.log(`[Validation] Source "${source.name}" using fallback mode: ${source.fallbackReason || 'Unknown reason'}`);
+      
+      // For fallback sources, we only need a description and some indication of severity
+      const hasMinimalData = source.description && 
+                             source.description.length > 0 &&
+                             source.severity !== undefined;
+      
+      if (hasMinimalData) {
+        console.log(`[Validation] Source ${source.name} has minimal data required for fallback mode`);
+        return true;
+      }
+      
+      console.log(`[Validation] Source ${source.name} lacks minimal data even for fallback mode`);
+      return false;
+    }
+    
+    // Standard validation logic for non-fallback sources
     
     // Check for description content
     const hasDescription = source.description && 
@@ -70,7 +91,7 @@ export function hasValidInteractionEvidence(
       hasEventData
     });
     
-    // Log validation failure details for debugging
+    // Log validation failure details for debugging (only if not a fallback)
     if (!isValid && rawData) {
       const reasons = [];
       if (!hasDescription) reasons.push('Missing valid description');
@@ -78,10 +99,10 @@ export function hasValidInteractionEvidence(
       if (!hasHighConfidence) reasons.push('Low confidence score');
       if (!hasEventData) reasons.push('No event data');
       
-      logParsingIssue(
-        `VALIDATION-${source.name || 'Unknown'}`, 
-        { source, rawData }, 
-        `Source validation failed: ${reasons.join(', ')}`
+      // For regular sources (non-fallbacks), log as info instead of error
+      console.info(
+        `[Validation] Source "${source.name || 'Unknown'}" failed validation: ${reasons.join(', ')}`,
+        'Will attempt fallback processing'
       );
     }
     
@@ -92,7 +113,7 @@ export function hasValidInteractionEvidence(
       logParsingIssue(
         `VALIDATION-${source?.name || 'Unknown'}`, 
         { source, rawData }, 
-        error instanceof Error ? error : new Error(String(error))
+        error instanceof Error ? error : String(error)
       );
     }
     return false;
@@ -116,7 +137,11 @@ export function applySourceValidationFallback(
     console.log(`[Fallback] Attempting fallback validation for source: ${source.name || 'Unnamed source'}`);
     
     // Create a copy to avoid mutating the original
-    const enhancedSource: InteractionSource = { ...source };
+    const enhancedSource: InteractionSource = { 
+      ...source,
+      fallbackMode: true, 
+      fallbackReason: 'Source validation fallback applied'
+    };
     
     // Fallback 1: If missing severity but has description with keywords, infer severity
     if (enhancedSource.description && !enhancedSource.severity) {
@@ -127,23 +152,32 @@ export function applySourceValidationFallback(
           desc.includes('fatal') || 
           desc.includes('life-threatening')) {
         enhancedSource.severity = 'severe';
+        enhancedSource.fallbackReason = 'Severity inferred from description keywords';
         console.log(`[Fallback] Inferred severity "severe" from description for ${enhancedSource.name || 'Unknown'}`);
       } else if (desc.includes('moderate') || 
                 desc.includes('significant') || 
                 desc.includes('adjust') ||
                 desc.includes('monitor')) {
         enhancedSource.severity = 'moderate';
+        enhancedSource.fallbackReason = 'Severity inferred from description keywords';
         console.log(`[Fallback] Inferred severity "moderate" from description for ${enhancedSource.name || 'Unknown'}`);
       } else if (desc.includes('mild') || 
                 desc.includes('minor')) {
         enhancedSource.severity = 'minor';
+        enhancedSource.fallbackReason = 'Severity inferred from description keywords';
         console.log(`[Fallback] Inferred severity "minor" from description for ${enhancedSource.name || 'Unknown'}`);
+      } else {
+        // If no keywords found, default to minor for any mention of interaction
+        enhancedSource.severity = 'minor';
+        enhancedSource.fallbackReason = 'Default severity assigned in fallback mode';
+        console.log(`[Fallback] Set default severity "minor" for ${enhancedSource.name || 'Unknown'}`);
       }
     }
     
     // Fallback 2: If raw data contains evidence count, use as confidence proxy
     if (rawData?.evidence_count && typeof rawData.evidence_count === 'number') {
       enhancedSource.confidence = Math.min(100, Math.max(1, rawData.evidence_count * 10));
+      enhancedSource.fallbackReason = (enhancedSource.fallbackReason || '') + ' Confidence derived from evidence count.';
       console.log(`[Fallback] Set confidence to ${enhancedSource.confidence}% based on evidence count for ${enhancedSource.name || 'Unknown'}`);
     }
     
@@ -152,16 +186,26 @@ export function applySourceValidationFallback(
       const intensity = rawData.intensity.toLowerCase();
       if (intensity === 'high') {
         enhancedSource.severity = 'severe';
+        enhancedSource.fallbackReason = 'Severity derived from intensity value';
         console.log(`[Fallback] Set severity to "severe" based on high intensity for ${enhancedSource.name || 'Unknown'}`);
       }
       else if (intensity === 'medium') {
         enhancedSource.severity = 'moderate';
+        enhancedSource.fallbackReason = 'Severity derived from intensity value';
         console.log(`[Fallback] Set severity to "moderate" based on medium intensity for ${enhancedSource.name || 'Unknown'}`);
       }
       else if (intensity === 'low') {
         enhancedSource.severity = 'minor';
+        enhancedSource.fallbackReason = 'Severity derived from intensity value';
         console.log(`[Fallback] Set severity to "minor" based on low intensity for ${enhancedSource.name || 'Unknown'}`);
       }
+    }
+    
+    // If we still don't have a severity after all fallbacks, set to unknown
+    if (!enhancedSource.severity) {
+      enhancedSource.severity = 'unknown';
+      enhancedSource.fallbackReason = 'Unable to determine severity, defaulted to unknown';
+      console.log(`[Fallback] Defaulted to "unknown" severity for ${enhancedSource.name || 'Unknown'}`);
     }
     
     // Check if fallbacks made the source valid
@@ -169,11 +213,13 @@ export function applySourceValidationFallback(
     console.log(`[Fallback] Source "${enhancedSource.name || 'Unknown'}" after fallback: ${nowValid ? 'Valid' : 'Still invalid'}`);
     
     if (nowValid) {
-      console.log(`[Fallback] Recovered source data for ${enhancedSource.name || 'Unknown'}`);
+      // Log as info instead of error when fallback succeeds
+      console.info(`[Fallback] Successfully recovered source data for ${enhancedSource.name || 'Unknown'} using ${enhancedSource.fallbackReason}`);
       return enhancedSource;
     }
     
     // If we still don't have valid evidence, return null
+    console.warn(`[Fallback] Failed to recover source data for ${enhancedSource.name || 'Unknown'} despite fallback attempts`);
     return null;
   } catch (error) {
     console.error('[Fallback] Error applying validation fallback:', error);

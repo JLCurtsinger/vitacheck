@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { 
   Dialog, 
   DialogContent, 
@@ -12,6 +12,8 @@ import { InteractionSource, AdverseEventData } from "@/lib/api/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getSourceColorClass } from "./sourceModal/utils";
 import { SourceContentRouter } from "./sourceModal/SourceContentRouter";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 // Extended interface to handle different source-specific data
 interface SourceData extends InteractionSource {
@@ -29,6 +31,9 @@ interface SourceDetailsModalProps {
 }
 
 export function SourceDetailsModal({ isOpen, onClose, source }: SourceDetailsModalProps) {
+  // State for clinician view toggle
+  const [clinicianView, setClinicianView] = useState(false);
+
   if (!source) return null;
   
   const { name, data, medications } = source;
@@ -48,12 +53,25 @@ export function SourceDetailsModal({ isOpen, onClose, source }: SourceDetailsMod
           </DialogDescription>
         </DialogHeader>
         
-        <ScrollArea className="max-h-[calc(80vh-10rem)] pr-4 pb-4">
+        {/* Clinician View Toggle - Made sticky */}
+        <div className="flex items-center justify-end space-x-2 mb-4 sticky top-0 bg-white p-2 z-10 rounded-md border border-gray-100 shadow-sm">
+          <Label htmlFor="clinician-view" className="text-sm font-medium">
+            Clinician View
+          </Label>
+          <Switch
+            id="clinician-view"
+            checked={clinicianView}
+            onCheckedChange={setClinicianView}
+          />
+        </div>
+        
+        <ScrollArea className="max-h-[calc(80vh-12rem)] pr-4 pb-4">
           <div className="space-y-4">
             <SourceContentRouter 
               sourceName={name}
               data={data}
               medications={medications}
+              clinicianView={clinicianView}
             />
           </div>
         </ScrollArea>
