@@ -1,13 +1,14 @@
+
 /**
- * High-Risk Combination Checker
+ * High-Risk Pair Checker
  * 
- * This module provides functionality to quickly check if a medication pair
- * should be flagged as high-risk before proceeding with API calls.
+ * This module checks if a medication pair is known to be high-risk
+ * before proceeding with API calls.
  */
 
-import { InteractionResult } from '../types';
-import { checkHighRiskCombination } from './high-risk-interactions';
-import { cacheInteractionResult } from './pair-processing';
+import { InteractionResult } from '../../types';
+import { checkHighRiskCombination } from '../high-risk-interactions';
+import { cacheInteractionResult } from './cache-utils';
 
 /**
  * Checks if a pair of medications is known to be high-risk and creates

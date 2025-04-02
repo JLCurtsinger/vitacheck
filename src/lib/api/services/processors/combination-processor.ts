@@ -1,7 +1,7 @@
 
 import { InteractionResult, MedicationLookupResult } from '../../types';
 import { CombinationResult } from '../combination-types';
-import { processMedicationPair, createFallbackInteractionResult } from '../../utils/pair-processing-utils';
+import { processMedicationPair, createFallbackInteractionResult } from '../../utils/pair-processing';
 import { processMedicationTriple } from '../../utils/triple-processing-utils';
 import { validateMedicationsForProcessing } from './validation-utils';
 import { processSingleMedication } from './single-processor';

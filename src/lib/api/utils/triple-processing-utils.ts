@@ -1,4 +1,3 @@
-
 /**
  * Triple Processing Utilities
  * 
@@ -6,7 +5,7 @@
  */
 
 import { InteractionResult, MedicationLookupResult } from '../types';
-import { processMedicationPair, createFallbackInteractionResult } from './pair-processing-utils';
+import { processMedicationPair, createFallbackInteractionResult } from './pair-processing';
 
 /**
  * Creates a fallback result for a medication triple
