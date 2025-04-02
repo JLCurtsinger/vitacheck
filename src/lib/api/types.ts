@@ -57,6 +57,7 @@ export interface InteractionSource {
   timestamp?: string; // Timestamp when the data was retrieved
   date?: string; // Date when the data was retrieved
   tags?: string[]; // Tags associated with the data
+  processed?: boolean; // Whether the data has been processed
 }
 
 /**
