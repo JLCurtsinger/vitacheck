@@ -15,15 +15,26 @@ export async function lookupMedication(medication: string): Promise<MedicationLo
     status: 'not_found'
   };
   
-  // Check RxNorm
+  // Format medication name for API calls
+  const formattedMedication = prepareMedicationNameForApi(medication);
+  
+  // Check RxNorm with enhanced fallback system
   try {
-    console.log(`⚙️ [Medication Lookup] Checking RxNorm for: ${medication}`);
-    const rxCUI = await getRxCUI(medication);
+    console.log(`⚙️ [Medication Lookup] Checking RxNorm for: ${formattedMedication}`);
+    const rxCUI = await getRxCUI(formattedMedication);
     if (rxCUI) {
       result.status = 'found';
       result.source = 'RxNorm';
       result.id = rxCUI;
       console.log(`✅ [Medication Lookup] Found in RxNorm: ${medication} (${rxCUI})`);
+      
+      // Track if this was from a fallback mechanism
+      if (rxCUI.startsWith('C') && !rxCUI.match(/^\d+$/)) {
+        // CUI format (from SUPP.AI) rather than RxCUI format
+        result.fallback = true;
+        result.fallbackType = 'suppai';
+        console.log(`⚠️ [Medication Lookup] Using fallback identifier from SUPP.AI: ${rxCUI}`);
+      }
     } else {
       console.log(`⚠️ [Medication Lookup] Not found in RxNorm: ${medication}`);
     }
@@ -33,8 +44,8 @@ export async function lookupMedication(medication: string): Promise<MedicationLo
 
   // Check SUPP.AI - run regardless of RxNorm result
   try {
-    console.log(`⚙️ [Medication Lookup] Checking SUPP.AI for: ${medication}`);
-    const suppAiResult = await getSupplementInteractions(medication);
+    console.log(`⚙️ [Medication Lookup] Checking SUPP.AI for: ${formattedMedication}`);
+    const suppAiResult = await getSupplementInteractions(formattedMedication);
     if (suppAiResult && suppAiResult.length > 0) {
       result.status = 'found';
       // Only override source if RxNorm didn't find anything
@@ -51,8 +62,8 @@ export async function lookupMedication(medication: string): Promise<MedicationLo
 
   // Check FDA - run regardless of previous results
   try {
-    console.log(`⚙️ [Medication Lookup] Checking FDA for: ${medication}`);
-    const fdaResult = await getFDAWarnings(medication);
+    console.log(`⚙️ [Medication Lookup] Checking FDA for: ${formattedMedication}`);
+    const fdaResult = await getFDAWarnings(formattedMedication);
     if (fdaResult && fdaResult.results && fdaResult.results.length > 0) {
       result.status = 'found';
       // Only override source if no previous source was set
@@ -62,6 +73,14 @@ export async function lookupMedication(medication: string): Promise<MedicationLo
       }
       // Add FDA warnings to the result
       result.warnings = fdaResult.results[0].drug_interactions || [];
+      
+      // Check if we can get an RxCUI from the FDA response if we don't already have one
+      if (!result.id && fdaResult.results[0].openfda?.rxcui?.[0]) {
+        result.id = fdaResult.results[0].openfda.rxcui[0];
+        result.fallback = true;
+        result.fallbackType = 'fda';
+        console.log(`✅ [Medication Lookup] Using RxCUI from FDA: ${result.id}`);
+      }
     } else {
       console.log(`⚠️ [Medication Lookup] Not found in FDA: ${medication}`);
     }

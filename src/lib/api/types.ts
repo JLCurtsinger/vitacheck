@@ -1,4 +1,3 @@
-
 /**
  * API Types
  * 
@@ -15,6 +14,8 @@ export interface MedicationLookupResult {
   status: "found" | "not_found" | "pending";
   found?: boolean; // Added for backward compatibility
   warnings?: string[];
+  fallback?: boolean; // Indicates if a fallback mechanism was used
+  fallbackType?: 'local_cache' | 'alternative_format' | 'fda' | 'suppai'; // Type of fallback used
 }
 
 /**

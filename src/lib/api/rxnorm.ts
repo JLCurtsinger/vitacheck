@@ -2,7 +2,12 @@
 /**
  * RxNorm API Integration Module
  * Handles interactions with the RxNorm API for medication lookups and interaction checking.
+ * Enhanced with a comprehensive fallback system for improved resilience.
  */
+
+import { getRxCUIFromLocalCache, generateAlternativeFormats, extractRxCUIFromFDALabel, extractCUIFromSuppAI } from './rxnorm-fallback';
+import { getFDAWarnings } from './fda';
+import { getSupplementInteractions } from './suppai';
 
 interface RxNormResponse {
   status: "success" | "error";
@@ -47,6 +52,7 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Retrieves the RxCUI (RxNorm Concept Unique Identifier) for a given medication name.
+ * Enhanced with comprehensive fallback mechanisms.
  * @param medication - The name of the medication to look up
  * @returns The RxCUI if found, null otherwise
  */
@@ -60,32 +66,72 @@ export async function getRxCUI(medication: string): Promise<string | null> {
     return rxcuiCache.get(medKey);
   }
   
-  // Try with original input
+  // 1. Try with the original name first
   let rxcui = await tryGetRxCUI(medication);
   
-  // If not found, try some alternate formats
+  // 2. If not found, try local cache
   if (!rxcui) {
-    // Try lowercase
-    rxcui = await tryGetRxCUI(medication.toLowerCase());
+    rxcui = getRxCUIFromLocalCache(medication);
+  }
+  
+  // 3. If still not found, try alternative formats
+  if (!rxcui) {
+    console.log(`[RxNorm Fallback] Trying alternative formats for "${medication}"`);
+    const alternativeFormats = generateAlternativeFormats(medication);
     
-    if (!rxcui) {
-      // Try uppercase first letter
-      const capitalized = medication.charAt(0).toUpperCase() + medication.slice(1).toLowerCase();
-      rxcui = await tryGetRxCUI(capitalized);
+    for (const format of alternativeFormats) {
+      if (format === medication) continue; // Skip the original format, we already tried it
       
-      if (!rxcui) {
-        // Try all uppercase
-        rxcui = await tryGetRxCUI(medication.toUpperCase());
+      console.log(`[RxNorm Fallback] Retrying RxNorm with alternative format: "${format}"`);
+      rxcui = await tryGetRxCUI(format);
+      
+      if (rxcui) {
+        console.log(`✅ [RxNorm Fallback] Found RxCUI using alternative format "${format}": ${rxcui}`);
+        break;
       }
     }
   }
   
+  // 4. If still not found, try getting RxCUI from FDA Label data
+  if (!rxcui) {
+    console.log(`[RxNorm Fallback] Attempting to get RxCUI from FDA Label data for "${medication}"`);
+    try {
+      const fdaData = await getFDAWarnings(medication);
+      if (fdaData) {
+        rxcui = extractRxCUIFromFDALabel(fdaData);
+      }
+    } catch (error) {
+      console.error('[RxNorm Fallback] Error fetching FDA data:', error);
+    }
+  }
+  
+  // 5. Last resort: try SUPP.AI for supplements and herbal remedies
+  if (!rxcui) {
+    console.log(`[RxNorm Fallback] Attempting to get CUI from SUPP.AI for "${medication}"`);
+    try {
+      const suppaiData = await getSupplementInteractions(medication);
+      if (suppaiData) {
+        // SUPP.AI returns a CUI, not an RxCUI, but it's better than nothing
+        // for supplements and herbs that might not be in RxNorm
+        const cui = extractCUIFromSuppAI(suppaiData);
+        if (cui) {
+          // Use the CUI as a fallback identifier
+          // Note that this is not an RxCUI, but a concept unique identifier
+          rxcui = cui;
+          console.log(`[RxNorm Fallback] Using CUI as fallback: ${cui}`);
+        }
+      }
+    } catch (error) {
+      console.error('[RxNorm Fallback] Error fetching SUPP.AI data:', error);
+    }
+  }
+  
   if (rxcui) {
-    console.log(`✅ [RxNorm Client] Finally found RxCUI for ${medication}: ${rxcui}`);
+    console.log(`✅ [RxNorm Client] Finally found identifier for ${medication}: ${rxcui}`);
     // Cache the positive result
     rxcuiCache.set(medKey, rxcui);
   } else {
-    console.log(`⚠️ [RxNorm Client] Could not find RxCUI for ${medication} after trying multiple formats`);
+    console.log(`⚠️ [RxNorm Client] Could not find RxCUI for ${medication} after exhausting all fallback options`);
     // Cache the negative result to avoid repeating the same lookup
     rxcuiCache.set(medKey, null);
   }
