@@ -6,7 +6,7 @@
  * API response schemas and recoverable schema mismatches.
  */
 
-import { logParsingIssue } from './api-response-logger';
+import { logParsingIssue } from '../../diagnostics/api-response-logger';
 
 // Validation result type definition
 export interface ValidationResult {
@@ -15,6 +15,7 @@ export interface ValidationResult {
   fallbackUsed: boolean;
   fallbackReason?: string;
   fallbackFields?: string[];
+  isReliable?: boolean;
 }
 
 /**
@@ -35,7 +36,8 @@ export function validateApiSchema(
       return {
         isValid: true,
         discrepancies: [],
-        fallbackUsed: false
+        fallbackUsed: false,
+        isReliable: true
       };
     }
   }
@@ -61,7 +63,8 @@ export function validateApiSchema(
     fallbackReason: canFallback 
       ? `Schema mismatch with recoverable fields: ${fallbackFields.join(', ')}`
       : 'Schema mismatch with no recoverable fields',
-    fallbackFields: canFallback ? fallbackFields : undefined
+    fallbackFields: canFallback ? fallbackFields : undefined,
+    isReliable: canFallback && fallbackFields.includes('description') && fallbackFields.includes('severity')
   };
 }
 
@@ -118,7 +121,8 @@ export function validateAndLogSchemaDiscrepancies(
   if (!response) return { 
     isValid: false, 
     discrepancies: ['Response is null or undefined'],
-    fallbackUsed: false
+    fallbackUsed: false,
+    isReliable: false
   };
   
   // Validate against all provided schemas
@@ -147,6 +151,3 @@ export function validateAndLogSchemaDiscrepancies(
   
   return result;
 }
-
-// Export the ValidationResult type
-export type { ValidationResult };
