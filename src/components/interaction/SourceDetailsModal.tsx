@@ -48,8 +48,8 @@ export function SourceDetailsModal({ isOpen, onClose, source }: SourceDetailsMod
           </DialogDescription>
         </DialogHeader>
         
-        <ScrollArea className="max-h-[calc(90vh-10rem)] pr-4">
-          <div className="space-y-4 pb-4">
+        <ScrollArea className="max-h-[calc(80vh-10rem)] pr-4 pb-4">
+          <div className="space-y-4">
             <SourceContentRouter 
               sourceName={name}
               data={data}
@@ -58,7 +58,7 @@ export function SourceDetailsModal({ isOpen, onClose, source }: SourceDetailsMod
           </div>
         </ScrollArea>
         
-        <DialogFooter className="text-xs text-gray-500 italic">
+        <DialogFooter className="text-xs text-gray-500 italic pt-4">
           Data from {name} is one of several sources analyzed by VitaCheck's consensus model.
         </DialogFooter>
       </DialogContent>

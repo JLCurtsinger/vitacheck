@@ -66,6 +66,7 @@ export interface AdverseEventData {
   eventCount: number;
   seriousCount: number;
   commonReactions: string[];
+  seriousCaseDetails?: string[]; // Added for specific details about serious cases
   demographics?: {
     ageGroups?: Record<string, number>;
     genders?: Record<string, number>;

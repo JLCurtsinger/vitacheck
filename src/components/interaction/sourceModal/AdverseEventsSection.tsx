@@ -1,9 +1,10 @@
 
 import React, { useState } from "react";
 import { AdverseEventData } from "@/lib/api/types";
-import { AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Badge } from "@/components/ui/badge";
 
 interface AdverseEventsSectionProps {
   adverseEvents: AdverseEventData;
@@ -12,11 +13,16 @@ interface AdverseEventsSectionProps {
 export function AdverseEventsSection({ adverseEvents }: AdverseEventsSectionProps) {
   const [showSevere, setShowSevere] = useState(false);
 
-  // Calculate percentage of serious events
+  // Calculate percentage of serious events with 1 decimal place
   const seriousPercentage = 
     adverseEvents.eventCount > 0 
-      ? Math.round((adverseEvents.seriousCount / adverseEvents.eventCount) * 100) 
-      : 0;
+      ? ((adverseEvents.seriousCount / adverseEvents.eventCount) * 100).toFixed(1)
+      : "0.0";
+
+  // Check if we have specific serious case details
+  const hasSeriousCaseDetails = adverseEvents.seriousCaseDetails && 
+    Array.isArray(adverseEvents.seriousCaseDetails) && 
+    adverseEvents.seriousCaseDetails.length > 0;
 
   return (
     <div className="rounded-md border p-4 mb-4">
@@ -42,21 +48,24 @@ export function AdverseEventsSection({ adverseEvents }: AdverseEventsSectionProp
         </div>
       </div>
       
-      <h4 className="font-medium text-sm mb-2">Common Reported Reactions:</h4>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
-        {adverseEvents.commonReactions && adverseEvents.commonReactions.length > 0 ? (
-          adverseEvents.commonReactions.map((reaction, idx) => (
-            <div key={idx} className="bg-gray-50 p-2 rounded text-sm border border-gray-200">
-              {reaction}
-            </div>
-          ))
-        ) : (
-          <div className="col-span-2 text-gray-500 text-sm">
-            No detailed reaction information available
+      {/* Common Reactions Section - Clearly labeled */}
+      {adverseEvents.commonReactions && adverseEvents.commonReactions.length > 0 && (
+        <div className="mb-4">
+          <h4 className="font-medium text-sm mb-2 flex items-center">
+            <Info className="h-4 w-4 text-blue-500 mr-1" />
+            Commonly Reported Reactions (any severity):
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {adverseEvents.commonReactions.map((reaction, idx) => (
+              <div key={idx} className="bg-gray-50 p-2 rounded text-sm border border-gray-200">
+                {reaction}
+              </div>
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
       
+      {/* Serious Cases Section - Only if we have serious cases */}
       {adverseEvents.seriousCount > 0 && (
         <Collapsible className="w-full">
           <CollapsibleTrigger asChild>
@@ -64,6 +73,7 @@ export function AdverseEventsSection({ adverseEvents }: AdverseEventsSectionProp
               variant="outline" 
               className="w-full flex justify-between items-center p-2 text-red-600 border-red-200 bg-red-50 hover:bg-red-100"
               onClick={() => setShowSevere(!showSevere)}
+              disabled={!hasSeriousCaseDetails}
             >
               View Severe Case Details
               {showSevere ? <ChevronDown className="h-4 w-4 ml-2" /> : <ChevronRight className="h-4 w-4 ml-2" />}
@@ -72,13 +82,20 @@ export function AdverseEventsSection({ adverseEvents }: AdverseEventsSectionProp
           
           <CollapsibleContent className="mt-2">
             <div className="border border-red-200 rounded p-3 bg-red-50 text-sm">
-              <p className="mb-2 italic">Up to 5 examples of severe adverse events:</p>
-              <ul className="list-disc list-inside space-y-1">
-                {/* This would ideally be populated with actual case details if available */}
-                {adverseEvents.commonReactions?.slice(0, 5).map((reaction, i) => (
-                  <li key={i} className="text-red-700">Case {i+1}: {reaction} (serious)</li>
-                ))}
-              </ul>
+              {hasSeriousCaseDetails ? (
+                <>
+                  <p className="mb-2 italic">Examples of serious adverse events:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    {adverseEvents.seriousCaseDetails.slice(0, 5).map((caseDetail, i) => (
+                      <li key={i} className="text-red-700">{caseDetail}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="text-red-700">
+                  {adverseEvents.seriousCount} serious cases were reported, but no specific reaction details are available for these cases.
+                </p>
+              )}
             </div>
           </CollapsibleContent>
         </Collapsible>

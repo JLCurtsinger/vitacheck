@@ -33,7 +33,7 @@ export function AdverseEventsSourceContent({ data, sourceName }: AdverseEventsSo
   const adverseEvents = data[0]?.adverseEvents;
   
   return (
-    <>
+    <div className="pb-6">
       {/* Clinician View Toggle */}
       <div className="flex items-center justify-end space-x-2 mb-4">
         <Label htmlFor="clinician-view" className="text-sm font-medium">
@@ -73,6 +73,6 @@ export function AdverseEventsSourceContent({ data, sourceName }: AdverseEventsSo
           adverseEvents?.seriousCount
         )}
       </div>
-    </>
+    </div>
   );
 }
