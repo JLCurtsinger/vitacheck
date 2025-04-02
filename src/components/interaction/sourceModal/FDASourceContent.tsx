@@ -1,12 +1,10 @@
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { InteractionSource } from "@/lib/api/types";
 import { SeverityConfidenceSection } from "./SeverityConfidenceSection";
 import { DetailsSection } from "./DetailsSection";
 import { FormattedContentSection } from "./FormattedContentSection";
 import { formatDescriptionText, categorizeBulletPoints } from "../utils/formatDescription";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { SourceMetadataSection } from "./SourceMetadataSection";
 import { getSourceDisclaimer, getSourceContribution } from "./utils";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -15,11 +13,15 @@ interface FDASourceContentProps {
   data: InteractionSource[];
   medications: string[];
   sourceName: string;
+  clinicianView?: boolean;
 }
 
-export function FDASourceContent({ data, medications, sourceName }: FDASourceContentProps) {
-  const [clinicianView, setClinicianView] = useState(false);
-  
+export function FDASourceContent({ 
+  data, 
+  medications, 
+  sourceName,
+  clinicianView = false 
+}: FDASourceContentProps) {
   if (data.length === 0) {
     return (
       <div className="p-6 text-center">
@@ -62,24 +64,16 @@ export function FDASourceContent({ data, medications, sourceName }: FDASourceCon
   }, [data]);
 
   return (
-    <>
-      {/* Clinician View Toggle */}
-      <div className="flex items-center justify-end space-x-2 mb-4 sticky top-0 bg-white p-2 z-10 rounded-md border border-gray-100 shadow-sm">
-        <Label htmlFor="clinician-view" className="text-sm font-medium">
-          Clinician View
-        </Label>
-        <Switch
-          id="clinician-view"
-          checked={clinicianView}
-          onCheckedChange={setClinicianView}
-        />
-      </div>
-      
+    <div className="pb-6">
       {/* Source Metadata */}
-      <SourceMetadataSection data={data} sourceName={sourceName} />
+      <SourceMetadataSection 
+        data={data} 
+        sourceName={sourceName}
+        isClinicianView={clinicianView}
+      />
       
       {/* Severity and confidence at the top */}
-      <SeverityConfidenceSection data={data} />
+      <SeverityConfidenceSection data={data} clinicianView={clinicianView} />
       
       {/* Categorized FDA content sections - Severe risks first */}
       <FormattedContentSection 
@@ -135,6 +129,6 @@ export function FDASourceContent({ data, medications, sourceName }: FDASourceCon
       <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-700">
         {getSourceContribution(data[0])}
       </div>
-    </>
+    </div>
   );
 }

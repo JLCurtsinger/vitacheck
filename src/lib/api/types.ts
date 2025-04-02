@@ -1,3 +1,4 @@
+
 /**
  * API Types
  * 
@@ -61,6 +62,7 @@ export interface InteractionSource {
   processed?: boolean; // Whether the data has been processed
   fallbackMode?: boolean; // Flag to indicate if fallback processing was used
   fallbackReason?: string; // Description of fallback processing applied
+  fallbackFields?: string[]; // Fields that were populated using fallback logic
 }
 
 /**

@@ -8,9 +8,15 @@ import { Badge } from "@/components/ui/badge";
 
 interface AdverseEventsSectionProps {
   adverseEvents: AdverseEventData;
+  clinicianView?: boolean;
+  showFallbackNotice?: boolean;
 }
 
-export function AdverseEventsSection({ adverseEvents }: AdverseEventsSectionProps) {
+export function AdverseEventsSection({ 
+  adverseEvents, 
+  clinicianView = false,
+  showFallbackNotice = false 
+}: AdverseEventsSectionProps) {
   const [showSevere, setShowSevere] = useState(false);
 
   // Calculate percentage of serious events with 1 decimal place
@@ -30,6 +36,12 @@ export function AdverseEventsSection({ adverseEvents }: AdverseEventsSectionProp
         <AlertTriangle className="h-4 w-4 text-red-500 mr-2" />
         Reported Adverse Events
       </h3>
+      
+      {showFallbackNotice && clinicianView && (
+        <div className="bg-amber-50 border border-amber-200 p-2 mb-3 text-xs text-amber-700 rounded">
+          Note: This data was processed using fallback logic due to schema variations.
+        </div>
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         <div className="bg-gray-50 p-3 rounded border border-gray-200">

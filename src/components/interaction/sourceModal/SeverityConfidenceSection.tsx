@@ -8,9 +8,10 @@ import { getSeverityIcon, getSeverityIconColor } from "./utils";
 
 interface SeverityConfidenceSectionProps {
   data: InteractionSource[];
+  clinicianView?: boolean;
 }
 
-export function SeverityConfidenceSection({ data }: SeverityConfidenceSectionProps) {
+export function SeverityConfidenceSection({ data, clinicianView = false }: SeverityConfidenceSectionProps) {
   const renderSeverityIcon = (severity: string) => {
     const iconName = getSeverityIcon(severity);
     const colorClass = getSeverityIconColor(severity);

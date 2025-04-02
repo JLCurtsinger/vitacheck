@@ -5,19 +5,20 @@ import { SeverityConfidenceSection } from "./SeverityConfidenceSection";
 import { DetailsSection } from "./DetailsSection";
 import { FormattedContentSection } from "./FormattedContentSection";
 import { formatDescriptionText, categorizeBulletPoints } from "../utils/formatDescription";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { SourceMetadataSection } from "./SourceMetadataSection";
 import { getSourceDisclaimer, getSourceContribution } from "./utils";
 
 interface RxNormSourceContentProps {
   data: InteractionSource[];
   medications: string[];
+  clinicianView?: boolean;
 }
 
-export function RxNormSourceContent({ data, medications }: RxNormSourceContentProps) {
-  const [clinicianView, setClinicianView] = useState(false);
-  
+export function RxNormSourceContent({ 
+  data, 
+  medications,
+  clinicianView = false 
+}: RxNormSourceContentProps) {
   if (data.length === 0) {
     return (
       <div className="p-6 text-center">
@@ -43,24 +44,16 @@ export function RxNormSourceContent({ data, medications }: RxNormSourceContentPr
   }, [data, medications]);
 
   return (
-    <>
-      {/* Clinician View Toggle */}
-      <div className="flex items-center justify-end space-x-2 mb-4 sticky top-0 bg-white p-2 z-10 rounded-md border border-gray-100 shadow-sm">
-        <Label htmlFor="clinician-view" className="text-sm font-medium">
-          Clinician View
-        </Label>
-        <Switch
-          id="clinician-view"
-          checked={clinicianView}
-          onCheckedChange={setClinicianView}
-        />
-      </div>
-      
+    <div className="pb-6">
       {/* Source Metadata */}
-      <SourceMetadataSection data={data} sourceName="RxNorm" />
+      <SourceMetadataSection 
+        data={data} 
+        sourceName="RxNorm" 
+        isClinicianView={clinicianView}
+      />
       
       {/* Severity and confidence at the top */}
-      <SeverityConfidenceSection data={data} />
+      <SeverityConfidenceSection data={data} clinicianView={clinicianView} />
       
       {/* Critical warnings first */}
       <FormattedContentSection 
@@ -95,6 +88,6 @@ export function RxNormSourceContent({ data, medications }: RxNormSourceContentPr
       <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-700">
         {getSourceContribution(data[0])}
       </div>
-    </>
+    </div>
   );
 }

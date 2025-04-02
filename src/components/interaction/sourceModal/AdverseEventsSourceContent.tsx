@@ -17,12 +17,14 @@ interface AdverseEventsSourceContentProps {
   data: SourceData[];
   sourceName: string;
   clinicianView?: boolean;
+  medications?: string[];
 }
 
 export function AdverseEventsSourceContent({ 
   data, 
   sourceName,
-  clinicianView = false
+  clinicianView = false,
+  medications = []
 }: AdverseEventsSourceContentProps) {
   if (data.length === 0) {
     return (

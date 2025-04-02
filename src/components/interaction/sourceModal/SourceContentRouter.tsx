@@ -5,7 +5,7 @@ import { RxNormSourceContent } from "./RxNormSourceContent";
 import { SuppAISourceContent } from "./SuppAISourceContent";
 import { AdverseEventsSourceContent } from "./AdverseEventsSourceContent";
 import { AILiteratureSourceContent } from "./AILiteratureSourceContent";
-import { GenericSourceContent } from "./GenericSourceContent";
+import { DefaultSourceContent } from "./DefaultSourceContent";
 
 interface SourceContentRouterProps {
   sourceName: string;
@@ -23,21 +23,21 @@ export function SourceContentRouter({
   // Route to the appropriate source content component based on the source name
   switch (sourceName) {
     case "FDA":
-      return <FDASourceContent data={data} sourceName={sourceName} clinicianView={clinicianView} />;
+      return <FDASourceContent data={data} medications={medications} sourceName={sourceName} clinicianView={clinicianView} />;
       
     case "RxNorm":
-      return <RxNormSourceContent data={data} sourceName={sourceName} clinicianView={clinicianView} />;
+      return <RxNormSourceContent data={data} medications={medications} clinicianView={clinicianView} />;
       
     case "SUPP.AI":
-      return <SuppAISourceContent data={data} sourceName={sourceName} clinicianView={clinicianView} />;
+      return <SuppAISourceContent data={data} medications={medications} clinicianView={clinicianView} />;
     
     case "OpenFDA Adverse Events":
       return <AdverseEventsSourceContent data={data} sourceName={sourceName} clinicianView={clinicianView} />;
       
     case "AI Literature Analysis":
-      return <AILiteratureSourceContent data={data} sourceName={sourceName} medications={medications} clinicianView={clinicianView} />;
+      return <AILiteratureSourceContent data={data} medications={medications} clinicianView={clinicianView} />;
       
     default:
-      return <GenericSourceContent data={data} sourceName={sourceName} clinicianView={clinicianView} />;
+      return <DefaultSourceContent data={data} sourceName={sourceName} clinicianView={clinicianView} />;
   }
 }

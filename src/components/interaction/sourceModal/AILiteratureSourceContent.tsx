@@ -1,11 +1,9 @@
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { InteractionSource } from "@/lib/api/types";
 import { SeverityConfidenceSection } from "./SeverityConfidenceSection";
 import { DetailsSection } from "./DetailsSection";
 import { formatDescriptionText, createHTMLProps } from "../utils/formatDescription";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { SourceMetadataSection } from "./SourceMetadataSection";
 import { getSourceDisclaimer, getSourceContribution } from "./utils";
 import { Book, FileText } from "lucide-react";
@@ -14,11 +12,14 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 interface AILiteratureSourceContentProps {
   data: InteractionSource[];
   medications: string[];
+  clinicianView?: boolean;
 }
 
-export function AILiteratureSourceContent({ data, medications }: AILiteratureSourceContentProps) {
-  const [clinicianView, setClinicianView] = useState(false);
-  
+export function AILiteratureSourceContent({ 
+  data, 
+  medications,
+  clinicianView = false 
+}: AILiteratureSourceContentProps) {
   if (data.length === 0) {
     return (
       <div className="p-6 text-center">
@@ -62,24 +63,16 @@ export function AILiteratureSourceContent({ data, medications }: AILiteratureSou
   }, [data]);
 
   return (
-    <>
-      {/* Clinician View Toggle */}
-      <div className="flex items-center justify-end space-x-2 mb-4 sticky top-0 bg-white p-2 z-10 rounded-md border border-gray-100 shadow-sm">
-        <Label htmlFor="clinician-view" className="text-sm font-medium">
-          Clinician View
-        </Label>
-        <Switch
-          id="clinician-view"
-          checked={clinicianView}
-          onCheckedChange={setClinicianView}
-        />
-      </div>
-      
+    <div className="pb-6">
       {/* Source Metadata */}
-      <SourceMetadataSection data={data} sourceName="AI Literature Analysis" />
+      <SourceMetadataSection 
+        data={data} 
+        sourceName="AI Literature Analysis"
+        isClinicianView={clinicianView}
+      />
       
       {/* Severity and confidence at the top */}
-      <SeverityConfidenceSection data={data} />
+      <SeverityConfidenceSection data={data} clinicianView={clinicianView} />
       
       {/* Literature Analysis Summary */}
       <div className="rounded-md border mb-4 p-4">
@@ -150,6 +143,6 @@ export function AILiteratureSourceContent({ data, medications }: AILiteratureSou
       <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-700">
         {getSourceContribution(data[0])}
       </div>
-    </>
+    </div>
   );
 }
