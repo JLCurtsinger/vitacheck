@@ -6,8 +6,10 @@ import { DetailsSection } from "./DetailsSection";
 import { formatDescriptionText, createHTMLProps } from "../utils/formatDescription";
 import { SourceMetadataSection } from "./SourceMetadataSection";
 import { getSourceDisclaimer, getSourceContribution } from "./utils";
-import { Book, FileText } from "lucide-react";
+import { Book, FileText, AlertCircle, Info } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 interface AILiteratureSourceContentProps {
   data: InteractionSource[];
@@ -20,10 +22,47 @@ export function AILiteratureSourceContent({
   medications,
   clinicianView = false 
 }: AILiteratureSourceContentProps) {
-  if (data.length === 0) {
+  // Check if we have valid and reliable data
+  const hasReliableData = useMemo(() => {
+    if (data.length === 0) return false;
+    
+    // Check for reliability flag or minimum confidence threshold
+    return data.some(item => 
+      (item.isReliable === true) || 
+      (typeof item.confidence === 'number' && item.confidence >= 60)
+    );
+  }, [data]);
+  
+  // Get average confidence score from all data items
+  const confidenceScore = useMemo(() => {
+    if (data.length === 0) return 0;
+    
+    const validConfidences = data
+      .map(item => item.confidence)
+      .filter(score => typeof score === 'number');
+      
+    if (validConfidences.length === 0) return 0;
+    
+    const sum = validConfidences.reduce((total, score) => total + score, 0);
+    return Math.round(sum / validConfidences.length);
+  }, [data]);
+  
+  // If no data or all data is unreliable, show appropriate message
+  if (data.length === 0 || !hasReliableData) {
     return (
-      <div className="p-6 text-center">
-        <p className="text-gray-600">No detailed information available from AI Literature Analysis.</p>
+      <div className="p-6">
+        <Alert variant="default" className="bg-amber-50 border-amber-200">
+          <AlertCircle className="h-4 w-4 text-amber-700" />
+          <AlertTitle className="text-amber-700">No Reliable Data Available</AlertTitle>
+          <AlertDescription className="text-amber-800">
+            AI Literature Analysis was unable to retrieve reliable data for this combination.
+            {confidenceScore > 0 && confidenceScore < 60 && (
+              <span className="block mt-2 text-xs">
+                (Confidence score: {confidenceScore}% - below threshold of 60%)
+              </span>
+            )}
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -64,12 +103,27 @@ export function AILiteratureSourceContent({
 
   return (
     <div className="pb-6">
-      {/* Source Metadata */}
-      <SourceMetadataSection 
-        data={data} 
-        sourceName="AI Literature Analysis"
-        isClinicianView={clinicianView}
-      />
+      {/* Source Metadata with Beta label */}
+      <div className="flex items-center justify-between mb-4">
+        <SourceMetadataSection 
+          data={data} 
+          sourceName="AI Literature Analysis"
+          isClinicianView={clinicianView}
+        />
+        <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
+          Beta
+        </Badge>
+      </div>
+      
+      {/* Confidence indicator */}
+      <div className="mb-4 flex items-center gap-2">
+        <Info className="h-4 w-4 text-blue-600" />
+        <span className="text-sm font-medium">
+          Confidence: {confidenceScore}%
+          {confidenceScore >= 80 && <span className="text-green-600 ml-1">(High)</span>}
+          {confidenceScore >= 60 && confidenceScore < 80 && <span className="text-amber-600 ml-1">(Moderate)</span>}
+        </span>
+      </div>
       
       {/* Severity and confidence at the top */}
       <SeverityConfidenceSection data={data} clinicianView={clinicianView} />
@@ -78,7 +132,7 @@ export function AILiteratureSourceContent({
       <div className="rounded-md border mb-4 p-4">
         <h3 className="font-medium mb-3 flex items-center">
           <Book className="h-4 w-4 mr-2 text-amber-700" />
-          Literature Analysis
+          AI Literature Summary
         </h3>
         <div className="space-y-2">
           {formattedContent.bulletPoints.length > 0 ? (
@@ -132,11 +186,13 @@ export function AILiteratureSourceContent({
       )}
       
       {/* Raw details section */}
-      <DetailsSection data={data} showRaw={clinicianView} />
+      {clinicianView && (
+        <DetailsSection data={data} showRaw={true} />
+      )}
       
       {/* Source disclaimer */}
       <div className="mt-6 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-600 italic">
-        {getSourceDisclaimer("AI LITERATURE ANALYSIS")}
+        {getSourceDisclaimer("AI LITERATURE ANALYSIS")} This source uses AI to analyze medical literature and may not reflect official guidance.
       </div>
       
       {/* Contribution to severity score */}

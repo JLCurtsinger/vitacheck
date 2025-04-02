@@ -8,4 +8,4 @@ export * from './enricher';
 export * from './logger';
 
 // Export the ValidationResult interface using export type
-export type { ValidationResult } from '../../../utils/diagnostics/schema-validator';
+export type { ValidationResult } from './schema-validator';
