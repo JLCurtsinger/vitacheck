@@ -10,19 +10,18 @@ import { Label } from "@/components/ui/label";
 import { SourceMetadataSection } from "./SourceMetadataSection";
 import { getSourceDisclaimer, getSourceContribution } from "./utils";
 
-interface FDASourceContentProps {
+interface RxNormSourceContentProps {
   data: InteractionSource[];
   medications: string[];
-  sourceName: string;
 }
 
-export function FDASourceContent({ data, medications, sourceName }: FDASourceContentProps) {
+export function RxNormSourceContent({ data, medications }: RxNormSourceContentProps) {
   const [clinicianView, setClinicianView] = useState(false);
   
   if (data.length === 0) {
     return (
       <div className="p-6 text-center">
-        <p className="text-gray-600">No detailed information available from FDA drug labels.</p>
+        <p className="text-gray-600">No detailed information available from RxNorm.</p>
       </div>
     );
   }
@@ -43,23 +42,6 @@ export function FDASourceContent({ data, medications, sourceName }: FDASourceCon
     return { bulletPoints, categories };
   }, [data, medications]);
 
-  // Extract any FDA-specific metadata
-  const rawWarnings = useMemo(() => {
-    const warnings = [];
-    
-    // Extract raw warnings from FDA data if available
-    data.forEach(item => {
-      if (item.rawData?.warnings && Array.isArray(item.rawData.warnings)) {
-        warnings.push(...item.rawData.warnings);
-      }
-      if (item.rawData?.drug_interactions && Array.isArray(item.rawData.drug_interactions)) {
-        warnings.push(...item.rawData.drug_interactions);
-      }
-    });
-    
-    return [...new Set(warnings)]; // Remove duplicates
-  }, [data]);
-
   return (
     <>
       {/* Clinician View Toggle */}
@@ -75,52 +57,38 @@ export function FDASourceContent({ data, medications, sourceName }: FDASourceCon
       </div>
       
       {/* Source Metadata */}
-      <SourceMetadataSection data={data} sourceName={sourceName} />
+      <SourceMetadataSection data={data} sourceName="RxNorm" />
       
       {/* Severity and confidence at the top */}
       <SeverityConfidenceSection data={data} />
       
-      {/* Categorized FDA content sections - Severe risks first */}
+      {/* Critical warnings first */}
       <FormattedContentSection 
         title="Critical Warnings" 
         points={formattedContent.categories.severeRisks}
         type="severe" 
       />
       
-      {/* Moderate risks next */}
+      {/* Precautions next */}
       <FormattedContentSection 
         title="Precautions" 
         points={formattedContent.categories.moderateRisks}
         type="warning" 
       />
       
-      {/* General info last */}
+      {/* General information */}
       <FormattedContentSection 
         title="General Information" 
         points={formattedContent.categories.generalInfo}
         type="info" 
       />
       
-      {/* Raw FDA Warnings if in clinician view */}
-      {clinicianView && rawWarnings.length > 0 && (
-        <div className="rounded-md border mb-4 p-4">
-          <h3 className="font-medium mb-2">Raw FDA Warnings</h3>
-          <div className="bg-gray-50 p-3 rounded text-sm overflow-auto max-h-40">
-            <ul className="list-disc list-inside">
-              {rawWarnings.map((warning, idx) => (
-                <li key={idx} className="mb-1">{warning}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
-      
       {/* Raw details section */}
       <DetailsSection data={data} showRaw={clinicianView} />
       
       {/* Source disclaimer */}
       <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-600 italic">
-        {getSourceDisclaimer(sourceName)}
+        {getSourceDisclaimer("RXNORM")}
       </div>
       
       {/* Contribution to severity score */}

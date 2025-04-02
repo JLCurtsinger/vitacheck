@@ -93,22 +93,8 @@ export type Database = {
             foreignKeyName: "interactions_substance_a_id_fkey"
             columns: ["substance_a_id"]
             isOneToOne: false
-            referencedRelation: "substance_experiences"
-            referencedColumns: ["substance_id"]
-          },
-          {
-            foreignKeyName: "interactions_substance_a_id_fkey"
-            columns: ["substance_a_id"]
-            isOneToOne: false
             referencedRelation: "substances"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interactions_substance_b_id_fkey"
-            columns: ["substance_b_id"]
-            isOneToOne: false
-            referencedRelation: "substance_experiences"
-            referencedColumns: ["substance_id"]
           },
           {
             foreignKeyName: "interactions_substance_b_id_fkey"
@@ -185,13 +171,6 @@ export type Database = {
             foreignKeyName: "nutrient_depletions_substance_id_fkey"
             columns: ["substance_id"]
             isOneToOne: false
-            referencedRelation: "substance_experiences"
-            referencedColumns: ["substance_id"]
-          },
-          {
-            foreignKeyName: "nutrient_depletions_substance_id_fkey"
-            columns: ["substance_id"]
-            isOneToOne: false
             referencedRelation: "substances"
             referencedColumns: ["id"]
           },
@@ -237,14 +216,19 @@ export type Database = {
     Views: {
       substance_experiences: {
         Row: {
-          created_at: string | null
           description: string | null
-          downvotes: number | null
           id: string | null
           medication_name: string | null
-          sentiment: string | null
-          substance_id: string | null
-          upvotes: number | null
+        }
+        Insert: {
+          description?: string | null
+          id?: string | null
+          medication_name?: string | null
+        }
+        Update: {
+          description?: string | null
+          id?: string | null
+          medication_name?: string | null
         }
         Relationships: []
       }

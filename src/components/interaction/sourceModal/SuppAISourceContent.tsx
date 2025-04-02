@@ -7,22 +7,23 @@ import { FormattedContentSection } from "./FormattedContentSection";
 import { formatDescriptionText, categorizeBulletPoints } from "../utils/formatDescription";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { SourceMetadataSection } from "./SourceMetadataSection";
 import { getSourceDisclaimer, getSourceContribution } from "./utils";
+import { ExternalLink } from "lucide-react";
 
-interface FDASourceContentProps {
+interface SuppAISourceContentProps {
   data: InteractionSource[];
   medications: string[];
-  sourceName: string;
 }
 
-export function FDASourceContent({ data, medications, sourceName }: FDASourceContentProps) {
+export function SuppAISourceContent({ data, medications }: SuppAISourceContentProps) {
   const [clinicianView, setClinicianView] = useState(false);
   
   if (data.length === 0) {
     return (
       <div className="p-6 text-center">
-        <p className="text-gray-600">No detailed information available from FDA drug labels.</p>
+        <p className="text-gray-600">No detailed information available from SUPP.AI.</p>
       </div>
     );
   }
@@ -43,21 +44,21 @@ export function FDASourceContent({ data, medications, sourceName }: FDASourceCon
     return { bulletPoints, categories };
   }, [data, medications]);
 
-  // Extract any FDA-specific metadata
-  const rawWarnings = useMemo(() => {
-    const warnings = [];
+  // Extract any evidence URLs from SUPP.AI data
+  const evidenceLinks = useMemo(() => {
+    const links: string[] = [];
     
-    // Extract raw warnings from FDA data if available
+    // Extract evidence URL if available in the raw data
     data.forEach(item => {
-      if (item.rawData?.warnings && Array.isArray(item.rawData.warnings)) {
-        warnings.push(...item.rawData.warnings);
+      if (item.rawData?.evidence_url) {
+        links.push(item.rawData.evidence_url);
       }
-      if (item.rawData?.drug_interactions && Array.isArray(item.rawData.drug_interactions)) {
-        warnings.push(...item.rawData.drug_interactions);
+      if (item.rawData?.evidence_urls && Array.isArray(item.rawData.evidence_urls)) {
+        item.rawData.evidence_urls.forEach((url: string) => links.push(url));
       }
     });
     
-    return [...new Set(warnings)]; // Remove duplicates
+    return [...new Set(links)]; // Remove duplicates
   }, [data]);
 
   return (
@@ -75,52 +76,65 @@ export function FDASourceContent({ data, medications, sourceName }: FDASourceCon
       </div>
       
       {/* Source Metadata */}
-      <SourceMetadataSection data={data} sourceName={sourceName} />
+      <SourceMetadataSection data={data} sourceName="SUPP.AI" />
       
       {/* Severity and confidence at the top */}
       <SeverityConfidenceSection data={data} />
       
-      {/* Categorized FDA content sections - Severe risks first */}
+      {/* Literature Evidence Links if available */}
+      {evidenceLinks.length > 0 && (
+        <div className="rounded-md border mb-4 p-4 bg-green-50 border-green-200">
+          <h3 className="font-medium mb-2 flex items-center">
+            <ExternalLink className="h-4 w-4 mr-2 text-green-700" />
+            Literature Evidence
+          </h3>
+          <div className="space-y-2">
+            {evidenceLinks.map((link, idx) => (
+              <div key={idx} className="flex">
+                <Badge variant="outline" className="bg-green-100 border-green-300 text-green-800 text-xs">
+                  Source {idx+1}
+                </Badge>
+                <a 
+                  href={link} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="ml-2 text-sm text-green-700 hover:underline"
+                >
+                  View publication evidence
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Critical warnings first */}
       <FormattedContentSection 
         title="Critical Warnings" 
         points={formattedContent.categories.severeRisks}
         type="severe" 
       />
       
-      {/* Moderate risks next */}
+      {/* Precautions next */}
       <FormattedContentSection 
         title="Precautions" 
         points={formattedContent.categories.moderateRisks}
         type="warning" 
       />
       
-      {/* General info last */}
+      {/* General information */}
       <FormattedContentSection 
         title="General Information" 
         points={formattedContent.categories.generalInfo}
         type="info" 
       />
       
-      {/* Raw FDA Warnings if in clinician view */}
-      {clinicianView && rawWarnings.length > 0 && (
-        <div className="rounded-md border mb-4 p-4">
-          <h3 className="font-medium mb-2">Raw FDA Warnings</h3>
-          <div className="bg-gray-50 p-3 rounded text-sm overflow-auto max-h-40">
-            <ul className="list-disc list-inside">
-              {rawWarnings.map((warning, idx) => (
-                <li key={idx} className="mb-1">{warning}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
-      
       {/* Raw details section */}
       <DetailsSection data={data} showRaw={clinicianView} />
       
       {/* Source disclaimer */}
       <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-600 italic">
-        {getSourceDisclaimer(sourceName)}
+        {getSourceDisclaimer("SUPP.AI")}
       </div>
       
       {/* Contribution to severity score */}

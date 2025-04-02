@@ -5,14 +5,15 @@ import {
   DialogContent, 
   DialogHeader,
   DialogTitle,
-  DialogDescription
+  DialogDescription,
+  DialogFooter
 } from "@/components/ui/dialog";
 import { InteractionSource, AdverseEventData } from "@/lib/api/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getSourceColorClass } from "./sourceModal/utils";
 import { SourceContentRouter } from "./sourceModal/SourceContentRouter";
 
-// We need to define a custom type to handle the special case for adverse events
+// Extended interface to handle different source-specific data
 interface SourceData extends InteractionSource {
   adverseEvents?: AdverseEventData;
 }
@@ -22,7 +23,7 @@ interface SourceDetailsModalProps {
   onClose: () => void;
   source: {
     name: string;
-    data: SourceData[]; // Updated type to our custom interface
+    data: SourceData[];
     medications: string[];
   } | null;
 }
@@ -37,13 +38,13 @@ export function SourceDetailsModal({ isOpen, onClose, source }: SourceDetailsMod
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <div className={`rounded-lg px-3 py-1 inline-block ${getSourceColorClass(name)}`}>
-            {name} Data Source
+            {name}
           </div>
           <DialogTitle className="text-xl mt-2">
-            Interaction Details from {name}
+            Interaction Details
           </DialogTitle>
           <DialogDescription>
-            Information about {medications.join(' + ')} interaction from {name} database
+            Information about {medications.join(' + ')} from {name}
           </DialogDescription>
         </DialogHeader>
         
@@ -54,13 +55,12 @@ export function SourceDetailsModal({ isOpen, onClose, source }: SourceDetailsMod
               data={data}
               medications={medications}
             />
-            
-            <div className="text-sm text-gray-500 italic">
-              Note: This data is sourced directly from the {name} database and represents 
-              their assessment of this interaction.
-            </div>
           </div>
         </ScrollArea>
+        
+        <DialogFooter className="text-xs text-gray-500 italic">
+          Data from {name} is one of several sources analyzed by VitaCheck's consensus model.
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
