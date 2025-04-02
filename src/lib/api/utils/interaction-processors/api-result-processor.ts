@@ -21,4 +21,5 @@ export {
   validateAndLogSchemaDiscrepancies
 } from './api-response/schema-validator';
 
-export type { ValidationResult } from '../../../utils/diagnostics/schema-validator';
+// Correctly import ValidationResult type from the schema-validator directly
+export type { ValidationResult } from './api-response/schema-validator';
