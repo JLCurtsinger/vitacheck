@@ -45,7 +45,7 @@ export function FDASourceContent({ data, medications, sourceName }: FDASourceCon
 
   // Extract any FDA-specific metadata
   const rawWarnings = useMemo(() => {
-    const warnings = [];
+    const warnings: string[] = [];
     
     // Extract raw warnings from FDA data if available
     data.forEach(item => {

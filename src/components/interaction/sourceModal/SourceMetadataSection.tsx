@@ -32,7 +32,7 @@ export function SourceMetadataSection({ data, sourceName }: SourceMetadataSectio
     }
     
     // Add API-specific tags if available
-    if (data[0]?.tags && Array.isArray(data[0].tags)) {
+    if (data[0]?.tags && Array.isArray(data[0].tags) && data[0].tags.length > 0) {
       metadata.push({
         icon: <Tag className="h-4 w-4 text-gray-500" />,
         label: "Tags",

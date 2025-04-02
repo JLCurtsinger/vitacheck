@@ -52,6 +52,11 @@ export interface InteractionSource {
     seriousPercentage?: number; // Add this property for tracking percentage of serious events
     commonReactions?: string[]; // Add this property for storing common reactions
   };
+  // Adding additional metadata fields for source modals
+  rawData?: any; // Raw data from the API
+  timestamp?: string; // Timestamp when the data was retrieved
+  date?: string; // Date when the data was retrieved
+  tags?: string[]; // Tags associated with the data
 }
 
 /**
