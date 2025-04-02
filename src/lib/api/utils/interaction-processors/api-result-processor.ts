@@ -20,3 +20,5 @@ export {
 export {
   validateAndLogSchemaDiscrepancies
 } from './api-response/schema-validator';
+
+export type { ValidationResult } from '../../../utils/diagnostics/schema-validator';

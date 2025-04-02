@@ -108,6 +108,7 @@ function compareSchema(
 
 /**
  * Validates and logs API response schema with improved fallback handling
+ * @returns ValidationResult object with fallback information
  */
 export function validateAndLogSchemaDiscrepancies(
   response: any, 

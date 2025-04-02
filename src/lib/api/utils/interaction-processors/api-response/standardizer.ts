@@ -1,4 +1,3 @@
-
 import { StandardizedApiResponse } from '../../../types';
 import { logApiResponseFormat, logStandardizedResponse } from '../../debug-logger';
 import { validateAndLogSchemaDiscrepancies } from './schema-validator';
@@ -49,8 +48,8 @@ export function standardizeAndLogApiResults(
         "RxNorm", 
         rxnormRawResult, 
         extractDescription(rxnormRawResult),
-        rxnormValidation.fallbackUsed,
-        rxnormValidation.fallbackReason
+        rxnormValidation && rxnormValidation.fallbackUsed || false,
+        rxnormValidation && rxnormValidation.fallbackReason || ""
       ) 
     : null;
     
@@ -59,8 +58,8 @@ export function standardizeAndLogApiResults(
         "SUPP.AI", 
         suppaiRawResult, 
         extractDescription(suppaiRawResult),
-        suppaiValidation.fallbackUsed,
-        suppaiValidation.fallbackReason
+        suppaiValidation && suppaiValidation.fallbackUsed || false,
+        suppaiValidation && suppaiValidation.fallbackReason || ""
       )
     : null;
     
@@ -69,8 +68,8 @@ export function standardizeAndLogApiResults(
         "FDA", 
         fdaRawResult, 
         extractDescription(fdaRawResult),
-        fdaValidation.fallbackUsed,
-        fdaValidation.fallbackReason
+        fdaValidation && fdaValidation.fallbackUsed || false,
+        fdaValidation && fdaValidation.fallbackReason || ""
       )
     : null;
     
@@ -79,8 +78,8 @@ export function standardizeAndLogApiResults(
         "AI Literature Analysis", 
         aiAnalysisRawResult, 
         extractDescription(aiAnalysisRawResult),
-        aiValidation.fallbackUsed,
-        aiValidation.fallbackReason
+        aiValidation && aiValidation.fallbackUsed || false,
+        aiValidation && aiValidation.fallbackReason || ""
       )
     : null;
   
