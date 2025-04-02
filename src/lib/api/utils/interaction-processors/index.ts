@@ -7,3 +7,4 @@ export * from './adverse-events-processor';
 export * from './ai-literature-processor';
 export * from './api-result-processor';
 export * from './parallel-api-fetcher';
+export * from './rxnorm'; // Add the direct export for the new rxnorm module
