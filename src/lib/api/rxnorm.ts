@@ -3,13 +3,16 @@
  * RxNorm API Integration Module
  * Handles interactions with the RxNorm API for medication lookups and interaction checking.
  * Enhanced with a comprehensive fallback system for improved resilience.
+ * 
+ * This is a barrel file that re-exports functionality from more focused modules.
  */
 
-import { getRxCUIFromLocalCache, generateAlternativeFormats, extractRxCUIFromFDALabel, extractCUIFromSuppAI } from './rxnorm-fallback';
-import { getFDAWarnings } from './fda';
-import { getSupplementInteractions } from './suppai';
+// Export main functionality
+export { getRxCUI } from './services/rxcui-lookup';
+export { getDrugInteractions } from './services/drug-interactions';
 
-interface RxNormResponse {
+// Also export types for better TypeScript integration
+export interface RxNormResponse {
   status: "success" | "error";
   data?: {
     idGroup?: {
@@ -21,7 +24,7 @@ interface RxNormResponse {
   message?: string;
 }
 
-interface RxNormInteractionResponse {
+export interface RxNormInteractionResponse {
   status: "success" | "error";
   data?: {
     fullInteractionTypeGroup?: Array<{
@@ -36,238 +39,4 @@ interface RxNormInteractionResponse {
   error?: string;
   details?: string;
   message?: string;
-}
-
-// Session-level caches
-const rxcuiCache = new Map<string, string | null>();
-const interactionCache = new Map<string, any[]>();
-
-const INTERACTION_REQUEST_DELAY = 500; // milliseconds
-
-/**
- * Delay function to prevent rate limiting
- * @param ms - milliseconds to delay
- */
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-/**
- * Retrieves the RxCUI (RxNorm Concept Unique Identifier) for a given medication name.
- * Enhanced with comprehensive fallback mechanisms.
- * @param medication - The name of the medication to look up
- * @returns The RxCUI if found, null otherwise
- */
-export async function getRxCUI(medication: string): Promise<string | null> {
-  console.log(`🔍 [RxNorm Client] Attempting to get RxCUI for medication: ${medication}`);
-  
-  // Check the cache first
-  const medKey = medication.toLowerCase();
-  if (rxcuiCache.has(medKey)) {
-    console.log(`✅ [RxNorm Client] Using cached RxCUI for ${medication}: ${rxcuiCache.get(medKey)}`);
-    return rxcuiCache.get(medKey);
-  }
-  
-  // 1. Try with the original name first
-  let rxcui = await tryGetRxCUI(medication);
-  
-  // 2. If not found, try local cache
-  if (!rxcui) {
-    rxcui = getRxCUIFromLocalCache(medication);
-  }
-  
-  // 3. If still not found, try alternative formats
-  if (!rxcui) {
-    console.log(`[RxNorm Fallback] Trying alternative formats for "${medication}"`);
-    const alternativeFormats = generateAlternativeFormats(medication);
-    
-    for (const format of alternativeFormats) {
-      if (format === medication) continue; // Skip the original format, we already tried it
-      
-      console.log(`[RxNorm Fallback] Retrying RxNorm with alternative format: "${format}"`);
-      rxcui = await tryGetRxCUI(format);
-      
-      if (rxcui) {
-        console.log(`✅ [RxNorm Fallback] Found RxCUI using alternative format "${format}": ${rxcui}`);
-        break;
-      }
-    }
-  }
-  
-  // 4. If still not found, try getting RxCUI from FDA Label data
-  if (!rxcui) {
-    console.log(`[RxNorm Fallback] Attempting to get RxCUI from FDA Label data for "${medication}"`);
-    try {
-      const fdaData = await getFDAWarnings(medication);
-      if (fdaData) {
-        rxcui = extractRxCUIFromFDALabel(fdaData);
-      }
-    } catch (error) {
-      console.error('[RxNorm Fallback] Error fetching FDA data:', error);
-    }
-  }
-  
-  // 5. Last resort: try SUPP.AI for supplements and herbal remedies
-  if (!rxcui) {
-    console.log(`[RxNorm Fallback] Attempting to get CUI from SUPP.AI for "${medication}"`);
-    try {
-      const suppaiData = await getSupplementInteractions(medication);
-      if (suppaiData) {
-        // SUPP.AI returns a CUI, not an RxCUI, but it's better than nothing
-        // for supplements and herbs that might not be in RxNorm
-        const cui = extractCUIFromSuppAI(suppaiData);
-        if (cui) {
-          // Use the CUI as a fallback identifier
-          // Note that this is not an RxCUI, but a concept unique identifier
-          rxcui = cui;
-          console.log(`[RxNorm Fallback] Using CUI as fallback: ${cui}`);
-        }
-      }
-    } catch (error) {
-      console.error('[RxNorm Fallback] Error fetching SUPP.AI data:', error);
-    }
-  }
-  
-  if (rxcui) {
-    console.log(`✅ [RxNorm Client] Finally found identifier for ${medication}: ${rxcui}`);
-    // Cache the positive result
-    rxcuiCache.set(medKey, rxcui);
-  } else {
-    console.log(`⚠️ [RxNorm Client] Could not find RxCUI for ${medication} after exhausting all fallback options`);
-    // Cache the negative result to avoid repeating the same lookup
-    rxcuiCache.set(medKey, null);
-  }
-  
-  return rxcui;
-}
-
-/**
- * Helper function to attempt RxCUI lookup with a specific format
- */
-async function tryGetRxCUI(formattedMedication: string): Promise<string | null> {
-  try {
-    console.log(`🔍 [RxNorm Client] Trying format: "${formattedMedication}"`);
-    
-    const response = await fetch('/.netlify/functions/rxnorm', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        operation: 'rxcui',
-        name: formattedMedication.trim()
-      })
-    });
-    
-    if (!response.ok) {
-      console.error('❌ [RxNorm Client] API error:', {
-        status: response.status,
-        medication: formattedMedication
-      });
-      return null;
-    }
-    
-    const data: RxNormResponse = await response.json();
-    
-    if (data.status === 'error' || data.message === "No data found") {
-      console.log(`⚠️ [RxNorm Client] No RxCUI found for format: ${formattedMedication}`);
-      return null;
-    }
-    
-    const rxcui = data.data?.idGroup?.rxnormId?.[0] || null;
-    if (rxcui) {
-      console.log(`✅ [RxNorm Client] RxCUI found with format "${formattedMedication}": ${rxcui}`);
-    }
-    return rxcui;
-  } catch (error) {
-    console.error(`❌ [RxNorm Client] Error trying format "${formattedMedication}":`, error);
-    return null;
-  }
-}
-
-/**
- * Generates a cache key for interaction lookups
- */
-function getInteractionCacheKey(rxCUIs: string[]): string {
-  return [...rxCUIs].sort().join('+');
-}
-
-/**
- * Fetches drug interaction information for given RxCUIs.
- * @param rxCUIs - Array of RxNorm Concept Unique Identifiers
- * @returns Array of interaction data or empty array if none found
- */
-export async function getDrugInteractions(rxCUIs: string[]): Promise<any[]> {
-  // Validate RxCUIs before proceeding
-  const validRxCUIs = rxCUIs.filter(Boolean);
-  if (validRxCUIs.length === 0) {
-    console.warn('⚠️ [RxNorm Client] No valid RxCUIs provided for interaction check');
-    return [];
-  }
-
-  console.log('🔍 [RxNorm Client] Checking interactions for RxCUIs:', validRxCUIs);
-  
-  // Check cache for this set of RxCUIs
-  const cacheKey = getInteractionCacheKey(validRxCUIs);
-  if (interactionCache.has(cacheKey)) {
-    console.log(`✅ [RxNorm Client] Using cached interactions for RxCUIs: ${cacheKey}`);
-    return interactionCache.get(cacheKey) || [];
-  }
-  
-  // Add delay to prevent rate limiting
-  await delay(INTERACTION_REQUEST_DELAY);
-  
-  const rxcuiString = validRxCUIs.join('+');
-  console.log(`🔍 [RxNorm Client] Making interaction request with RxCUIs: ${rxcuiString}`);
-  
-  // FIXED: Using the correct parameter name 'rxcui' instead of 'rxcuis'
-  const requestBody = {
-    operation: 'interactions',
-    rxcui: rxcuiString
-  };
-  
-  console.log(`📡 [RxNorm Client] Sending request to RxNorm:`, requestBody);
-  
-  try {
-    const response = await fetch('/.netlify/functions/rxnorm', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody)
-    });
-    
-    if (!response.ok) {
-      console.error('❌ [RxNorm Client] Drug interactions API error:', {
-        status: response.status,
-        rxcuis: rxcuiString,
-        requestBody
-      });
-      // Cache empty results to prevent repeated failures
-      interactionCache.set(cacheKey, []);
-      return [];
-    }
-    
-    const data: RxNormInteractionResponse = await response.json();
-    console.log('⚙️ [RxNorm Client] Drug interactions API raw response:', data);
-    
-    if (data.status === 'error' || data.message === "No data found" || data.message === "No interactions found") {
-      console.log('⚠️ [RxNorm Client] No interactions found for RxCUIs:', rxcuiString);
-      // Cache empty results
-      interactionCache.set(cacheKey, []);
-      return [];
-    }
-    
-    const interactionResults = data.data?.fullInteractionTypeGroup || [];
-    console.log('✅ [RxNorm Client] Processed interaction results:', 
-      interactionResults.length > 0 ? `Found ${interactionResults.length} interaction groups` : 'No interactions');
-    
-    // Cache the successful result
-    interactionCache.set(cacheKey, interactionResults);
-    
-    return interactionResults;
-  } catch (error) {
-    console.error('❌ [RxNorm Client] Error getting drug interactions:', error);
-    // Cache empty results on error to prevent continuous retries
-    interactionCache.set(cacheKey, []);
-    return [];
-  }
 }
