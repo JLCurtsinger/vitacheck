@@ -56,3 +56,6 @@ export function validateAndLogSchemaDiscrepancies(
   
   return result;
 }
+
+// Re-export the ValidationResult type
+export type { ValidationResult } from '../../../utils/diagnostics/schema-validator';
