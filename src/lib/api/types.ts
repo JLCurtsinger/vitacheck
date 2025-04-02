@@ -47,6 +47,7 @@ export interface InteractionSource {
   severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
   description: string;
   confidence?: number; // Added confidence rating for each source
+  isReliable?: boolean; // Added to indicate if the source data is reliable
   eventData?: {
     totalEvents: number;
     seriousEvents: number;
