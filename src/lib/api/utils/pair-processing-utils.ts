@@ -15,3 +15,4 @@ export * from './pair-processing';
 
 // Import supabase client for backward compatibility
 import { supabase } from "@/integrations/supabase/client";
+

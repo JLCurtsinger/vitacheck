@@ -127,5 +127,6 @@ export async function processMedicationPair(
   }
 }
 
-// Import severity processor
+// Import severity processor from the dedicated module
 import { determineFinalSeverity, createDefaultSource } from '../severity-processor';
+

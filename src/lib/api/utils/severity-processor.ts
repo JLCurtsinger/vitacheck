@@ -38,3 +38,4 @@ export function determineFinalSeverity(
   // Use the consensus-based approach to calculate the final severity
   return calculateConsensusScore(sources, adverseEventsResult);
 }
+
