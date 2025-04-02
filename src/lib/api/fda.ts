@@ -9,6 +9,10 @@ export interface FDAResponse {
   results?: Array<{
     warnings?: string[];
     drug_interactions?: string[];
+    openfda?: {
+      rxcui?: string[];
+      [key: string]: any;
+    };
   }>;
 }
 
