@@ -1,4 +1,3 @@
-
 /**
  * CORS configuration for the API
  */
