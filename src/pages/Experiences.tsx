@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ interface Experience {
   id: string;
   medication_name: string;
   description: string;
+  contributing_factors?: string;
   sentiment: "positive" | "neutral" | "negative";
   upvotes: number;
   downvotes: number;
@@ -25,6 +27,7 @@ interface Experience {
 interface ExperienceFormData {
   medicationName: string;
   description: string;
+  contributingFactors?: string;
   sentiment: "positive" | "neutral" | "negative";
   authorName?: string;
 }
@@ -36,6 +39,7 @@ export default function Experiences() {
   const [formData, setFormData] = useState<ExperienceFormData>({
     medicationName: "",
     description: "",
+    contributingFactors: "",
     sentiment: "neutral",
     authorName: ""
   });
@@ -64,6 +68,7 @@ export default function Experiences() {
         .insert([{
           medication_name: data.medicationName,
           description: data.description,
+          contributing_factors: data.contributingFactors || null,
           sentiment: data.sentiment,
           author_name: data.authorName || null
         }])
@@ -79,6 +84,7 @@ export default function Experiences() {
       setFormData({
         medicationName: "",
         description: "",
+        contributingFactors: "",
         sentiment: "neutral",
         authorName: ""
       });
@@ -192,11 +198,11 @@ export default function Experiences() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="medicationName">Medication Name</Label>
+                  <Label htmlFor="medicationName">Medication(s) Name</Label>
                   <Input id="medicationName" value={formData.medicationName} onChange={e => setFormData({
                   ...formData,
                   medicationName: e.target.value
-                })} placeholder="Enter medication name" className="border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all" required />
+                })} placeholder="Enter medication name(s)" className="border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all" required />
                 </div>
                 
                 <div className="space-y-2">
@@ -205,6 +211,20 @@ export default function Experiences() {
                   ...formData,
                   description: e.target.value
                 })} placeholder="Share your experience with this medication..." className="min-h-[100px] border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all" required />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="contributingFactors">Other Contributing Factors (Optional)</Label>
+                  <Textarea 
+                    id="contributingFactors" 
+                    value={formData.contributingFactors} 
+                    onChange={e => setFormData({
+                      ...formData,
+                      contributingFactors: e.target.value
+                    })} 
+                    placeholder="Mention anything else that may have affected your experience, such as other medications, lifestyle factors, dosage, timing, or medical conditions…" 
+                    className="min-h-[80px] border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all" 
+                  />
                 </div>
 
                 <div className="space-y-2">
