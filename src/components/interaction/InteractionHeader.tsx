@@ -40,9 +40,11 @@ export function InteractionHeader({
             </>
           )}
           
-          {/* Show confidence score if available */}
+          {/* Show confidence score if available - now as plain text without badge styling */}
           {confidenceScore !== undefined && (
-            <span className="text-xs text-gray-500 ml-2">(Confidence: {confidenceScore}%)</span>
+            <span className="text-xs text-gray-500 ml-2">
+              (Confidence: {confidenceScore}%)
+            </span>
           )}
         </div>
       </div>

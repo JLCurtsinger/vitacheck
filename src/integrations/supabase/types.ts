@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       experiences: {
         Row: {
+          contributing_factors: string | null
           created_at: string
           description: string
           downvotes: number
@@ -20,6 +21,7 @@ export type Database = {
           upvotes: number
         }
         Insert: {
+          contributing_factors?: string | null
           created_at?: string
           description: string
           downvotes?: number
@@ -29,6 +31,7 @@ export type Database = {
           upvotes?: number
         }
         Update: {
+          contributing_factors?: string | null
           created_at?: string
           description?: string
           downvotes?: number
