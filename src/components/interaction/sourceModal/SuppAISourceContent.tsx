@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { SourceMetadataSection } from "./SourceMetadataSection";
 import { getSourceDisclaimer, getSourceContribution } from "./utils";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Book } from "lucide-react";
 
 interface SuppAISourceContentProps {
   data: InteractionSource[];
@@ -64,7 +64,7 @@ export function SuppAISourceContent({ data, medications }: SuppAISourceContentPr
   return (
     <>
       {/* Clinician View Toggle */}
-      <div className="flex items-center justify-end space-x-2 mb-4">
+      <div className="flex items-center justify-end space-x-2 mb-4 sticky top-0 bg-white p-2 z-10 rounded-md border border-gray-100 shadow-sm">
         <Label htmlFor="clinician-view" className="text-sm font-medium">
           Clinician View
         </Label>
@@ -85,12 +85,12 @@ export function SuppAISourceContent({ data, medications }: SuppAISourceContentPr
       {evidenceLinks.length > 0 && (
         <div className="rounded-md border mb-4 p-4 bg-green-50 border-green-200">
           <h3 className="font-medium mb-2 flex items-center">
-            <ExternalLink className="h-4 w-4 mr-2 text-green-700" />
+            <Book className="h-4 w-4 mr-2 text-green-700" />
             Literature Evidence
           </h3>
           <div className="space-y-2">
             {evidenceLinks.map((link, idx) => (
-              <div key={idx} className="flex">
+              <div key={idx} className="flex items-center">
                 <Badge variant="outline" className="bg-green-100 border-green-300 text-green-800 text-xs">
                   Source {idx+1}
                 </Badge>
@@ -98,9 +98,10 @@ export function SuppAISourceContent({ data, medications }: SuppAISourceContentPr
                   href={link} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="ml-2 text-sm text-green-700 hover:underline"
+                  className="ml-2 text-sm text-green-700 hover:underline flex items-center"
                 >
                   View publication evidence
+                  <ExternalLink className="h-3 w-3 ml-1" />
                 </a>
               </div>
             ))}
@@ -133,7 +134,7 @@ export function SuppAISourceContent({ data, medications }: SuppAISourceContentPr
       <DetailsSection data={data} showRaw={clinicianView} />
       
       {/* Source disclaimer */}
-      <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-600 italic">
+      <div className="mt-6 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-600 italic">
         {getSourceDisclaimer("SUPP.AI")}
       </div>
       

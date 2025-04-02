@@ -35,7 +35,7 @@ export function SourceDetailsModal({ isOpen, onClose, source }: SourceDetailsMod
   
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden shadow-lg border-2">
         <DialogHeader>
           <div className={`rounded-lg px-3 py-1 inline-block ${getSourceColorClass(name)}`}>
             {name}
@@ -58,7 +58,7 @@ export function SourceDetailsModal({ isOpen, onClose, source }: SourceDetailsMod
           </div>
         </ScrollArea>
         
-        <DialogFooter className="text-xs text-gray-500 italic pt-4">
+        <DialogFooter className="text-xs text-gray-500 italic mt-4 pt-4 border-t border-gray-100">
           Data from {name} is one of several sources analyzed by VitaCheck's consensus model.
         </DialogFooter>
       </DialogContent>

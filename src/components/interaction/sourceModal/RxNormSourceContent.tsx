@@ -45,7 +45,7 @@ export function RxNormSourceContent({ data, medications }: RxNormSourceContentPr
   return (
     <>
       {/* Clinician View Toggle */}
-      <div className="flex items-center justify-end space-x-2 mb-4">
+      <div className="flex items-center justify-end space-x-2 mb-4 sticky top-0 bg-white p-2 z-10 rounded-md border border-gray-100 shadow-sm">
         <Label htmlFor="clinician-view" className="text-sm font-medium">
           Clinician View
         </Label>
@@ -87,7 +87,7 @@ export function RxNormSourceContent({ data, medications }: RxNormSourceContentPr
       <DetailsSection data={data} showRaw={clinicianView} />
       
       {/* Source disclaimer */}
-      <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-600 italic">
+      <div className="mt-6 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-600 italic">
         {getSourceDisclaimer("RXNORM")}
       </div>
       

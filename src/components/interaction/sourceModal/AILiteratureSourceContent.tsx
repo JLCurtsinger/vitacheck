@@ -8,7 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { SourceMetadataSection } from "./SourceMetadataSection";
 import { getSourceDisclaimer, getSourceContribution } from "./utils";
-import { Book } from "lucide-react";
+import { Book, FileText } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface AILiteratureSourceContentProps {
   data: InteractionSource[];
@@ -63,7 +64,7 @@ export function AILiteratureSourceContent({ data, medications }: AILiteratureSou
   return (
     <>
       {/* Clinician View Toggle */}
-      <div className="flex items-center justify-end space-x-2 mb-4">
+      <div className="flex items-center justify-end space-x-2 mb-4 sticky top-0 bg-white p-2 z-10 rounded-md border border-gray-100 shadow-sm">
         <Label htmlFor="clinician-view" className="text-sm font-medium">
           Clinician View
         </Label>
@@ -100,14 +101,40 @@ export function AILiteratureSourceContent({ data, medications }: AILiteratureSou
       {/* Citations if available */}
       {citations.length > 0 && (
         <div className="rounded-md border mb-4 p-4 bg-amber-50">
-          <h3 className="font-medium mb-2">Literature Citations</h3>
-          <div className="text-sm">
-            {citations.map((citation, idx) => (
-              <div key={idx} className="mb-1 text-amber-800">
-                {citation}
-              </div>
-            ))}
-          </div>
+          <h3 className="font-medium mb-2 flex items-center">
+            <FileText className="h-4 w-4 mr-2 text-amber-700" />
+            Literature Citations
+          </h3>
+          
+          {clinicianView ? (
+            <Accordion type="single" collapsible>
+              <AccordionItem value="citations">
+                <AccordionTrigger className="text-sm">View All Citations</AccordionTrigger>
+                <AccordionContent>
+                  <div className="bg-amber-100/50 p-3 rounded text-sm">
+                    {citations.map((citation, idx) => (
+                      <div key={idx} className="mb-1 text-amber-800">
+                        {citation}
+                      </div>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          ) : (
+            <div className="text-sm">
+              {citations.slice(0, 3).map((citation, idx) => (
+                <div key={idx} className="mb-1 text-amber-800">
+                  {citation}
+                </div>
+              ))}
+              {citations.length > 3 && (
+                <div className="text-amber-600 text-xs italic">
+                  And {citations.length - 3} more citations (activate Clinician View to see all)
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
       
@@ -115,7 +142,7 @@ export function AILiteratureSourceContent({ data, medications }: AILiteratureSou
       <DetailsSection data={data} showRaw={clinicianView} />
       
       {/* Source disclaimer */}
-      <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-600 italic">
+      <div className="mt-6 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-600 italic">
         {getSourceDisclaimer("AI LITERATURE ANALYSIS")}
       </div>
       

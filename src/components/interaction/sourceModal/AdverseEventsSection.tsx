@@ -33,12 +33,12 @@ export function AdverseEventsSection({ adverseEvents }: AdverseEventsSectionProp
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         <div className="bg-gray-50 p-3 rounded border border-gray-200">
-          <div className="text-2xl font-semibold text-gray-800">{adverseEvents.eventCount}</div>
+          <div className="text-2xl font-semibold text-gray-800">{adverseEvents.eventCount.toLocaleString()}</div>
           <div className="text-sm text-gray-500">Total Reports</div>
         </div>
         
         <div className="bg-red-50 p-3 rounded border border-red-200">
-          <div className="text-2xl font-semibold text-red-600">{adverseEvents.seriousCount}</div>
+          <div className="text-2xl font-semibold text-red-600">{adverseEvents.seriousCount.toLocaleString()}</div>
           <div className="text-sm text-red-600">Serious Cases</div>
         </div>
         
@@ -71,9 +71,12 @@ export function AdverseEventsSection({ adverseEvents }: AdverseEventsSectionProp
           <CollapsibleTrigger asChild>
             <Button 
               variant="outline" 
-              className="w-full flex justify-between items-center p-2 text-red-600 border-red-200 bg-red-50 hover:bg-red-100"
+              className={`w-full flex justify-between items-center p-2 ${
+                hasSeriousCaseDetails 
+                  ? "text-red-600 border-red-200 bg-red-50 hover:bg-red-100" 
+                  : "text-gray-500 border-gray-200 bg-gray-50 hover:bg-gray-100"
+              }`}
               onClick={() => setShowSevere(!showSevere)}
-              disabled={!hasSeriousCaseDetails}
             >
               View Severe Case Details
               {showSevere ? <ChevronDown className="h-4 w-4 ml-2" /> : <ChevronRight className="h-4 w-4 ml-2" />}
@@ -81,7 +84,7 @@ export function AdverseEventsSection({ adverseEvents }: AdverseEventsSectionProp
           </CollapsibleTrigger>
           
           <CollapsibleContent className="mt-2">
-            <div className="border border-red-200 rounded p-3 bg-red-50 text-sm">
+            <div className="border border-gray-200 rounded p-3 bg-gray-50 text-sm">
               {hasSeriousCaseDetails ? (
                 <>
                   <p className="mb-2 italic">Examples of serious adverse events:</p>
@@ -92,13 +95,49 @@ export function AdverseEventsSection({ adverseEvents }: AdverseEventsSectionProp
                   </ul>
                 </>
               ) : (
-                <p className="text-red-700">
+                <p className="text-gray-700">
                   {adverseEvents.seriousCount} serious cases were reported, but no specific reaction details are available for these cases.
                 </p>
               )}
             </div>
           </CollapsibleContent>
         </Collapsible>
+      )}
+      
+      {/* Demographics Section - If Available */}
+      {adverseEvents.demographics && (
+        <div className="mt-4 border rounded-md p-3 bg-blue-50 border-blue-100">
+          <h4 className="font-medium text-sm mb-2">Patient Demographics:</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {adverseEvents.demographics.ageGroups && Object.keys(adverseEvents.demographics.ageGroups).length > 0 && (
+              <div>
+                <h5 className="text-xs font-medium text-gray-600 mb-1">Age Groups:</h5>
+                <div className="space-y-1">
+                  {Object.entries(adverseEvents.demographics.ageGroups).map(([age, count], i) => (
+                    <div key={i} className="flex justify-between text-xs">
+                      <span>{age}:</span>
+                      <Badge variant="outline" className="ml-2">{count}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {adverseEvents.demographics.genders && Object.keys(adverseEvents.demographics.genders).length > 0 && (
+              <div>
+                <h5 className="text-xs font-medium text-gray-600 mb-1">Gender Distribution:</h5>
+                <div className="space-y-1">
+                  {Object.entries(adverseEvents.demographics.genders).map(([gender, count], i) => (
+                    <div key={i} className="flex justify-between text-xs">
+                      <span>{gender}:</span>
+                      <Badge variant="outline" className="ml-2">{count}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

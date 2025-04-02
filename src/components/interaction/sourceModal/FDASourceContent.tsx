@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { SourceMetadataSection } from "./SourceMetadataSection";
 import { getSourceDisclaimer, getSourceContribution } from "./utils";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface FDASourceContentProps {
   data: InteractionSource[];
@@ -63,7 +64,7 @@ export function FDASourceContent({ data, medications, sourceName }: FDASourceCon
   return (
     <>
       {/* Clinician View Toggle */}
-      <div className="flex items-center justify-end space-x-2 mb-4">
+      <div className="flex items-center justify-end space-x-2 mb-4 sticky top-0 bg-white p-2 z-10 rounded-md border border-gray-100 shadow-sm">
         <Label htmlFor="clinician-view" className="text-sm font-medium">
           Clinician View
         </Label>
@@ -104,14 +105,21 @@ export function FDASourceContent({ data, medications, sourceName }: FDASourceCon
       {/* Raw FDA Warnings if in clinician view */}
       {clinicianView && rawWarnings.length > 0 && (
         <div className="rounded-md border mb-4 p-4">
-          <h3 className="font-medium mb-2">Raw FDA Warnings</h3>
-          <div className="bg-gray-50 p-3 rounded text-sm overflow-auto max-h-40">
-            <ul className="list-disc list-inside">
-              {rawWarnings.map((warning, idx) => (
-                <li key={idx} className="mb-1">{warning}</li>
-              ))}
-            </ul>
-          </div>
+          <h3 className="font-medium mb-2">FDA Label Warnings</h3>
+          <Accordion type="single" collapsible>
+            <AccordionItem value="warnings">
+              <AccordionTrigger className="text-sm">View Original Label Warnings</AccordionTrigger>
+              <AccordionContent>
+                <div className="bg-gray-50 p-3 rounded text-sm overflow-auto max-h-40">
+                  <ul className="list-disc list-inside space-y-1">
+                    {rawWarnings.map((warning, idx) => (
+                      <li key={idx} className="mb-1 text-gray-800">{warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       )}
       
@@ -119,7 +127,7 @@ export function FDASourceContent({ data, medications, sourceName }: FDASourceCon
       <DetailsSection data={data} showRaw={clinicianView} />
       
       {/* Source disclaimer */}
-      <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-600 italic">
+      <div className="mt-6 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-600 italic">
         {getSourceDisclaimer(sourceName)}
       </div>
       

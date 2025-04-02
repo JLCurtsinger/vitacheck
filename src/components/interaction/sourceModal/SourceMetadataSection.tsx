@@ -1,5 +1,5 @@
 
-import { Clock, Database, Tag } from "lucide-react";
+import { Clock, Database, Tag, Calendar, Hash, Flag } from "lucide-react";
 import { InteractionSource } from "@/lib/api/types";
 
 interface SourceMetadataSectionProps {
@@ -23,11 +23,29 @@ export function SourceMetadataSection({ data, sourceName }: SourceMetadataSectio
     if (data[0]?.timestamp || data[0]?.date) {
       const dateValue = data[0]?.timestamp || data[0]?.date;
       metadata.push({
-        icon: <Clock className="h-4 w-4 text-gray-500" />,
+        icon: <Calendar className="h-4 w-4 text-gray-500" />,
         label: "Retrieved",
         value: typeof dateValue === 'string' 
           ? new Date(dateValue).toLocaleDateString() 
           : "Unknown date"
+      });
+    }
+    
+    // Add API version or identifier if available
+    if (data[0]?.rawData?.api_version) {
+      metadata.push({
+        icon: <Hash className="h-4 w-4 text-gray-500" />,
+        label: "API Version",
+        value: data[0].rawData.api_version
+      });
+    }
+    
+    // Add processing status if available
+    if (data[0]?.processed !== undefined) {
+      metadata.push({
+        icon: <Flag className="h-4 w-4 text-gray-500" />,
+        label: "Status",
+        value: data[0].processed ? "Processed" : "Raw"
       });
     }
     
