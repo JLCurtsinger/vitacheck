@@ -1,55 +1,59 @@
 
 /**
- * RxNorm Response Validator
+ * RxNorm Validator
  * 
- * Handles validation of RxNorm API responses
+ * Validates RxNorm API responses to ensure they contain the expected data structure
  */
 
-import { StandardizedApiResponse } from '../../../types';
-import { logFullApiResponse } from '../../diagnostics/api-response-logger';
-import { validateStandardizedResponse } from '../../api-response-standardizer';
+import { logParsingIssue } from '../../diagnostics/api-response-logger';
 
 /**
- * Validates a standardized RxNorm response
+ * Validates a RxNorm response to ensure it has the expected structure
  */
-export function validateRxNormResponse(
-  standardizedResponse: Partial<StandardizedApiResponse>
-): StandardizedApiResponse | null {
-  if (!standardizedResponse) {
-    return null;
-  }
-  
-  try {
-    // Create a standardized response with defaults for missing fields
-    const validatedResponse = validateStandardizedResponse({
-      ...standardizedResponse,
-      source: "RxNorm"
-    });
-    
-    console.log(`[RxNorm] Validated response: severity="${validatedResponse.severity}", confidence=${validatedResponse.confidence}`);
-    return validatedResponse;
-  } catch (error) {
-    console.error(`[RxNorm] Validation error:`, error);
-    return null;
-  }
-}
-
-/**
- * Checks if RxNorm response has valid structure
- */
-export function hasValidStructure(rxnormRawResult: any): boolean {
-  if (!rxnormRawResult) {
+export function validateRxNormResponse(response: any): boolean {
+  if (!response) {
+    console.log('[RxNorm Validator] Response is null or undefined');
     return false;
   }
-  
-  // Check for standard format
-  const hasStandardFormat = rxnormRawResult.sources && 
-                           Array.isArray(rxnormRawResult.sources);
-  
-  // Check for native format
-  const hasNativeFormat = rxnormRawResult.fullInteractionTypeGroup && 
-                         Array.isArray(rxnormRawResult.fullInteractionTypeGroup) && 
-                         rxnormRawResult.fullInteractionTypeGroup.length > 0;
-  
-  return hasStandardFormat || hasNativeFormat;
+
+  try {
+    // Check for required structure
+    // RxNorm responses should have a fullInteractionTypeGroup array
+    if (!response.fullInteractionTypeGroup || !Array.isArray(response.fullInteractionTypeGroup)) {
+      console.log('[RxNorm Validator] Missing or invalid fullInteractionTypeGroup array');
+      return false;
+    }
+    
+    // If the array is empty, that's a valid response with no interactions
+    if (response.fullInteractionTypeGroup.length === 0) {
+      console.log('[RxNorm Validator] Empty fullInteractionTypeGroup array (no interactions)');
+      return true;
+    }
+    
+    // Check for error indicators
+    if (response.error) {
+      console.log('[RxNorm Validator] Error field present in response:', response.error);
+      return false;
+    }
+    
+    // Check at least one group has interaction data
+    const hasInteractions = response.fullInteractionTypeGroup.some((group: any) => 
+      group.fullInteractionType && 
+      Array.isArray(group.fullInteractionType) && 
+      group.fullInteractionType.length > 0
+    );
+    
+    if (!hasInteractions) {
+      console.log('[RxNorm Validator] No interaction data found in any group');
+      return false;
+    }
+    
+    console.log('[RxNorm Validator] Response structure is valid');
+    return true;
+    
+  } catch (error) {
+    logParsingIssue('RxNorm Validator', response, error);
+    console.error('[RxNorm Validator] Validation error:', error);
+    return false;
+  }
 }
