@@ -31,13 +31,13 @@ export function AILiteratureSourceContent({
   const { 
     hasReliableData,
     confidenceScore,
-    sourcesReferenced,
+    referencedSources, // Renamed from sourcesReferenced to avoid duplication
     reliability
   } = useMemo(() => {
     if (data.length === 0) return { 
       hasReliableData: false, 
       confidenceScore: 0,
-      sourcesReferenced: [],
+      referencedSources: [], // Renamed from sourcesReferenced
       reliability: { isReliable: false }
     };
     
@@ -79,7 +79,7 @@ export function AILiteratureSourceContent({
     return { 
       hasReliableData: explicitlyReliable || implicitlyReliable,
       confidenceScore: avgConfidence,
-      sourcesReferenced: [...new Set(sources)],
+      referencedSources: [...new Set(sources)], // Renamed from sourcesReferenced
       reliability: reliabilityInfo
     };
   }, [data]);

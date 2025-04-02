@@ -65,6 +65,10 @@ export interface InteractionSource {
   fallbackMode?: boolean; // Flag to indicate if fallback processing was used
   fallbackReason?: string; // Description of fallback processing applied
   fallbackFields?: string[]; // Fields that were populated using fallback logic
+  sources?: string[]; // References to source material
+  validationReason?: string; // Why a source was considered valid or invalid
+  errorMessage?: string; // Error message if processing failed
+  hasInsight?: boolean; // Whether the source provides meaningful insight
 }
 
 /**
