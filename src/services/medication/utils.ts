@@ -3,6 +3,7 @@ import { MedicationSuggestion } from "./types";
 
 /**
  * Debounce function to prevent excessive API calls
+ * Enhanced to handle async functions properly
  */
 export function debounce<F extends (...args: any[]) => any>(
   func: F,

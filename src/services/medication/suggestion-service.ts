@@ -92,9 +92,22 @@ async function fetchMedicationSuggestionsRaw(query: string): Promise<MedicationS
 }
 
 /**
- * Debounced version of fetchMedicationSuggestionsRaw with 400ms delay
+ * Create a debounced version of the fetchMedicationSuggestionsRaw function
+ * This ensures we handle the debounced function correctly with proper Promise return typing
  */
-export const getMedicationSuggestions = debounce(fetchMedicationSuggestionsRaw, 400);
+export const getMedicationSuggestions = (query: string): Promise<MedicationSuggestion[]> => {
+  // We need to create a wrapper that returns a Promise
+  return new Promise((resolve) => {
+    // Create a debounced function that will resolve the promise with the results
+    const debouncedFetch = debounce(async (q: string) => {
+      const results = await fetchMedicationSuggestionsRaw(q);
+      resolve(results);
+    }, 400);
+    
+    // Call the debounced function
+    debouncedFetch(query);
+  });
+};
 
 // Re-export other important functions
 export { debounce } from "./utils";

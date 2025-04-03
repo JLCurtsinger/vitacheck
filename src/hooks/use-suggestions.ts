@@ -72,14 +72,21 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
     fetchingRef.current = true;
     
     try {
-      // Use the debounced getMedicationSuggestions function
+      // Use the debounced getMedicationSuggestions function, but properly await its result
+      // The key fix is here - we need to call the function directly and await the Promise it returns
       const results = await getMedicationSuggestions(query);
-      setSuggestions(results);
-      setShowDropdown(true);
       
-      // Hide recents when we have actual suggestions
-      if (results.length > 0) {
-        setShowRecents(false);
+      // Check if results is defined before setting state
+      if (results) {
+        setSuggestions(results);
+        setShowDropdown(true);
+        
+        // Hide recents when we have actual suggestions
+        if (results.length > 0) {
+          setShowRecents(false);
+        }
+      } else {
+        setSuggestions([]);
       }
     } catch (error) {
       console.error("Error fetching suggestions:", error);
@@ -100,7 +107,7 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
       return;
     }
     
-    // We're using our already debounced getMedicationSuggestions function
+    // Call fetchSuggestions directly
     fetchSuggestions(inputValue);
   }, [inputValue]);
 
