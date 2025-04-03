@@ -1,3 +1,4 @@
+
 import * as tf from '@tensorflow/tfjs';
 import { RiskAssessmentInput, RiskAssessmentOutput, RiskModelFeatures } from '@/lib/utils/risk-assessment/types';
 import { calculateRiskScore } from '@/lib/utils/risk-assessment/calculator';
@@ -72,8 +73,16 @@ export async function initializeModel(): Promise<void> {
 async function saveModelToSupabase(model: tf.LayersModel, sampleCount: number): Promise<void> {
   try {
     // Serialize model to JSON format
-    const saveResults = await model.save(tf.io.withSaveHandler(async (artifacts) => {
-      return artifacts;
+    // Fix the type issue by properly handling the SaveResult
+    const saveResult = await model.save(tf.io.withSaveHandler(async (artifacts) => {
+      // Return the artifacts directly as that's what is expected by the withSaveHandler API
+      return {
+        modelArtifactsInfo: {
+          dateSaved: new Date(),
+          modelTopologyType: 'JSON',
+        },
+        ...artifacts
+      };
     }));
     
     // Save to Supabase
@@ -82,7 +91,7 @@ async function saveModelToSupabase(model: tf.LayersModel, sampleCount: number): 
       .upsert({
         model_name: 'risk-prediction-model',
         model_version: MODEL_VERSION,
-        model_data: saveResults,
+        model_data: saveResult,
         sample_count: sampleCount
       }, {
         onConflict: 'model_name,model_version'
@@ -312,11 +321,19 @@ export async function saveInteractionData(
     
     console.log('Saved interaction data for training');
     
-    // If we've gathered enough new samples, trigger training
+    // If we've gathered enough new samples, trigger training via the Edge Function
     if (modelSampleCount >= MIN_SAMPLES_FOR_TRAINING && modelSampleCount % 5 === 0) {
-      // This would ideally be done in a background worker
-      // For simplicity, we're not implementing the full training loop here
-      console.log('Would trigger model training with', modelSampleCount, 'samples');
+      try {
+        const { data, error } = await supabase.functions.invoke('train-ml-model');
+        
+        if (error) {
+          console.error('Error invoking train-ml-model function:', error);
+        } else {
+          console.log('Train ML model function result:', data);
+        }
+      } catch (trainError) {
+        console.error('Failed to invoke train-ml-model function:', trainError);
+      }
     }
   } catch (error) {
     console.error('Error saving interaction data:', error);

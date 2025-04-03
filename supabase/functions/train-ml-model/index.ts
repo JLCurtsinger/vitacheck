@@ -113,7 +113,13 @@ serve(async (req) => {
     
     // Save the updated model
     const saveResults = await model.save(tf.io.withSaveHandler(async (artifacts) => {
-      return artifacts;
+      return {
+        modelArtifactsInfo: {
+          dateSaved: new Date(),
+          modelTopologyType: 'JSON',
+        },
+        ...artifacts
+      };
     }));
     
     // Update model in database
