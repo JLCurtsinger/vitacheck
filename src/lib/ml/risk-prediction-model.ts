@@ -1,4 +1,3 @@
-
 import * as tf from '@tensorflow/tfjs';
 import { RiskAssessmentInput, RiskAssessmentOutput, RiskModelFeatures } from '@/lib/utils/risk-assessment/types';
 import { calculateRiskScore } from '@/lib/utils/risk-assessment/calculator';
@@ -27,23 +26,76 @@ export async function initializeModel(): Promise<void> {
     
     console.log('Initializing risk prediction model...');
     
-    // Check if we have a saved model
+    // Check if we have a saved model in Supabase
     try {
-      model = await tf.loadLayersModel('indexeddb://risk-prediction-model');
-      console.log('Loaded existing risk prediction model from IndexedDB');
+      const { data, error } = await supabase
+        .from('ml_models')
+        .select('*')
+        .eq('model_name', 'risk-prediction-model')
+        .eq('model_version', MODEL_VERSION)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
       
-      // Get sample count from Supabase to determine model maturity
-      await fetchModelSampleCount();
+      if (error) {
+        console.error('Error loading model from Supabase:', error);
+        throw error;
+      }
+      
+      if (data && data.model_data) {
+        // Load the model from serialized format
+        const modelArtifacts = data.model_data;
+        model = await tf.loadLayersModel(tf.io.fromMemory(modelArtifacts));
+        modelSampleCount = data.sample_count || 0;
+        console.log('Loaded existing risk prediction model from Supabase');
+      } else {
+        throw new Error('No model found in Supabase');
+      }
     } catch (error) {
-      console.log('No saved model found, creating a new one');
+      console.log('No saved model found in Supabase, creating a new one');
       model = createModel();
-      await model.save('indexeddb://risk-prediction-model');
+      
+      // Save the new model to Supabase
+      await saveModelToSupabase(model, 0);
     }
   } catch (error) {
     console.error('Error initializing risk prediction model:', error);
     model = null;
   } finally {
     isModelLoading = false;
+  }
+}
+
+/**
+ * Saves model to Supabase
+ */
+async function saveModelToSupabase(model: tf.LayersModel, sampleCount: number): Promise<void> {
+  try {
+    // Serialize model to JSON format
+    const saveResults = await model.save(tf.io.withSaveHandler(async (artifacts) => {
+      return artifacts;
+    }));
+    
+    // Save to Supabase
+    const { error } = await supabase
+      .from('ml_models')
+      .upsert({
+        model_name: 'risk-prediction-model',
+        model_version: MODEL_VERSION,
+        model_data: saveResults,
+        sample_count: sampleCount
+      }, {
+        onConflict: 'model_name,model_version'
+      });
+    
+    if (error) {
+      console.error('Error saving model to Supabase:', error);
+      throw error;
+    }
+    
+    console.log('Model saved to Supabase successfully');
+  } catch (error) {
+    console.error('Failed to save model to Supabase:', error);
   }
 }
 
@@ -88,14 +140,28 @@ function createModel(): tf.LayersModel {
  */
 async function fetchModelSampleCount(): Promise<number> {
   try {
-    const { count, error } = await supabase
-      .from('ml_risk_predictions')
-      .select('*', { count: 'exact', head: true });
+    // First check if we have this info in memory
+    if (modelSampleCount > 0) {
+      return modelSampleCount;
+    }
     
-    if (error) throw error;
+    // Otherwise get it from Supabase
+    const { data, error } = await supabase
+      .from('ml_models')
+      .select('sample_count')
+      .eq('model_name', 'risk-prediction-model')
+      .eq('model_version', MODEL_VERSION)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .single();
     
-    modelSampleCount = count || 0;
-    console.log(`Model sample count: ${modelSampleCount}`);
+    if (error) {
+      console.error('Error fetching model sample count from Supabase:', error);
+      return 0;
+    }
+    
+    modelSampleCount = data?.sample_count || 0;
+    console.log(`Model sample count from Supabase: ${modelSampleCount}`);
     return modelSampleCount;
   } catch (error) {
     console.error('Error fetching model sample count:', error);
@@ -218,6 +284,7 @@ export async function saveInteractionData(
   medications: string[]
 ): Promise<void> {
   try {
+    // Save the data to ml_risk_predictions table
     const { error } = await supabase
       .from('ml_risk_predictions')
       .insert({
@@ -233,6 +300,16 @@ export async function saveInteractionData(
     
     // Increment sample count
     modelSampleCount++;
+    
+    // Update the model sample count in Supabase
+    if (model) {
+      await supabase
+        .from('ml_models')
+        .update({ sample_count: modelSampleCount })
+        .eq('model_name', 'risk-prediction-model')
+        .eq('model_version', MODEL_VERSION);
+    }
+    
     console.log('Saved interaction data for training');
     
     // If we've gathered enough new samples, trigger training

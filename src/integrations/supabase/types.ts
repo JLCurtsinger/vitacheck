@@ -108,6 +108,36 @@ export type Database = {
           },
         ]
       }
+      ml_models: {
+        Row: {
+          created_at: string
+          id: string
+          model_data: Json
+          model_name: string
+          model_version: string
+          sample_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          model_data: Json
+          model_name: string
+          model_version: string
+          sample_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          model_data?: Json
+          model_name?: string
+          model_version?: string
+          sample_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ml_risk_predictions: {
         Row: {
           actual_risk: string | null
