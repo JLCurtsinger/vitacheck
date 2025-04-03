@@ -108,6 +108,27 @@ export type Database = {
           },
         ]
       }
+      medication_names: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          rxcui: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          rxcui: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          rxcui?: string
+        }
+        Relationships: []
+      }
       ml_models: {
         Row: {
           created_at: string

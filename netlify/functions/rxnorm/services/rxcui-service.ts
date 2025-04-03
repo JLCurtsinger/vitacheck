@@ -1,30 +1,7 @@
 
 import { formatMedicationName } from '../utils/medication-utils';
-
-// Local cache of known generic drug → RxCUI mappings
-// This duplicates the cache in the frontend for server-side fallback
-const knownRxCUI: Record<string, string> = {
-  "alprazolam": "197361",
-  "warfarin": "11289",
-  "atorvastatin": "83367",
-  "ibuprofen": "5640",
-  "lisinopril": "29046",
-  "metformin": "6809",
-  "amlodipine": "17767",
-  "metoprolol": "6918",
-  "simvastatin": "36567",
-  "omeprazole": "7646",
-  "losartan": "52175",
-  "albuterol": "435",
-  "sertraline": "36437",
-  "gabapentin": "25480",
-  "fluoxetine": "4493",
-  "amoxicillin": "723",
-  "hydrochlorothiazide": "5487",
-  "acetaminophen": "161",
-  "aspirin": "1191",
-  "levothyroxine": "10582",
-};
+import { supabase } from '../utils/supabase-client';
+import { normalizeMedicationName } from '../utils/name-utils';
 
 /**
  * Generate alternative name formats for a medication
@@ -50,6 +27,72 @@ function generateAlternativeFormats(name: string): string[] {
 }
 
 /**
+ * Store a successfully found RxCUI in the database for future lookups
+ */
+async function storeRxCUIInDatabase(name: string, rxcui: string): Promise<void> {
+  try {
+    // Normalize the name for consistent storage
+    const normalizedName = normalizeMedicationName(name);
+    
+    // Check if this medication name already exists in the database
+    const { data: existing } = await supabase
+      .from('medication_names')
+      .select('rxcui')
+      .eq('name', normalizedName)
+      .single();
+    
+    if (existing) {
+      // If the RxCUI has changed, update the record
+      if (existing.rxcui !== rxcui) {
+        console.log(`Updating stored RxCUI for "${normalizedName}" from ${existing.rxcui} to ${rxcui}`);
+        await supabase
+          .from('medication_names')
+          .update({ rxcui })
+          .eq('name', normalizedName);
+      }
+    } else {
+      // Insert new record
+      console.log(`Storing new RxCUI mapping: "${normalizedName}" → ${rxcui}`);
+      await supabase
+        .from('medication_names')
+        .insert([{ name: normalizedName, rxcui }]);
+    }
+  } catch (error) {
+    console.error(`Failed to store RxCUI in database:`, error);
+    // Non-critical error, we can continue without stopping execution
+  }
+}
+
+/**
+ * Look up a stored RxCUI from the database
+ */
+async function getStoredRxCUI(name: string): Promise<string | null> {
+  try {
+    // Normalize the name for consistent lookup
+    const normalizedName = normalizeMedicationName(name);
+    
+    console.log(`[RxNorm Fallback] Looking up stored RxCUI for "${normalizedName}"`);
+    
+    const { data, error } = await supabase
+      .from('medication_names')
+      .select('rxcui')
+      .eq('name', normalizedName)
+      .limit(1)
+      .single();
+    
+    if (error || !data) {
+      return null;
+    }
+    
+    console.warn(`[RxNorm Fallback ⚠️] Using stored RxCUI from Supabase for ${name}: ${data.rxcui}`);
+    return data.rxcui;
+  } catch (error) {
+    console.error(`Failed to get stored RxCUI from database:`, error);
+    return null;
+  }
+}
+
+/**
  * Fetches RxCUI (RxNorm Concept Unique Identifier) for a medication name
  * Enhanced with fallback mechanisms
  * @param name - Medication name to look up
@@ -57,24 +100,18 @@ function generateAlternativeFormats(name: string): string[] {
 export async function fetchRxCUIByName(name: string): Promise<string | null> {
   console.log(`🔍 RxNorm: Fetching RxCUI for medication name: ${name}`);
   
-  // Format the name for better API matching
-  let rxcui: string | null = null;
-  
   // Try with formatted name first
   const formattedName = formatMedicationName(name);
   console.log(`🔍 RxNorm: Using formatted name: ${formattedName}`);
-  rxcui = await tryFetchRxCUI(formattedName);
+  let rxcui = await tryFetchRxCUI(formattedName);
   
-  // If not found, check local cache
-  if (!rxcui) {
-    const normalizedName = name.toLowerCase().trim();
-    if (knownRxCUI[normalizedName]) {
-      console.log(`[RxNorm Fallback] Server using RxCUI from local cache: ${name} → ${knownRxCUI[normalizedName]}`);
-      return knownRxCUI[normalizedName];
-    }
+  // If found via API, store it in the database for future lookups
+  if (rxcui) {
+    await storeRxCUIInDatabase(name, rxcui);
+    return rxcui;
   }
   
-  // If still not found, try alternative formats
+  // If not found, try alternative formats
   if (!rxcui) {
     console.log(`[RxNorm Fallback] Server trying alternative formats for "${name}"`);
     const alternativeFormats = generateAlternativeFormats(name);
@@ -87,15 +124,22 @@ export async function fetchRxCUIByName(name: string): Promise<string | null> {
       
       if (rxcui) {
         console.log(`✅ [RxNorm Fallback] Server found RxCUI using alternative format "${format}": ${rxcui}`);
+        // Store the successful alternative format in the database
+        await storeRxCUIInDatabase(name, rxcui);
         break;
       }
     }
   }
   
+  // If still not found, try getting from the database
+  if (!rxcui) {
+    rxcui = await getStoredRxCUI(name);
+  }
+  
   if (rxcui) {
     console.log(`✅ RxNorm: Found RxCUI for ${name}: ${rxcui}`);
   } else {
-    console.log(`⚠️ RxNorm: No RxCUI found for ${name} after exhausting all fallback options`);
+    console.warn(`⚠️ RxNorm: No RxCUI found for ${name} — all lookups failed`);
   }
   
   return rxcui;

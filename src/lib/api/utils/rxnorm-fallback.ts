@@ -8,76 +8,95 @@
 
 import { prepareMedicationNameForApi } from "@/utils/medication-formatter";
 import { getGenericName, isBrandName } from "@/services/medication/brand-to-generic";
-
-// Local cache of known generic drug → RxCUI mappings
-const knownRxCUI: Record<string, string> = {
-  // Common generic medications
-  "alprazolam": "197361",
-  "warfarin": "11289",
-  "atorvastatin": "83367",
-  "ibuprofen": "5640",
-  "lisinopril": "29046",
-  "metformin": "6809",
-  "amlodipine": "17767",
-  "metoprolol": "6918",
-  "simvastatin": "36567",
-  "omeprazole": "7646",
-  "losartan": "52175",
-  "albuterol": "435",
-  "sertraline": "36437",
-  "gabapentin": "25480",
-  "fluoxetine": "4493",
-  "amoxicillin": "723",
-  "hydrochlorothiazide": "5487",
-  "acetaminophen": "161",
-  "aspirin": "1191",
-  "levothyroxine": "10582",
-  "citalopram": "2556",
-  "atenolol": "1202",
-  "furosemide": "4603",
-  "tramadol": "10689",
-  "escitalopram": "352741",
-  "clopidogrel": "32968",
-  "montelukast": "88249",
-  "pantoprazole": "40790",
-  "prednisone": "8638",
-  "duloxetine": "72625",
-  "venlafaxine": "39786",
-  "rosuvastatin": "301542",
-  "meloxicam": "32696",
-  "bupropion": "42347",
-  // Common supplements and herbs
-  "melatonin": "6711",
-  "turmeric": "45262",
-  "ginseng": "4553",
-  "echinacea": "4444",
-  "st. john's wort": "36126",
-  "ginkgo biloba": "4468",
-  "vitamin d": "5282",
-  "vitamin c": "5250",
-  "vitamin e": "5253",
-  "fish oil": "17573",
-  "calcium": "1963",
-  "magnesium": "6700",
-  "zinc": "11352",
-};
+import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Get RxCUI from local cache
+ * Normalize a medication name for consistent database lookups
+ */
+function normalizeMedicationName(name: string): string {
+  if (!name) return '';
+  
+  // Convert to lowercase
+  let normalized = name.toLowerCase();
+  
+  // Remove content inside parentheses including the parentheses
+  normalized = normalized.replace(/\s*\([^)]*\)/g, '');
+  
+  // Remove special characters and excess whitespace
+  normalized = normalized.replace(/[,.;:#!?'"]/g, '');
+  
+  // Replace multiple spaces with a single space
+  normalized = normalized.replace(/\s+/g, ' ');
+  
+  // Trim leading and trailing whitespace
+  return normalized.trim();
+}
+
+/**
+ * Get RxCUI from database
  * @param medication Medication name to look up
  */
-export function getRxCUIFromLocalCache(medication: string): string | null {
+export async function getRxCUIFromDatabase(medication: string): Promise<string | null> {
   if (!medication) return null;
   
-  const normalizedName = medication.toLowerCase().trim();
-  console.log(`[RxNorm Fallback] Attempting known generic → RxCUI lookup for "${normalizedName}"`);
-  
-  if (knownRxCUI[normalizedName]) {
-    console.log(`[RxNorm Fallback] Using RxCUI from local cache: ${medication} → ${knownRxCUI[normalizedName]}`);
-    return knownRxCUI[normalizedName];
+  try {
+    // Normalize for consistent lookup
+    const normalizedName = normalizeMedicationName(medication);
+    console.log(`[RxNorm Fallback] Looking up stored RxCUI for "${normalizedName}"`);
+    
+    const { data, error } = await supabase
+      .from('medication_names')
+      .select('rxcui')
+      .eq('name', normalizedName)
+      .limit(1)
+      .single();
+    
+    if (error || !data) {
+      return null;
+    }
+    
+    console.warn(`[RxNorm Fallback ⚠️] Using stored RxCUI from database: ${medication} → ${data.rxcui}`);
+    return data.rxcui;
+  } catch (error) {
+    console.error('[RxNorm Fallback] Database lookup failed:', error);
+    return null;
   }
-  
-  return null;
+}
+
+/**
+ * Store a successfully found RxCUI in the database
+ */
+export async function storeRxCUIInDatabase(medication: string, rxcui: string): Promise<void> {
+  try {
+    // Normalize the name for consistent storage
+    const normalizedName = normalizeMedicationName(medication);
+    
+    // Check if this medication name already exists
+    const { data: existing } = await supabase
+      .from('medication_names')
+      .select('rxcui')
+      .eq('name', normalizedName)
+      .maybeSingle();
+    
+    if (existing) {
+      // Only update if different
+      if (existing.rxcui !== rxcui) {
+        console.log(`Updating stored RxCUI for "${normalizedName}" from ${existing.rxcui} to ${rxcui}`);
+        await supabase
+          .from('medication_names')
+          .update({ rxcui })
+          .eq('name', normalizedName);
+      }
+    } else {
+      // Insert new record
+      console.log(`Storing new RxCUI mapping: "${normalizedName}" → ${rxcui}`);
+      await supabase
+        .from('medication_names')
+        .insert([{ name: normalizedName, rxcui }]);
+    }
+  } catch (error) {
+    console.error(`Failed to store RxCUI in database:`, error);
+  }
 }
 
 /**
