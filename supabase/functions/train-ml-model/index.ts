@@ -32,12 +32,17 @@ serve(async (req) => {
       .eq('model_name', 'risk-prediction-model')
       .eq('model_version', MODEL_VERSION)
       .order('updated_at', { ascending: false })
-      .limit(1)
-      .single();
+      .limit(1);
 
     if (modelError) {
       throw new Error(`Error fetching model: ${modelError.message}`);
     }
+
+    if (!modelData || modelData.length === 0) {
+      throw new Error('No model found in database');
+    }
+
+    const latestModel = modelData[0];
 
     // Fetch training data
     const { data: trainingData, error: dataError } = await supabase
@@ -92,7 +97,7 @@ serve(async (req) => {
     });
 
     // Initialize model architecture
-    const model = await tf.loadLayersModel(tf.io.fromMemory(modelData.model_data));
+    const model = await tf.loadLayersModel(tf.io.fromMemory(latestModel.model_data));
     
     // Prepare training data
     const xs = tf.tensor2d(features);
@@ -130,7 +135,7 @@ serve(async (req) => {
         sample_count: trainingData.length,
         updated_at: new Date().toISOString()
       })
-      .eq('id', modelData.id);
+      .eq('id', latestModel.id);
     
     if (updateError) {
       throw new Error(`Error updating model: ${updateError.message}`);

@@ -35,19 +35,18 @@ export async function initializeModel(): Promise<void> {
         .eq('model_name', 'risk-prediction-model')
         .eq('model_version', MODEL_VERSION)
         .order('updated_at', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
       
       if (error) {
         console.error('Error loading model from Supabase:', error);
         throw error;
       }
       
-      if (data && data.model_data) {
+      if (data && data.length > 0) {
         // Load the model from serialized format
-        const modelArtifacts = data.model_data;
-        model = await tf.loadLayersModel(tf.io.fromMemory(modelArtifacts));
-        modelSampleCount = data.sample_count || 0;
+        const modelData = data[0];
+        model = await tf.loadLayersModel(tf.io.fromMemory(modelData.model_data));
+        modelSampleCount = modelData.sample_count || 0;
         console.log('Loaded existing risk prediction model from Supabase');
       } else {
         throw new Error('No model found in Supabase');
@@ -73,9 +72,8 @@ export async function initializeModel(): Promise<void> {
 async function saveModelToSupabase(model: tf.LayersModel, sampleCount: number): Promise<void> {
   try {
     // Serialize model to JSON format
-    // Fix the type issue by properly handling the SaveResult
     const saveResult = await model.save(tf.io.withSaveHandler(async (artifacts) => {
-      // Return the artifacts directly as that's what is expected by the withSaveHandler API
+      // Return the artifacts with modelArtifactsInfo for proper SaveResult type
       return {
         modelArtifactsInfo: {
           dateSaved: new Date(),
@@ -161,17 +159,20 @@ async function fetchModelSampleCount(): Promise<number> {
       .eq('model_name', 'risk-prediction-model')
       .eq('model_version', MODEL_VERSION)
       .order('updated_at', { ascending: false })
-      .limit(1)
-      .single();
+      .limit(1);
     
     if (error) {
       console.error('Error fetching model sample count from Supabase:', error);
       return 0;
     }
     
-    modelSampleCount = data?.sample_count || 0;
-    console.log(`Model sample count from Supabase: ${modelSampleCount}`);
-    return modelSampleCount;
+    if (data && data.length > 0) {
+      modelSampleCount = data[0].sample_count || 0;
+      console.log(`Model sample count from Supabase: ${modelSampleCount}`);
+      return modelSampleCount;
+    }
+    
+    return 0;
   } catch (error) {
     console.error('Error fetching model sample count:', error);
     return 0;

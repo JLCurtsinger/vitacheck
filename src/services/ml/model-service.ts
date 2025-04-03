@@ -62,17 +62,16 @@ export const modelService = {
         .from('ml_models')
         .select('model_version, sample_count, updated_at')
         .order('updated_at', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
       
       if (error) throw error;
       
-      if (!data) return null;
+      if (!data || data.length === 0) return null;
       
       return {
-        version: data.model_version,
-        sampleCount: data.sample_count,
-        lastUpdated: data.updated_at
+        version: data[0].model_version,
+        sampleCount: data[0].sample_count,
+        lastUpdated: data[0].updated_at
       };
     } catch (error) {
       console.error('Error getting model info:', error);
