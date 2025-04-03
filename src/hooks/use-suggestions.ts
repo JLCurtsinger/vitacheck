@@ -16,6 +16,7 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
   const selectionMadeRef = useRef(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const fetchingRef = useRef(false);
 
   // Load recent searches
   useEffect(() => {
@@ -47,8 +48,8 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
   
   // Fetch suggestions when input changes
   const fetchSuggestions = async (query: string) => {
-    // Don't fetch if a selection was just made
-    if (selectionMadeRef.current) {
+    // Don't fetch if a selection was just made or already fetching
+    if (selectionMadeRef.current || fetchingRef.current) {
       return;
     }
     
@@ -66,9 +67,12 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
       return;
     }
     
+    // Set loading and fetching flags
     setLoading(true);
+    fetchingRef.current = true;
     
     try {
+      // Use the debounced getMedicationSuggestions function
       const results = await getMedicationSuggestions(query);
       setSuggestions(results);
       setShowDropdown(true);
@@ -82,11 +86,9 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
       setSuggestions([]);
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
   };
-  
-  // Debounce API calls to prevent excessive requests
-  const debouncedFetchSuggestions = debounce(fetchSuggestions, 300);
   
   // Handle input change effect
   useEffect(() => {
@@ -98,7 +100,8 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
       return;
     }
     
-    debouncedFetchSuggestions(inputValue);
+    // We're using our already debounced getMedicationSuggestions function
+    fetchSuggestions(inputValue);
   }, [inputValue]);
 
   const handleFocus = () => {

@@ -2,10 +2,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import { MedicationSuggestion } from "../types";
 import { getCachedSuggestions, cacheSuggestions } from "../cache";
-import { fuzzyMatch } from "../utils";
+import { debounce } from "../utils";
 
 /**
- * Fetch supplement suggestions from SUPP.AI API
+ * Raw function to fetch supplement suggestions from SUPP.AI API
  */
 export async function fetchSuppAiSuggestions(query: string): Promise<MedicationSuggestion[]> {
   try {

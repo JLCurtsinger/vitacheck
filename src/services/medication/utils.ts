@@ -6,7 +6,7 @@ import { MedicationSuggestion } from "./types";
  */
 export function debounce<F extends (...args: any[]) => any>(
   func: F,
-  waitFor: number
+  waitFor: number = 400 // Updated to default to 400ms
 ): (...args: Parameters<F>) => void {
   let timeout: ReturnType<typeof setTimeout> | null = null;
 
