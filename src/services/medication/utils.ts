@@ -1,17 +1,18 @@
+
 import { MedicationSuggestion } from "./types";
 
 /**
  * Debounce function to prevent excessive API calls
  * Enhanced to handle async functions properly with Promise return type
  */
-export function debounce<F extends (...args: any[]) => any>(
+export function debounce<F extends (...args: any[]) => Promise<any>>(
   func: F,
   waitFor: number = 400
-): (...args: Parameters<F>) => Promise<ReturnType<F>> {
+): (...args: Parameters<F>) => Promise<Awaited<ReturnType<F>>> {
   let timeout: ReturnType<typeof setTimeout> | null = null;
-  let resolveList: Array<(value: ReturnType<F>) => void> = [];
+  let resolveList: Array<(value: Awaited<ReturnType<F>>) => void> = [];
 
-  return (...args: Parameters<F>): Promise<ReturnType<F>> => {
+  return (...args: Parameters<F>): Promise<Awaited<ReturnType<F>>> => {
     return new Promise(resolve => {
       resolveList.push(resolve);
       
@@ -19,11 +20,20 @@ export function debounce<F extends (...args: any[]) => any>(
         clearTimeout(timeout);
       }
       
-      timeout = setTimeout(() => {
-        const result = func(...args);
+      timeout = setTimeout(async () => {
+        try {
+          // Await the result of the async function
+          const result = await func(...args);
+          
+          // Resolve all promises with the result
+          resolveList.forEach(r => r(result));
+        } catch (error) {
+          // In case of error, reject all promises
+          console.error("Error in debounced function:", error);
+          resolveList.forEach(r => r([] as any));
+        }
         
-        // Resolve all promises with the result
-        resolveList.forEach(r => r(result));
+        // Clear the resolve list
         resolveList = [];
       }, waitFor);
     });

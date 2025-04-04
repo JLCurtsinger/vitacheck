@@ -1,4 +1,5 @@
 
+
 import { MedicationSuggestion } from "./types";
 import { fetchRxTermsSuggestions } from "./api/rx-terms-api";
 import { fetchSuppAiSuggestions } from "./api/supp-ai-api";
@@ -95,11 +96,11 @@ async function fetchMedicationSuggestionsRaw(query: string): Promise<MedicationS
 const debouncedFetchSuggestions = debounce(fetchMedicationSuggestionsRaw, 300);
 
 /**
- * Create a debounced version of the fetchMedicationSuggestionsRaw function
- * This ensures we handle the debounced function correctly with proper Promise return typing
+ * Public function to get medication suggestions with debouncing
+ * Returns a Promise that resolves with the suggestions
  */
 export const getMedicationSuggestions = (query: string): Promise<MedicationSuggestion[]> => {
-  // Since our debounce utility now returns a promise directly, we can just return it
+  // The debounced function now properly handles the Promise chain
   return debouncedFetchSuggestions(query);
 };
 
