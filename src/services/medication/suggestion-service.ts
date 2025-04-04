@@ -15,7 +15,7 @@ const sessionSuggestionsCache = new Map<string, MedicationSuggestion[]>();
  * This allows us to apply debouncing at the appropriate level
  */
 async function fetchMedicationSuggestionsRaw(query: string): Promise<MedicationSuggestion[]> {
-  if (!query || query.trim().length < 2) {
+  if (!query || query.trim().length === 0) {
     return [];
   }
   
@@ -91,6 +91,9 @@ async function fetchMedicationSuggestionsRaw(query: string): Promise<MedicationS
   }
 }
 
+// Create a debounce wrapper for fetchMedicationSuggestionsRaw
+const debouncedFetchSuggestions = debounce(fetchMedicationSuggestionsRaw, 300);
+
 /**
  * Create a debounced version of the fetchMedicationSuggestionsRaw function
  * This ensures we handle the debounced function correctly with proper Promise return typing
@@ -98,14 +101,10 @@ async function fetchMedicationSuggestionsRaw(query: string): Promise<MedicationS
 export const getMedicationSuggestions = (query: string): Promise<MedicationSuggestion[]> => {
   // We need to create a wrapper that returns a Promise
   return new Promise((resolve) => {
-    // Create a debounced function that will resolve the promise with the results
-    const debouncedFetch = debounce(async (q: string) => {
-      const results = await fetchMedicationSuggestionsRaw(q);
+    // Use the debounced function that will resolve the promise with the results
+    debouncedFetchSuggestions(query).then(results => {
       resolve(results);
-    }, 400);
-    
-    // Call the debounced function
-    debouncedFetch(query);
+    });
   });
 };
 
