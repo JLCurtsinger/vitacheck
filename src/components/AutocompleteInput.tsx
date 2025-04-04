@@ -21,7 +21,7 @@ export default function AutocompleteInput({
 }: AutocompleteInputProps) {
   const [focusedIndex, setFocusedIndex] = useState(-1);
   
-  // Use our custom hook for suggestions (with debouncing)
+  // Use our custom hook for suggestions
   const {
     suggestions,
     loading,
@@ -41,7 +41,6 @@ export default function AutocompleteInput({
     if (onChange) {
       onChange(e);
     }
-    // Note: The API calls are debounced in the useSuggestions hook
   };
   
   // Handle suggestion selection

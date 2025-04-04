@@ -3,11 +3,10 @@ import { MedicationSuggestion } from "./types";
 
 /**
  * Debounce function to prevent excessive API calls
- * Enhanced to handle async functions properly
  */
 export function debounce<F extends (...args: any[]) => any>(
   func: F,
-  waitFor: number = 400 // Updated to default to 400ms
+  waitFor: number
 ): (...args: Parameters<F>) => void {
   let timeout: ReturnType<typeof setTimeout> | null = null;
 

@@ -1,10 +1,10 @@
 
 import { MedicationSuggestion } from "../types";
 import { getCachedSuggestions, cacheSuggestions } from "../cache";
-import { debounce } from "../utils";
+import { fuzzyMatch } from "../utils";
 
 /**
- * Raw function to fetch medication suggestions from RxTerms API via our serverless function
+ * Fetch medication suggestions from RxTerms API via our serverless function
  */
 export async function fetchRxTermsSuggestions(query: string): Promise<MedicationSuggestion[]> {
   try {

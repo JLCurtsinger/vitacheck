@@ -16,7 +16,6 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
   const selectionMadeRef = useRef(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const fetchingRef = useRef(false);
 
   // Load recent searches
   useEffect(() => {
@@ -48,8 +47,8 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
   
   // Fetch suggestions when input changes
   const fetchSuggestions = async (query: string) => {
-    // Don't fetch if a selection was just made or already fetching
-    if (selectionMadeRef.current || fetchingRef.current) {
+    // Don't fetch if a selection was just made
+    if (selectionMadeRef.current) {
       return;
     }
     
@@ -67,35 +66,27 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
       return;
     }
     
-    // Set loading and fetching flags
     setLoading(true);
-    fetchingRef.current = true;
     
     try {
-      // Use the debounced getMedicationSuggestions function, but properly await its result
-      // The key fix is here - we need to call the function directly and await the Promise it returns
       const results = await getMedicationSuggestions(query);
+      setSuggestions(results);
+      setShowDropdown(true);
       
-      // Check if results is defined before setting state
-      if (results) {
-        setSuggestions(results);
-        setShowDropdown(true);
-        
-        // Hide recents when we have actual suggestions
-        if (results.length > 0) {
-          setShowRecents(false);
-        }
-      } else {
-        setSuggestions([]);
+      // Hide recents when we have actual suggestions
+      if (results.length > 0) {
+        setShowRecents(false);
       }
     } catch (error) {
       console.error("Error fetching suggestions:", error);
       setSuggestions([]);
     } finally {
       setLoading(false);
-      fetchingRef.current = false;
     }
   };
+  
+  // Debounce API calls to prevent excessive requests
+  const debouncedFetchSuggestions = debounce(fetchSuggestions, 300);
   
   // Handle input change effect
   useEffect(() => {
@@ -107,8 +98,7 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
       return;
     }
     
-    // Call fetchSuggestions directly
-    fetchSuggestions(inputValue);
+    debouncedFetchSuggestions(inputValue);
   }, [inputValue]);
 
   const handleFocus = () => {

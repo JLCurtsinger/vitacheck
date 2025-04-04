@@ -6,8 +6,7 @@
 
 import { makeRxNormApiRequest } from './rxnorm-client';
 import { 
-  getRxCUIFromDatabase, 
-  storeRxCUIInDatabase,
+  getRxCUIFromLocalCache, 
   generateAlternativeFormats, 
   extractRxCUIFromFDALabel, 
   extractCUIFromSuppAI 
@@ -35,8 +34,6 @@ async function tryGetRxCUI(formattedMedication: string): Promise<string | null> 
     const rxcui = data.data?.idGroup?.rxnormId?.[0] || null;
     if (rxcui) {
       console.log(`✅ [RxNorm Client] RxCUI found with format "${formattedMedication}": ${rxcui}`);
-      // Store successful lookup in the database for future use
-      await storeRxCUIInDatabase(formattedMedication, rxcui);
     }
     return rxcui;
   } catch (error) {
@@ -54,7 +51,7 @@ async function tryGetRxCUI(formattedMedication: string): Promise<string | null> 
 export async function getRxCUI(medication: string): Promise<string | null> {
   console.log(`🔍 [RxNorm Client] Attempting to get RxCUI for medication: ${medication}`);
   
-  // Check the session cache first
+  // Check the cache first
   const medKey = medication.toLowerCase();
   if (rxcuiCache.has(medKey)) {
     console.log(`✅ [RxNorm Client] Using cached RxCUI for ${medication}: ${rxcuiCache.get(medKey)}`);
@@ -64,9 +61,9 @@ export async function getRxCUI(medication: string): Promise<string | null> {
   // 1. Try with the original name first
   let rxcui = await tryGetRxCUI(medication);
   
-  // 2. If not found, try database lookup
+  // 2. If not found, try local cache
   if (!rxcui) {
-    rxcui = await getRxCUIFromDatabase(medication);
+    rxcui = getRxCUIFromLocalCache(medication);
   }
   
   // 3. If still not found, try alternative formats
@@ -94,10 +91,6 @@ export async function getRxCUI(medication: string): Promise<string | null> {
       const fdaData = await getFDAWarnings(medication);
       if (fdaData) {
         rxcui = extractRxCUIFromFDALabel(fdaData);
-        if (rxcui) {
-          // Store this FDA-sourced RxCUI in the database
-          await storeRxCUIInDatabase(medication, rxcui);
-        }
       }
     } catch (error) {
       console.error('[RxNorm Fallback] Error fetching FDA data:', error);
@@ -118,8 +111,6 @@ export async function getRxCUI(medication: string): Promise<string | null> {
           // Note that this is not an RxCUI, but a concept unique identifier
           rxcui = cui;
           console.log(`[RxNorm Fallback] Using CUI as fallback: ${cui}`);
-          // Store this SUPP.AI-sourced identifier in the database
-          await storeRxCUIInDatabase(medication, cui);
         }
       }
     } catch (error) {
@@ -132,7 +123,7 @@ export async function getRxCUI(medication: string): Promise<string | null> {
     // Cache the positive result
     rxcuiCache.set(medKey, rxcui);
   } else {
-    console.warn(`⚠️ [RxNorm Client] Could not find RxCUI for ${medication} after exhausting all fallback options`);
+    console.log(`⚠️ [RxNorm Client] Could not find RxCUI for ${medication} after exhausting all fallback options`);
     // Cache the negative result to avoid repeating the same lookup
     rxcuiCache.set(medKey, null);
   }

@@ -2,7 +2,7 @@
 import { MedicationSuggestion } from "./types";
 import { fetchRxTermsSuggestions } from "./api/rx-terms-api";
 import { fetchSuppAiSuggestions } from "./api/supp-ai-api";
-import { sortSuggestionsByRelevance, applyFuzzyFiltering, debounce } from "./utils";
+import { sortSuggestionsByRelevance, applyFuzzyFiltering } from "./utils";
 import { getCachedCombinedSuggestions, cacheCombinedSuggestions } from "./cache";
 import { getMedicationNamePair } from "./brand-to-generic";
 import { spellcheckMedication } from "@/utils/medication-formatter";
@@ -11,10 +11,9 @@ import { spellcheckMedication } from "@/utils/medication-formatter";
 const sessionSuggestionsCache = new Map<string, MedicationSuggestion[]>();
 
 /**
- * Raw function to fetch medication suggestions without debouncing
- * This allows us to apply debouncing at the appropriate level
+ * Fetch medication suggestions from multiple sources with fuzzy matching
  */
-async function fetchMedicationSuggestionsRaw(query: string): Promise<MedicationSuggestion[]> {
+export async function getMedicationSuggestions(query: string): Promise<MedicationSuggestion[]> {
   if (!query || query.trim().length < 2) {
     return [];
   }
@@ -90,24 +89,6 @@ async function fetchMedicationSuggestionsRaw(query: string): Promise<MedicationS
     return [];
   }
 }
-
-/**
- * Create a debounced version of the fetchMedicationSuggestionsRaw function
- * This ensures we handle the debounced function correctly with proper Promise return typing
- */
-export const getMedicationSuggestions = (query: string): Promise<MedicationSuggestion[]> => {
-  // We need to create a wrapper that returns a Promise
-  return new Promise((resolve) => {
-    // Create a debounced function that will resolve the promise with the results
-    const debouncedFetch = debounce(async (q: string) => {
-      const results = await fetchMedicationSuggestionsRaw(q);
-      resolve(results);
-    }, 400);
-    
-    // Call the debounced function
-    debouncedFetch(query);
-  });
-};
 
 // Re-export other important functions
 export { debounce } from "./utils";

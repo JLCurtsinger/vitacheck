@@ -108,57 +108,6 @@ export type Database = {
           },
         ]
       }
-      medication_names: {
-        Row: {
-          created_at: string | null
-          id: string
-          name: string
-          rxcui: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          name: string
-          rxcui: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          name?: string
-          rxcui?: string
-        }
-        Relationships: []
-      }
-      ml_models: {
-        Row: {
-          created_at: string
-          id: string
-          model_data: Json
-          model_name: string
-          model_version: string
-          sample_count: number
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          model_data: Json
-          model_name: string
-          model_version: string
-          sample_count?: number
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          model_data?: Json
-          model_name?: string
-          model_version?: string
-          sample_count?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
       ml_risk_predictions: {
         Row: {
           actual_risk: string | null
