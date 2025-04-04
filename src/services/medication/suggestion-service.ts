@@ -1,5 +1,4 @@
 
-
 import { MedicationSuggestion } from "./types";
 import { fetchRxTermsSuggestions } from "./api/rx-terms-api";
 import { fetchSuppAiSuggestions } from "./api/supp-ai-api";
@@ -16,7 +15,7 @@ const sessionSuggestionsCache = new Map<string, MedicationSuggestion[]>();
  * This allows us to apply debouncing at the appropriate level
  */
 async function fetchMedicationSuggestionsRaw(query: string): Promise<MedicationSuggestion[]> {
-  if (!query || query.trim().length === 0) {
+  if (!query || query.trim().length < 2) {
     return [];
   }
   
@@ -92,16 +91,22 @@ async function fetchMedicationSuggestionsRaw(query: string): Promise<MedicationS
   }
 }
 
-// Create a debounced wrapper for fetchMedicationSuggestionsRaw
-const debouncedFetchSuggestions = debounce(fetchMedicationSuggestionsRaw, 300);
-
 /**
- * Public function to get medication suggestions with debouncing
- * Returns a Promise that resolves with the suggestions
+ * Create a debounced version of the fetchMedicationSuggestionsRaw function
+ * This ensures we handle the debounced function correctly with proper Promise return typing
  */
 export const getMedicationSuggestions = (query: string): Promise<MedicationSuggestion[]> => {
-  // The debounced function now properly handles the Promise chain
-  return debouncedFetchSuggestions(query);
+  // We need to create a wrapper that returns a Promise
+  return new Promise((resolve) => {
+    // Create a debounced function that will resolve the promise with the results
+    const debouncedFetch = debounce(async (q: string) => {
+      const results = await fetchMedicationSuggestionsRaw(q);
+      resolve(results);
+    }, 400);
+    
+    // Call the debounced function
+    debouncedFetch(query);
+  });
 };
 
 // Re-export other important functions

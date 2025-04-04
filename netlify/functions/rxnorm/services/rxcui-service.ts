@@ -39,7 +39,7 @@ async function storeRxCUIInDatabase(name: string, rxcui: string): Promise<void> 
       .from('medication_names')
       .select('rxcui')
       .eq('name', normalizedName)
-      .maybeSingle();
+      .single();
     
     if (existing) {
       // If the RxCUI has changed, update the record
@@ -78,7 +78,7 @@ async function getStoredRxCUI(name: string): Promise<string | null> {
       .select('rxcui')
       .eq('name', normalizedName)
       .limit(1)
-      .maybeSingle();
+      .single();
     
     if (error || !data) {
       return null;

@@ -1,14 +1,15 @@
 
 import { MedicationSuggestion } from "../types";
 import { getCachedSuggestions, cacheSuggestions } from "../cache";
+import { debounce } from "../utils";
 
 /**
  * Raw function to fetch medication suggestions from RxTerms API via our serverless function
  */
 export async function fetchRxTermsSuggestions(query: string): Promise<MedicationSuggestion[]> {
   try {
-    // Skip API call for empty queries
-    if (!query || query.trim().length === 0) return [];
+    // Skip API call for very short queries
+    if (query.length < 2) return [];
 
     // Check cache first
     const cachedResults = getCachedSuggestions("rxterms", query);
@@ -34,13 +35,7 @@ export async function fetchRxTermsSuggestions(query: string): Promise<Medication
     }
 
     const data = await response.json();
-    
-    if (!data || !data.results) {
-      console.error('❌ Invalid response format from RxTerms API', data);
-      return [];
-    }
-    
-    const suggestions = (data.results || [])
+    const suggestions = (data?.results || [])
       .slice(0, 8)
       .map((result: any) => ({
         name: result.displayTermType === '0' ? result.displayName : `${result.displayName} (${result.rxcui})`,

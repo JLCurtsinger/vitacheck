@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from "react";
 import { 
   MedicationSuggestion, 
-  getMedicationSuggestions,
+  getMedicationSuggestions, 
+  debounce, 
   getRecentSearches 
 } from "@/services/medication-suggestions";
 
@@ -52,8 +53,7 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
       return;
     }
     
-    // Always show recent searches initially if no query
-    if (!query || query.trim().length === 0) {
+    if (!query || query.trim().length < 2) {
       setSuggestions([]);
       setLoading(false);
       
@@ -72,7 +72,8 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
     fetchingRef.current = true;
     
     try {
-      // Get medication suggestions with proper debouncing
+      // Use the debounced getMedicationSuggestions function, but properly await its result
+      // The key fix is here - we need to call the function directly and await the Promise it returns
       const results = await getMedicationSuggestions(query);
       
       // Check if results is defined before setting state
@@ -98,7 +99,15 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
   
   // Handle input change effect
   useEffect(() => {
-    // Call fetchSuggestions directly since debouncing is handled in getMedicationSuggestions
+    if (inputValue?.trim().length < 2) {
+      setSuggestions([]);
+      if (!showRecent || recentSearches.length === 0) {
+        setShowDropdown(false);
+      }
+      return;
+    }
+    
+    // Call fetchSuggestions directly
     fetchSuggestions(inputValue);
   }, [inputValue]);
 
@@ -109,7 +118,7 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
     }
     
     // Show recent searches on focus if applicable
-    if (showRecent && recentSearches.length > 0 && (!inputValue || inputValue.trim().length === 0)) {
+    if (showRecent && recentSearches.length > 0 && (!inputValue || inputValue.trim().length < 2)) {
       setShowRecents(true);
       setShowDropdown(true);
     }
