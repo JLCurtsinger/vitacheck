@@ -1,5 +1,5 @@
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0';
+const { createClient } = require('@supabase/supabase-js');
 
 // Get environment variables
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
