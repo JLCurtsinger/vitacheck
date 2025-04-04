@@ -1,21 +1,32 @@
-
 import { MedicationSuggestion } from "./types";
 
 /**
  * Debounce function to prevent excessive API calls
- * Enhanced to handle async functions properly
+ * Enhanced to handle async functions properly with Promise return type
  */
 export function debounce<F extends (...args: any[]) => any>(
   func: F,
-  waitFor: number = 400 // Updated to default to 400ms
-): (...args: Parameters<F>) => void {
+  waitFor: number = 400
+): (...args: Parameters<F>) => Promise<ReturnType<F>> {
   let timeout: ReturnType<typeof setTimeout> | null = null;
+  let resolveList: Array<(value: ReturnType<F>) => void> = [];
 
-  return (...args: Parameters<F>): void => {
-    if (timeout !== null) {
-      clearTimeout(timeout);
-    }
-    timeout = setTimeout(() => func(...args), waitFor);
+  return (...args: Parameters<F>): Promise<ReturnType<F>> => {
+    return new Promise(resolve => {
+      resolveList.push(resolve);
+      
+      if (timeout !== null) {
+        clearTimeout(timeout);
+      }
+      
+      timeout = setTimeout(() => {
+        const result = func(...args);
+        
+        // Resolve all promises with the result
+        resolveList.forEach(r => r(result));
+        resolveList = [];
+      }, waitFor);
+    });
   };
 }
 

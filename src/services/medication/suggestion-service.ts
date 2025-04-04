@@ -91,7 +91,7 @@ async function fetchMedicationSuggestionsRaw(query: string): Promise<MedicationS
   }
 }
 
-// Create a debounce wrapper for fetchMedicationSuggestionsRaw
+// Create a debounced wrapper for fetchMedicationSuggestionsRaw
 const debouncedFetchSuggestions = debounce(fetchMedicationSuggestionsRaw, 300);
 
 /**
@@ -99,13 +99,8 @@ const debouncedFetchSuggestions = debounce(fetchMedicationSuggestionsRaw, 300);
  * This ensures we handle the debounced function correctly with proper Promise return typing
  */
 export const getMedicationSuggestions = (query: string): Promise<MedicationSuggestion[]> => {
-  // We need to create a wrapper that returns a Promise
-  return new Promise((resolve) => {
-    // Use the debounced function that will resolve the promise with the results
-    debouncedFetchSuggestions(query).then(results => {
-      resolve(results);
-    });
-  });
+  // Since our debounce utility now returns a promise directly, we can just return it
+  return debouncedFetchSuggestions(query);
 };
 
 // Re-export other important functions
