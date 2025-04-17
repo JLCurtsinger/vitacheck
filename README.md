@@ -1,8 +1,8 @@
-# VitaCheck - Medication Interaction Checker
+# Vitacheck - Medication Interaction Checker
 
 ## Overview
 
-VitaCheck is a comprehensive medication interaction checking system that helps users identify potential risks when combining different medications and supplements. The application queries multiple medical databases and APIs to provide thorough, reliable information about drug interactions.
+Vitacheck is a comprehensive medication interaction checking system that helps users identify potential risks when combining different medications and supplements. The application queries multiple medical databases and APIs to provide thorough, reliable information about drug interactions.
 
 ## Key Features
 
