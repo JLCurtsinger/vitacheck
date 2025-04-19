@@ -1,6 +1,5 @@
 
 import { SeverityIndicator } from "../SeverityIndicator";
-import { SeverityBadge } from "../severity/SeverityBadge";
 import { SeverityIcon } from "../severity/SeverityIcon";
 import { SeverityTitle } from "../severity/SeverityTitle";
 
@@ -30,7 +29,6 @@ export function CombinedHeader({
         <SeverityTitle severity={severity} medications={medications} />
       </div>
       <div className="flex items-center gap-2">
-        <SeverityBadge severityFlag={severityFlag} />
         <SeverityIcon severity={severity} />
       </div>
     </div>
