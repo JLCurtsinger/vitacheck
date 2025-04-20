@@ -52,7 +52,7 @@ const App = () => (
                 <PrivacyPolicy />
               </ProtectedRoute>
             } />
-            <Route path="/terms-and-conditions" element={
+            <Route path="/terms" element={
               <ProtectedRoute>
                 <TermsAndConditions />
               </ProtectedRoute>

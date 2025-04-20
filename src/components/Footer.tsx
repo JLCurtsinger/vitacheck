@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 
 export default function Footer() {
@@ -18,7 +17,7 @@ export default function Footer() {
               Privacy Policy
             </Link>
             <Link 
-              to="/terms-and-conditions"
+              to="/terms"
               className="text-sm text-gray-300 hover:text-white transition-colors duration-200"
             >
               Terms and Conditions
