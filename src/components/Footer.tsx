@@ -36,14 +36,14 @@ export default function Footer() {
           <div className="text-center space-x-4">
             <Link 
               to="/privacy-policy"
-              className="text-sm text-gray-300 hover:text-white transition-colors duration-200"
+              className="text-sm text-gray-300 hover:text-white transition-colors duration-200 inline-block"
               onClick={handleFooterLinkClick}
             >
               Privacy Policy
             </Link>
             <Link 
               to="/terms"
-              className="text-sm text-gray-300 hover:text-white transition-colors duration-200"
+              className="text-sm text-gray-300 hover:text-white transition-colors duration-200 inline-block"
               onClick={handleFooterLinkClick}
             >
               Terms and Conditions
