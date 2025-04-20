@@ -14,17 +14,17 @@ export function SeverityBreakdownTable({
   onRowClick
 }: SeverityBreakdownTableProps) {
   return (
-    <div className="overflow-x-auto">
-      <Table>
+    <div className="w-full overflow-x-auto">
+      <Table className="w-full">
         <TableHeader>
-          <TableRow>
-            <TableHead className="w-1/6">Source</TableHead>
-            <TableHead className="text-right">Total Cases</TableHead>
-            <TableHead className="text-right text-red-700">Severe Cases</TableHead>
-            <TableHead className="text-right text-yellow-700">Moderate Cases</TableHead>
-            <TableHead className="text-right text-green-700">Minor Cases</TableHead>
-            <TableHead className="text-right">% Severe</TableHead>
-            <TableHead className="w-1/5">Distribution</TableHead>
+          <TableRow className="border-b border-gray-200">
+            <TableHead className="w-1/6 whitespace-nowrap">Source</TableHead>
+            <TableHead className="text-right whitespace-nowrap">Total Cases</TableHead>
+            <TableHead className="text-right text-red-700 whitespace-nowrap">Severe Cases</TableHead>
+            <TableHead className="text-right text-yellow-700 whitespace-nowrap">Moderate Cases</TableHead>
+            <TableHead className="text-right text-green-700 whitespace-nowrap">Minor Cases</TableHead>
+            <TableHead className="text-right whitespace-nowrap">% Severe</TableHead>
+            <TableHead className="w-1/5 whitespace-nowrap">Distribution</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -32,11 +32,12 @@ export function SeverityBreakdownTable({
             const isCombined = stat.name === "Final Combined Rating";
             const clickableRow = !isCombined && validSources.some(vs => vs.name === stat.name);
             return (
-              <tr
+              <TableRow
                 key={index}
                 className={
-                  "group"
-                  + (clickableRow ? " cursor-pointer hover:bg-blue-50 transition" : "")
+                  "group relative" +
+                  (clickableRow ? " cursor-pointer hover:bg-blue-50 transition" : "") +
+                  (isCombined ? " bg-gray-100" : "")
                 }
                 onClick={() => clickableRow && onRowClick(stat.name)}
                 tabIndex={clickableRow ? 0 : undefined}
@@ -45,7 +46,7 @@ export function SeverityBreakdownTable({
                   stat={stat}
                   isCombined={isCombined}
                 />
-              </tr>
+              </TableRow>
             );
           })}
         </TableBody>
