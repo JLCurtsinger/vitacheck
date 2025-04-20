@@ -1,4 +1,3 @@
-
 // OpenAI interaction service
 
 import { extractSeverity, extractEvidence, selectModelForQuery } from "../utils/severity-utils";
