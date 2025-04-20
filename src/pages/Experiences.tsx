@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import Footer from "@/components/Footer";
@@ -63,7 +63,7 @@ export default function Experiences() {
     }
   });
 
-  // Vote mutation - Fixed to properly update the vote count
+  // Vote mutation with optimistic updates
   const voteMutation = useMutation({
     mutationFn: async ({ id, type }: { id: string; type: 'upvote' | 'downvote' }) => {
       const column = type === 'upvote' ? 'upvotes' : 'downvotes';
@@ -99,9 +99,23 @@ export default function Experiences() {
     onSuccess: (_, variables) => {
       const voteType = variables.type === 'upvote' ? 'Upvoted' : 'Downvoted';
       toast.success(`${voteType} experience`);
+      
+      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ["experiences"] });
+    },
+    onError: (error) => {
+      console.error("Error voting:", error);
+      toast.error("Failed to record vote. Please try again.");
     }
   });
+
+  // Store voted IDs in localStorage to prevent duplicate voting
+  useEffect(() => {
+    const storedVotes = localStorage.getItem('vitacheck-experience-votes');
+    if (!storedVotes) {
+      localStorage.setItem('vitacheck-experience-votes', JSON.stringify({}));
+    }
+  }, []);
 
   // Filter experiences based on search query
   const filteredExperiences = experiences?.filter(experience => {

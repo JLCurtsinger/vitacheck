@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { UseMutationResult } from "@tanstack/react-query";
@@ -23,16 +23,59 @@ interface ExperienceCardProps {
 
 export function ExperienceCard({ experience, voteMutation }: ExperienceCardProps) {
   const [hasVoted, setHasVoted] = useState<'upvote' | 'downvote' | null>(null);
+  const [localUpvotes, setLocalUpvotes] = useState(experience.upvotes);
+  const [localDownvotes, setLocalDownvotes] = useState(experience.downvotes);
+
+  // Check if the user has already voted on this experience
+  useEffect(() => {
+    const storedVotes = JSON.parse(localStorage.getItem('vitacheck-experience-votes') || '{}');
+    if (storedVotes[experience.id]) {
+      setHasVoted(storedVotes[experience.id]);
+    }
+
+    // Update local counts when experience changes
+    setLocalUpvotes(experience.upvotes);
+    setLocalDownvotes(experience.downvotes);
+  }, [experience.id, experience.upvotes, experience.downvotes]);
 
   const handleVote = (type: 'upvote' | 'downvote') => {
+    // Prevent duplicate voting
     if (hasVoted) {
-      // Prevent duplicate voting
       return;
     }
     
+    // Optimistically update the UI
+    if (type === 'upvote') {
+      setLocalUpvotes(prev => prev + 1);
+    } else {
+      setLocalDownvotes(prev => prev + 1);
+    }
+
+    // Store the vote in localStorage
+    const storedVotes = JSON.parse(localStorage.getItem('vitacheck-experience-votes') || '{}');
+    storedVotes[experience.id] = type;
+    localStorage.setItem('vitacheck-experience-votes', JSON.stringify(storedVotes));
+    
+    // Set local state to show the vote has been cast
+    setHasVoted(type);
+    
+    // Submit the vote to the server
     voteMutation.mutate({ id: experience.id, type }, {
-      onSuccess: () => {
-        setHasVoted(type);
+      onError: () => {
+        // Revert optimistic update if the mutation fails
+        if (type === 'upvote') {
+          setLocalUpvotes(prev => prev - 1);
+        } else {
+          setLocalDownvotes(prev => prev - 1);
+        }
+        
+        // Clear the vote from localStorage
+        const revertedVotes = JSON.parse(localStorage.getItem('vitacheck-experience-votes') || '{}');
+        delete revertedVotes[experience.id];
+        localStorage.setItem('vitacheck-experience-votes', JSON.stringify(revertedVotes));
+        
+        // Reset the vote state
+        setHasVoted(null);
       }
     });
   };
@@ -95,7 +138,7 @@ export function ExperienceCard({ experience, voteMutation }: ExperienceCardProps
           disabled={voteMutation.isPending || hasVoted !== null}
         >
           <ThumbsUp className="w-4 h-4 mr-2" />
-          {experience.upvotes}
+          {localUpvotes}
         </Button>
         <Button
           variant="outline"
@@ -105,7 +148,7 @@ export function ExperienceCard({ experience, voteMutation }: ExperienceCardProps
           disabled={voteMutation.isPending || hasVoted !== null}
         >
           <ThumbsDown className="w-4 h-4 mr-2" />
-          {experience.downvotes}
+          {localDownvotes}
         </Button>
       </div>
     </div>
