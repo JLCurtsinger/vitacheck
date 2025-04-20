@@ -1,4 +1,3 @@
-
 import { Handler } from '@netlify/functions';
 import { normalizeMedicationName } from '../../../src/lib/api/utils/name-normalizer';
 
