@@ -13,9 +13,15 @@ interface SeverityBreakdownProps {
   sources: InteractionSource[];
   confidenceScore?: number;
   adverseEvents?: AdverseEventData;
+  medications?: string[]; // Add medications as a prop that can be passed down
 }
 
-export function SeverityBreakdown({ sources, confidenceScore, adverseEvents }: SeverityBreakdownProps) {
+export function SeverityBreakdown({ 
+  sources, 
+  confidenceScore, 
+  adverseEvents,
+  medications = [] // Default to empty array if not provided
+}: SeverityBreakdownProps) {
   // Modal state for source details
   const [sourceModalOpen, setSourceModalOpen] = useState(false);
   const [selectedSource, setSelectedSource] = useState<{
@@ -98,10 +104,6 @@ export function SeverityBreakdown({ sources, confidenceScore, adverseEvents }: S
   // Combine all stats for display
   const allStats = [...sourceStats, weightedStats];
 
-  // We need this to pass to the modal - get from parent component prop
-  // since InteractionSource doesn't have medications property
-  const medications = sources[0]?.medications || [];
-
   // Click handler for rows
   const onRowClick = useCallback(
     (statName: string) => {
@@ -118,7 +120,7 @@ export function SeverityBreakdown({ sources, confidenceScore, adverseEvents }: S
       setSelectedSource({
         name: matchedSource.name,
         data: [matchedSource],
-        medications: medications, // Use the medications from parent prop instead of source
+        medications: medications, // Use the medications prop passed down from parent
       });
       setSourceModalOpen(true);
     },

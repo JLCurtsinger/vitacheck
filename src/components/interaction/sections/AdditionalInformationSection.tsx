@@ -25,6 +25,7 @@ export function AdditionalInformationSection({
         sources={interaction.sources} 
         confidenceScore={interaction.confidenceScore}
         adverseEvents={interaction.adverseEvents}
+        medications={interaction.medications} // Pass medications from the interaction
       />
       
       {/* Adverse Events Section */}
