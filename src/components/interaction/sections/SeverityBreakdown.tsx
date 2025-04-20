@@ -1,12 +1,13 @@
 
+import { useState, useCallback, useEffect } from "react";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { InteractionSource, AdverseEventData } from "@/lib/api-utils";
-import { useEffect } from "react";
 import { calculateSourceStats, calculateCombinedStats } from "../utils/severity-calculations";
 import { SeverityTableRow } from "./severity/SeverityTableRow";
 import { SeverityLegend } from "./severity/SeverityLegend";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
+import { SourceDetailsModal } from "../SourceDetailsModal";
 
 interface SeverityBreakdownProps {
   sources: InteractionSource[];
@@ -15,6 +16,14 @@ interface SeverityBreakdownProps {
 }
 
 export function SeverityBreakdown({ sources, confidenceScore, adverseEvents }: SeverityBreakdownProps) {
+  // Modal state for source details
+  const [sourceModalOpen, setSourceModalOpen] = useState(false);
+  const [selectedSource, setSelectedSource] = useState<{
+    name: string;
+    data: InteractionSource[];
+    medications: string[];
+  } | null>(null);
+
   useEffect(() => {
     // Debug log when component renders
     console.log('SeverityBreakdown rendering with sources:', 
@@ -88,61 +97,113 @@ export function SeverityBreakdown({ sources, confidenceScore, adverseEvents }: S
   
   // Combine all stats for display
   const allStats = [...sourceStats, weightedStats];
-  
+
+  // Extract medications, prefer the first available in sources
+  const medications = sources[0]?.medications || [];
+
+  // Click handler for rows
+  const onRowClick = useCallback(
+    (statName: string) => {
+      // Don't allow click on final combined row
+      if (statName === "Final Combined Rating") return;
+
+      // Find the matching source and pass full details to modal
+      const matchedSource = validSources.find(
+        source => source.name.toLowerCase() === statName.toLowerCase()
+      );
+
+      if (!matchedSource) return;
+
+      setSelectedSource({
+        name: matchedSource.name,
+        data: [matchedSource],
+        medications: matchedSource.medications || medications,
+      });
+      setSourceModalOpen(true);
+    },
+    [validSources, medications]
+  );
+
+  const closeModal = useCallback(() => {
+    setSourceModalOpen(false);
+    setSelectedSource(null);
+  }, []);
+
   return (
-    <div className="my-6 p-4 rounded-lg border border-gray-200 bg-gray-50/60">
-      <div className="mb-3 pb-2 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold flex items-center gap-2">
-            📌 Interaction Severity Breakdown
-          </h3>
-          
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center text-sm text-blue-600 cursor-help">
-                  <Info className="h-4 w-4 mr-1" />
-                  Confidence: {confidenceScore || 0}%
-                </div>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                <p>Confidence is calculated from weighted source data. OpenFDA Adverse Events is given the highest weight when available due to its direct reporting on adverse outcomes from combining the selected medications or supplements.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+    <>
+      <div className="my-6 p-4 rounded-lg border border-gray-200 bg-gray-50/60">
+        <div className="mb-3 pb-2 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold flex items-center gap-2">
+              📌 Interaction Severity Breakdown
+            </h3>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center text-sm text-blue-600 cursor-help">
+                    <Info className="h-4 w-4 mr-1" />
+                    Confidence: {confidenceScore || 0}%
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>Confidence is calculated from weighted source data. OpenFDA Adverse Events is given the highest weight when available due to its direct reporting on adverse outcomes from combining the selected medications or supplements.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
+        
+        <p className="text-sm text-gray-600 mb-3">
+          This table shows how each data source contributed to the severity rating.
+        </p>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-1/6">Source</TableHead>
+                <TableHead className="text-right">Total Cases</TableHead>
+                <TableHead className="text-right text-red-700">Severe Cases</TableHead>
+                <TableHead className="text-right text-yellow-700">Moderate Cases</TableHead>
+                <TableHead className="text-right text-green-700">Minor Cases</TableHead>
+                <TableHead className="text-right">% Severe</TableHead>
+                <TableHead className="w-1/5">Distribution</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {allStats.map((stat, index) => {
+                const isCombined = stat.name === "Final Combined Rating";
+                // Only make source rows (not combined row) clickable
+                const clickableRow = !isCombined && validSources.some(vs => vs.name === stat.name);
+
+                return (
+                  <tr
+                    key={index}
+                    className={
+                      "group"
+                      + (clickableRow ? " cursor-pointer hover:bg-blue-50 transition" : "")
+                    }
+                    onClick={() => clickableRow && onRowClick(stat.name)}
+                    tabIndex={clickableRow ? 0 : undefined}
+                  >
+                    {/* Reuse original SeverityTableRow cells */}
+                    <SeverityTableRow
+                      stat={stat}
+                      isCombined={isCombined}
+                    />
+                  </tr>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+        <SeverityLegend />
       </div>
-      
-      <p className="text-sm text-gray-600 mb-3">
-        This table shows how each data source contributed to the severity rating.
-      </p>
-      
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-1/6">Source</TableHead>
-              <TableHead className="text-right">Total Cases</TableHead>
-              <TableHead className="text-right text-red-700">Severe Cases</TableHead>
-              <TableHead className="text-right text-yellow-700">Moderate Cases</TableHead>
-              <TableHead className="text-right text-green-700">Minor Cases</TableHead>
-              <TableHead className="text-right">% Severe</TableHead>
-              <TableHead className="w-1/5">Distribution</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {allStats.map((stat, index) => (
-              <SeverityTableRow 
-                key={index}
-                stat={stat}
-                isCombined={stat.name === "Final Combined Rating"}
-              />
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      
-      <SeverityLegend />
-    </div>
+      {/* Source Details Modal triggered by row clicks */}
+      <SourceDetailsModal
+        isOpen={sourceModalOpen}
+        onClose={closeModal}
+        source={selectedSource}
+      />
+    </>
   );
 }
