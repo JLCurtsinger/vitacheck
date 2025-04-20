@@ -63,14 +63,29 @@ export default function Experiences() {
     }
   });
 
-  // Vote mutation
+  // Vote mutation - Fixed to properly update the vote count
   const voteMutation = useMutation({
     mutationFn: async ({ id, type }: { id: string; type: 'upvote' | 'downvote' }) => {
       const column = type === 'upvote' ? 'upvotes' : 'downvotes';
       
+      // Get the current record first
+      const { data: currentRecord, error: fetchError } = await supabase
+        .from("experiences")
+        .select(`id, ${column}`)
+        .eq('id', id)
+        .single();
+      
+      if (fetchError) {
+        toast.error(`Failed to fetch current vote count`);
+        throw fetchError;
+      }
+      
+      // Update with the incremented value
+      const newCount = (currentRecord[column] || 0) + 1;
+      
       const { data, error } = await supabase
         .from("experiences")
-        .update({ [column]: supabase.rpc('increment') })
+        .update({ [column]: newCount })
         .eq('id', id)
         .select();
 

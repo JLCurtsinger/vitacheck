@@ -22,6 +22,21 @@ interface ExperienceCardProps {
 }
 
 export function ExperienceCard({ experience, voteMutation }: ExperienceCardProps) {
+  const [hasVoted, setHasVoted] = useState<'upvote' | 'downvote' | null>(null);
+
+  const handleVote = (type: 'upvote' | 'downvote') => {
+    if (hasVoted) {
+      // Prevent duplicate voting
+      return;
+    }
+    
+    voteMutation.mutate({ id: experience.id, type }, {
+      onSuccess: () => {
+        setHasVoted(type);
+      }
+    });
+  };
+
   return (
     <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-6 space-y-4 hover:shadow-xl transition-shadow">
       <div className="flex justify-between items-start">
@@ -75,9 +90,9 @@ export function ExperienceCard({ experience, voteMutation }: ExperienceCardProps
         <Button
           variant="outline"
           size="sm"
-          className="border-2 border-gray-200 hover:border-blue-500 hover:bg-white/50"
-          onClick={() => voteMutation.mutate({ id: experience.id, type: 'upvote' })}
-          disabled={voteMutation.isPending}
+          className={`border-2 ${hasVoted === 'upvote' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'} hover:border-blue-500 hover:bg-white/50`}
+          onClick={() => handleVote('upvote')}
+          disabled={voteMutation.isPending || hasVoted !== null}
         >
           <ThumbsUp className="w-4 h-4 mr-2" />
           {experience.upvotes}
@@ -85,9 +100,9 @@ export function ExperienceCard({ experience, voteMutation }: ExperienceCardProps
         <Button
           variant="outline"
           size="sm"
-          className="border-2 border-gray-200 hover:border-blue-500 hover:bg-white/50"
-          onClick={() => voteMutation.mutate({ id: experience.id, type: 'downvote' })}
-          disabled={voteMutation.isPending}
+          className={`border-2 ${hasVoted === 'downvote' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'} hover:border-blue-500 hover:bg-white/50`}
+          onClick={() => handleVote('downvote')}
+          disabled={voteMutation.isPending || hasVoted !== null}
         >
           <ThumbsDown className="w-4 h-4 mr-2" />
           {experience.downvotes}
