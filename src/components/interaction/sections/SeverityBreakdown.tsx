@@ -98,7 +98,8 @@ export function SeverityBreakdown({ sources, confidenceScore, adverseEvents }: S
   // Combine all stats for display
   const allStats = [...sourceStats, weightedStats];
 
-  // Extract medications, prefer the first available in sources
+  // We need this to pass to the modal - get from parent component prop
+  // since InteractionSource doesn't have medications property
   const medications = sources[0]?.medications || [];
 
   // Click handler for rows
@@ -117,7 +118,7 @@ export function SeverityBreakdown({ sources, confidenceScore, adverseEvents }: S
       setSelectedSource({
         name: matchedSource.name,
         data: [matchedSource],
-        medications: matchedSource.medications || medications,
+        medications: medications, // Use the medications from parent prop instead of source
       });
       setSourceModalOpen(true);
     },
