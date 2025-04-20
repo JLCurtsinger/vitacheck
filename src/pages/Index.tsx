@@ -8,7 +8,10 @@ export default function Index() {
       <main>
         <Hero />
       </main>
-      <Footer />
+      {/* On mobile, reduce any excess top space before the footer */}
+      <div className="mt-0 sm:mt-0">
+        <Footer />
+      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
-
 import { Link } from "react-router-dom";
+import Footer from "@/components/Footer";
 
 export default function PrivacyPolicy() {
   const scrollToTop = () => {
@@ -162,6 +162,7 @@ export default function PrivacyPolicy() {
           </div>
         </article>
       </main>
+      <Footer />
     </div>
   );
 }
