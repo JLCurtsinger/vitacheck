@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useEffect, useRef } from "react";
 
 /**
- * Handles scrolling to top of the page on route changes or when footer links are clicked.
+ * Handles scrolling to top of the page on route changes.
  */
 function useScrollToTopOnNav() {
   const location = useLocation();
@@ -20,11 +20,6 @@ function useScrollToTopOnNav() {
 export default function Footer() {
   useScrollToTopOnNav();
 
-  // Handler for scroll-to-top when clicking links.
-  const handleFooterLinkClick = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
   return (
     <footer className="bg-gradient-to-r from-gray-900 to-gray-800 text-white mt-auto">
       <div className="mx-auto max-w-7xl px-6 py-12 md:flex md:items-center md:justify-between lg:px-8">
@@ -37,14 +32,12 @@ export default function Footer() {
             <Link 
               to="/privacy-policy"
               className="text-sm text-gray-300 hover:text-white transition-colors duration-200 inline-block"
-              onClick={handleFooterLinkClick}
             >
               Privacy Policy
             </Link>
             <Link 
               to="/terms"
               className="text-sm text-gray-300 hover:text-white transition-colors duration-200 inline-block"
-              onClick={handleFooterLinkClick}
             >
               Terms and Conditions
             </Link>
