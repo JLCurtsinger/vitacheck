@@ -31,13 +31,13 @@ export default function Footer() {
           <div className="text-center space-x-4">
             <Link 
               to="/privacy-policy"
-              className="text-sm text-gray-300 hover:text-white transition-colors duration-200 inline-block"
+              className="text-sm text-gray-300 hover:text-white transition-colors duration-200 inline-block cursor-pointer"
             >
               Privacy Policy
             </Link>
             <Link 
               to="/terms"
-              className="text-sm text-gray-300 hover:text-white transition-colors duration-200 inline-block"
+              className="text-sm text-gray-300 hover:text-white transition-colors duration-200 inline-block cursor-pointer"
             >
               Terms and Conditions
             </Link>
