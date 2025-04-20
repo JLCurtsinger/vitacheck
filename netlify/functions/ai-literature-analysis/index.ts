@@ -1,4 +1,3 @@
-
 import { Handler } from '@netlify/functions';
 import { corsHeaders } from './config/cors-config';
 import { analyzeInteraction } from './services/openai-service';
