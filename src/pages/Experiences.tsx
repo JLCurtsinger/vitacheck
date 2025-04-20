@@ -63,7 +63,7 @@ export default function Experiences() {
     }
   });
 
-  // Vote mutation with optimistic updates
+  // Vote mutation with optimistic updates and proper Supabase update
   const voteMutation = useMutation({
     mutationFn: async ({ id, type }: { id: string; type: 'upvote' | 'downvote' }) => {
       const column = type === 'upvote' ? 'upvotes' : 'downvotes';
@@ -76,6 +76,7 @@ export default function Experiences() {
         .single();
       
       if (fetchError) {
+        console.error("Error fetching current vote count:", fetchError);
         toast.error(`Failed to fetch current vote count`);
         throw fetchError;
       }
@@ -90,6 +91,7 @@ export default function Experiences() {
         .select();
 
       if (error) {
+        console.error("Error updating vote:", error);
         toast.error(`Failed to ${type}`);
         throw error;
       }
