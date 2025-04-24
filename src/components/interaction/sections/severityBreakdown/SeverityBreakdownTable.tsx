@@ -1,6 +1,7 @@
-
+import { useState } from "react";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SeverityTableRow } from "../severity/SeverityTableRow";
+import { FinalRatingModal } from "../severity/FinalRatingModal";
 
 interface SeverityBreakdownTableProps {
   allStats: Array<any>;
@@ -13,6 +14,8 @@ export function SeverityBreakdownTable({
   validSources,
   onRowClick
 }: SeverityBreakdownTableProps) {
+  const [showFinalModal, setShowFinalModal] = useState(false);
+
   return (
     <div className="w-full overflow-x-auto">
       <Table className="w-full">
@@ -27,20 +30,28 @@ export function SeverityBreakdownTable({
             <TableHead className="w-1/5 whitespace-nowrap">Distribution</TableHead>
           </TableRow>
         </TableHeader>
+
         <TableBody>
           {allStats.map((stat, index) => {
             const isCombined = stat.name === "Final Combined Rating";
             const clickableRow = !isCombined && validSources.some(vs => vs.name === stat.name);
+            
             return (
               <TableRow
                 key={index}
                 className={
                   "group relative" +
-                  (clickableRow ? " cursor-pointer hover:bg-blue-50 transition" : "") +
+                  ((clickableRow || isCombined) ? " cursor-pointer hover:bg-blue-50 transition" : "") +
                   (isCombined ? " bg-gray-100" : "")
                 }
-                onClick={() => clickableRow && onRowClick(stat.name)}
-                tabIndex={clickableRow ? 0 : undefined}
+                onClick={() => {
+                  if (isCombined) {
+                    setShowFinalModal(true);
+                  } else if (clickableRow) {
+                    onRowClick(stat.name);
+                  }
+                }}
+                tabIndex={clickableRow || isCombined ? 0 : undefined}
               >
                 <SeverityTableRow
                   stat={stat}
@@ -51,6 +62,12 @@ export function SeverityBreakdownTable({
           })}
         </TableBody>
       </Table>
+
+      <FinalRatingModal
+        isOpen={showFinalModal}
+        onClose={() => setShowFinalModal(false)}
+        confidenceScore={allStats.find(stat => stat.name === "Final Combined Rating")?.confidence}
+      />
     </div>
   );
 }
