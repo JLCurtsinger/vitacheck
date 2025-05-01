@@ -130,55 +130,43 @@ export const calculateCombinedStats = (sourceStats: Array<ReturnType<typeof calc
     };
   }
   
-  // Weight sources by their confidence
-  const totalConfidence = validStats.reduce((sum, stat) => sum + stat.confidence, 0);
+  // Instead of weighted calculations, sum up all cases directly
+  let totalCases = 0;
+  let severeCases = 0;
+  let moderateCases = 0;
+  let minorCases = 0;
   
-  // Apply weights to get weighted totals
-  let weightedTotalCases = 0;
-  let weightedSevereCases = 0;
-  let weightedModerateCases = 0;
-  let weightedMinorCases = 0;
-  
+  // Sum up all cases from all sources
   validStats.forEach(stat => {
     // Skip invalid data
     if (isNaN(stat.totalCases) || stat.totalCases <= 0) return;
     
-    const weight = totalConfidence > 0 ? stat.confidence / totalConfidence : 1 / validStats.length;
-    
-    // Apply weight to counts - this gives more weight to higher confidence sources
-    weightedTotalCases += stat.totalCases * weight;
-    weightedSevereCases += stat.severeCases * weight;
-    weightedModerateCases += stat.moderateCases * weight;
-    weightedMinorCases += stat.minorCases * weight;
+    totalCases += stat.totalCases;
+    severeCases += stat.severeCases;
+    moderateCases += stat.moderateCases;
+    minorCases += stat.minorCases;
   });
   
-  // Create the combined rating with weighted values
-  const weightedStats = {
-    name: "Final Combined Rating",
-    totalCases: Math.round(weightedTotalCases),
-    severeCases: Math.round(weightedSevereCases),
-    moderateCases: Math.round(weightedModerateCases),
-    minorCases: Math.round(weightedMinorCases),
-    severePercent: 0,
-    confidence: confidenceScore || 0,
-    hasData: true
-  };
+  // Calculate severe percentage for the combined total
+  const severePercent = totalCases > 0 ? (severeCases / totalCases) * 100 : 0;
   
-  // Calculate combined severe percentage
-  if (weightedStats.totalCases > 0) {
-    weightedStats.severePercent = (weightedStats.severeCases / weightedStats.totalCases) * 100;
-  }
+  // Calculate distribution widths for the bar chart
+  const severeWidth = totalCases > 0 ? (severeCases / totalCases) * 100 : 0;
+  const moderateWidth = totalCases > 0 ? (moderateCases / totalCases) * 100 : 0;
+  const minorWidth = totalCases > 0 ? (minorCases / totalCases) * 100 : 0;
   
-  // Add bar graph percentages for combined stats
-  const combinedTotalCases = weightedStats.totalCases;
-  const combinedSevereWidth = combinedTotalCases > 0 ? (weightedStats.severeCases / combinedTotalCases) * 100 : 0;
-  const combinedModerateWidth = combinedTotalCases > 0 ? (weightedStats.moderateCases / combinedTotalCases) * 100 : 0;
-  const combinedMinorWidth = combinedTotalCases > 0 ? (weightedStats.minorCases / combinedTotalCases) * 100 : 0;
-  
+  // Return the combined stats
   return {
-    ...weightedStats,
-    severeWidth: combinedSevereWidth,
-    moderateWidth: combinedModerateWidth,
-    minorWidth: combinedMinorWidth
+    name: "Final Combined Rating",
+    totalCases,
+    severeCases,
+    moderateCases,
+    minorCases,
+    severePercent,
+    confidence: confidenceScore || 0,
+    severeWidth,
+    moderateWidth,
+    minorWidth,
+    hasData: true
   };
 };
