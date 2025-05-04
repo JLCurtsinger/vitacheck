@@ -1,16 +1,14 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { X, Menu, LogOut } from "lucide-react";
+import { X, Menu } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 
 interface HeroNavbarProps {
   scrollToTop: () => void;
 }
 
 export default function HeroNavbar({ scrollToTop }: HeroNavbarProps) {
-  const { logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
@@ -24,14 +22,7 @@ export default function HeroNavbar({ scrollToTop }: HeroNavbarProps) {
           <Link to="/experiences" onClick={scrollToTop}>
             <Button variant="ghost">Experiences</Button>
           </Link>
-          <Button 
-            variant="ghost" 
-            onClick={logout} 
-            className="text-gray-700 hover:text-gray-900 flex items-center gap-2"
-          >
-            <LogOut className="h-4 w-4" />
-            Log Out
-          </Button>
+          {/* Logout button removed */}
         </div>
 
         <div className="md:hidden">
@@ -48,15 +39,7 @@ export default function HeroNavbar({ scrollToTop }: HeroNavbarProps) {
           }} className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
             Experiences
           </Link>
-          <button 
-            onClick={() => {
-              setIsMenuOpen(false);
-              logout();
-            }} 
-            className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100"
-          >
-            Logout
-          </button>
+          {/* Mobile logout button removed */}
         </div>}
     </div>
   );
