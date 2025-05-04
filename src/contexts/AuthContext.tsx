@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface AuthContextType {
@@ -10,29 +9,19 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  // Always set authenticated to true to bypass login requirements
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
 
-  // Check localStorage on initial load
-  useEffect(() => {
-    const auth = localStorage.getItem('auth');
-    if (auth) {
-      setIsAuthenticated(true);
-    }
-  }, []);
-
+  // Keep these functions in case they're needed in the future,
+  // but they won't affect the authentication state anymore
   const login = (email: string, password: string): boolean => {
-    // Hardcoded credentials
-    if (email === 'admin@vitacheck.com' && password === 'medication123') {
-      localStorage.setItem('auth', 'true');
-      setIsAuthenticated(true);
-      return true;
-    }
-    return false;
+    // Always return true to simulate successful login
+    return true;
   };
 
   const logout = () => {
-    localStorage.removeItem('auth');
-    setIsAuthenticated(false);
+    // Do nothing - we want users to always be "logged in"
+    console.log("Logout requested but ignored - authentication is bypassed");
   };
 
   return (

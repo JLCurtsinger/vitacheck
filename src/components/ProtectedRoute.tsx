@@ -1,5 +1,4 @@
 
-import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import NavHeader from "./NavHeader";
 
@@ -8,12 +7,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated } = useAuth();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" />;
-  }
-
+  // No more authentication check or redirect logic
   return (
     <>
       <NavHeader />
