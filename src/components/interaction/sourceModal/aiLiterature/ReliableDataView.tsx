@@ -9,7 +9,7 @@ import { LiteratureCitations } from "./LiteratureCitations";
 import { DetailsSection } from "../DetailsSection";
 import { LiteratureSourceFooter } from "./LiteratureSourceFooter";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info } from "lucide-react";
+import { Info, AlertTriangle } from "lucide-react";
 
 interface ReliableDataViewProps {
   data: InteractionSource[];
@@ -29,6 +29,7 @@ interface ReliableDataViewProps {
     reason?: string;
     sources?: string[];
   } | null;
+  hasServiceError?: boolean;
 }
 
 export function ReliableDataView({
@@ -41,7 +42,8 @@ export function ReliableDataView({
   reliability,
   clinicianView,
   isFallbackMode = false,
-  fallbackInfo = null
+  fallbackInfo = null,
+  hasServiceError = false
 }: ReliableDataViewProps) {
   return (
     <div className="pb-6">
@@ -50,7 +52,20 @@ export function ReliableDataView({
         data={data} 
         sourceName="AI Literature Analysis"
         isClinicianView={clinicianView}
+        hasError={hasServiceError}
       />
+      
+      {/* Service error notice when applicable */}
+      {hasServiceError && (
+        <Alert className="mb-4 bg-amber-50 border-amber-200">
+          <AlertTriangle className="h-4 w-4 text-amber-700" />
+          <AlertTitle className="text-amber-800">Service Limitation</AlertTitle>
+          <AlertDescription className="text-amber-700 text-sm">
+            Our AI literature tool encountered limitations, but was still able to provide some analysis.
+            Results may not reflect the most comprehensive analysis possible.
+          </AlertDescription>
+        </Alert>
+      )}
       
       {/* Fallback notice for clinicians */}
       {isFallbackMode && clinicianView && (

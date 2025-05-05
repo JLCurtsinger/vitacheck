@@ -27,7 +27,8 @@ export function AILiteratureSourceContent({
     bulletPoints,
     citations,
     isFallbackMode,
-    fallbackInfo
+    fallbackInfo,
+    hasServiceError
   } = useMemo(() => {
     if (!data || data.length === 0) return { 
       hasReliableData: false,
@@ -38,13 +39,21 @@ export function AILiteratureSourceContent({
       bulletPoints: [],
       citations: [],
       isFallbackMode: false,
-      fallbackInfo: null
+      fallbackInfo: null,
+      hasServiceError: false
     };
     
     // Check for fallback mode
     const isFallback = data.some(item => item.fallbackMode);
     const fallbackReason = data.find(item => item.fallbackReason)?.fallbackReason;
     const fallbackSources = data.find(item => item.sources)?.sources || [];
+    
+    // Check for service error indicators
+    const hasError = data.some(item => 
+      item.errorMessage || 
+      (item.description && item.description.toLowerCase().includes('error occurred')) ||
+      (item.description && item.description.toLowerCase().includes('rate limit'))
+    );
     
     // Get all confidence scores that are valid numbers
     const validConfidences = data
@@ -116,6 +125,17 @@ export function AILiteratureSourceContent({
       }
     });
     
+    // Log diagnostic information to help debug 
+    console.log(`[AI Literature Analysis] Modal content diagnostic:`, {
+      hasReliableData: explicitlyReliable || implicitlyReliable || isFallback,
+      hasAnyData: hasAny,
+      confidenceScore: avgConfidence,
+      hasServiceError: hasError,
+      isUsingFallback: isFallback,
+      hasPubMedEvidence: hasPubMedIds,
+      bulletPointsCount: formattedBulletPoints.length
+    });
+    
     return { 
       hasReliableData: explicitlyReliable || implicitlyReliable || isFallback,
       hasAnyData: hasAny,
@@ -128,7 +148,8 @@ export function AILiteratureSourceContent({
       fallbackInfo: isFallback ? {
         reason: fallbackReason,
         sources: fallbackSources
-      } : null
+      } : null,
+      hasServiceError: hasError
     };
   }, [data, medications]);
   
@@ -171,6 +192,7 @@ export function AILiteratureSourceContent({
       clinicianView={clinicianView}
       isFallbackMode={isFallbackMode}
       fallbackInfo={fallbackInfo}
+      hasServiceError={hasServiceError}
     />
   ) : (
     <UnreliableDataView
