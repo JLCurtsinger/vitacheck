@@ -1,20 +1,9 @@
 
 import React, { useMemo } from "react";
 import { InteractionSource } from "@/lib/api/types";
-import { SeverityConfidenceSection } from "./SeverityConfidenceSection";
-import { DetailsSection } from "./DetailsSection";
 import { formatDescriptionText } from "../utils/formatDescription";
-import { SourceMetadataSection } from "./SourceMetadataSection";
-import { Badge } from "@/components/ui/badge";
-
-// Import the components
-import { 
-  LiteratureSummary, 
-  LiteratureCitations, 
-  NoReliableDataAlert, 
-  LiteratureSourceFooter, 
-  ConfidenceIndicator 
-} from "./aiLiterature";
+import { UnreliableDataView } from "./aiLiterature/UnreliableDataView";
+import { ReliableDataView } from "./aiLiterature/ReliableDataView";
 
 interface AILiteratureSourceContentProps {
   data: InteractionSource[];
@@ -31,14 +20,18 @@ export function AILiteratureSourceContent({
   const { 
     hasReliableData,
     confidenceScore,
-    referencedSources, // Renamed from sourcesReferenced to avoid duplication
-    reliability
+    referencedSources,
+    reliability,
+    bulletPoints,
+    citations
   } = useMemo(() => {
     if (data.length === 0) return { 
       hasReliableData: false, 
       confidenceScore: 0,
-      referencedSources: [], // Renamed from sourcesReferenced
-      reliability: { isReliable: false }
+      referencedSources: [],
+      reliability: { isReliable: false },
+      bulletPoints: [],
+      citations: []
     };
     
     // Get all confidence scores that are valid numbers
@@ -76,13 +69,40 @@ export function AILiteratureSourceContent({
       reason: data[0]?.validationReason || undefined
     };
     
+    // Process all descriptions from all source items
+    const allDescriptions = data.map(item => item.description).filter(Boolean).join(". ");
+    
+    // Format the text into bullet points
+    const formattedBulletPoints = formatDescriptionText(allDescriptions, medications);
+    
+    // Extract any citations or references
+    const extractedCitations: string[] = [];
+    
+    // Extract citation text if available
+    data.forEach(item => {
+      if (item.rawData?.citations && Array.isArray(item.rawData.citations)) {
+        extractedCitations.push(...item.rawData.citations);
+      }
+      
+      // Look for citation-like text in the description
+      if (item.description) {
+        const citationRegex = /\[([\d,\s]+)\]/g;
+        let match;
+        while ((match = citationRegex.exec(item.description)) !== null) {
+          extractedCitations.push(match[0]);
+        }
+      }
+    });
+    
     return { 
       hasReliableData: explicitlyReliable || implicitlyReliable,
       confidenceScore: avgConfidence,
-      referencedSources: [...new Set(sources)], // Renamed from sourcesReferenced
-      reliability: reliabilityInfo
+      referencedSources: [...new Set(sources)],
+      reliability: reliabilityInfo,
+      bulletPoints: formattedBulletPoints,
+      citations: [...new Set(extractedCitations)]
     };
-  }, [data]);
+  }, [data, medications]);
   
   // Get unique cited sources
   const sourcesReferenced = useMemo(() => {
@@ -104,120 +124,27 @@ export function AILiteratureSourceContent({
     
     return Array.from(allSources);
   }, [data]);
-  
-  // Format description text into bullet points
-  const formattedContent = useMemo(() => {
-    if (!data || data.length === 0) return { bulletPoints: [] };
-    
-    // Process all descriptions from all source items
-    const allDescriptions = data.map(item => item.description).filter(Boolean).join(". ");
-    
-    // Format the text into bullet points
-    const bulletPoints = formatDescriptionText(allDescriptions, medications);
-    
-    return { bulletPoints };
-  }, [data, medications]);
 
-  // Extract any citations or references
-  const citations = useMemo(() => {
-    const refs: string[] = [];
-    
-    // Extract citation text if available
-    data.forEach(item => {
-      if (item.rawData?.citations && Array.isArray(item.rawData.citations)) {
-        refs.push(...item.rawData.citations);
-      }
-      
-      // Look for citation-like text in the description
-      if (item.description) {
-        const citationRegex = /\[([\d,\s]+)\]/g;
-        let match;
-        while ((match = citationRegex.exec(item.description)) !== null) {
-          refs.push(match[0]);
-        }
-      }
-    });
-    
-    return [...new Set(refs)]; // Remove duplicates
-  }, [data]);
-
-  // Show a reduced view for unreliable data, but still provide feedback
-  if (!hasReliableData) {
-    // For clinician view, show unreliable data with warning banner
-    if (clinicianView) {
-      return (
-        <div className="pb-6">
-          <div className="flex items-center justify-between mb-4">
-            <SourceMetadataSection 
-              data={data} 
-              sourceName="AI Literature Analysis"
-              isClinicianView={true}
-            />
-            <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
-              Beta
-            </Badge>
-          </div>
-          
-          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
-            <p className="text-sm text-amber-800">
-              <strong>Low Confidence Analysis:</strong> This AI analysis didn't meet reliability thresholds, but is shown for research purposes.
-            </p>
-          </div>
-          
-          <ConfidenceIndicator confidenceScore={confidenceScore} />
-          
-          <LiteratureSummary 
-            bulletPoints={formattedContent.bulletPoints}
-            sourcesReferenced={sourcesReferenced}
-            reliability={reliability}
-          />
-          
-          <DetailsSection data={data} showRaw={true} />
-        </div>
-      );
-    }
-    
-    // For regular users, show the no reliable data alert
-    return <NoReliableDataAlert confidenceScore={confidenceScore} />;
-  }
-
-  return (
-    <div className="pb-6">
-      {/* Source Metadata with Beta label */}
-      <div className="flex items-center justify-between mb-4">
-        <SourceMetadataSection 
-          data={data} 
-          sourceName="AI Literature Analysis"
-          isClinicianView={clinicianView}
-        />
-        <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
-          Beta
-        </Badge>
-      </div>
-      
-      {/* Confidence indicator */}
-      <ConfidenceIndicator confidenceScore={confidenceScore} />
-      
-      {/* Severity and confidence at the top */}
-      <SeverityConfidenceSection data={data} clinicianView={clinicianView} />
-      
-      {/* Literature Analysis Summary */}
-      <LiteratureSummary 
-        bulletPoints={formattedContent.bulletPoints} 
-        sourcesReferenced={sourcesReferenced}
-        reliability={reliability}
-      />
-      
-      {/* Citations if available */}
-      <LiteratureCitations citations={citations} clinicianView={clinicianView} />
-      
-      {/* Raw details section */}
-      {clinicianView && (
-        <DetailsSection data={data} showRaw={true} />
-      )}
-      
-      {/* Source disclaimer and contribution */}
-      <LiteratureSourceFooter sourceData={data[0]} />
-    </div>
+  // Show appropriate view based on data reliability
+  return hasReliableData ? (
+    <ReliableDataView
+      data={data}
+      confidenceScore={confidenceScore}
+      sourcesReferenced={sourcesReferenced}
+      bulletPoints={bulletPoints}
+      citations={citations}
+      medications={medications}
+      reliability={reliability}
+      clinicianView={clinicianView}
+    />
+  ) : (
+    <UnreliableDataView
+      data={data}
+      confidenceScore={confidenceScore}
+      sourcesReferenced={sourcesReferenced}
+      bulletPoints={bulletPoints}
+      reliability={reliability}
+      clinicianView={clinicianView}
+    />
   );
 }
