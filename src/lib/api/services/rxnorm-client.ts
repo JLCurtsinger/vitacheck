@@ -93,7 +93,10 @@ export async function fetchInteractionData(rxCUIs: string[]): Promise<any> {
     return [];
   }
   
-  const interactionResults = data.data?.fullInteractionTypeGroup || [];
+  // Adjust how we extract the interaction data from the response to accommodate changes in the Netlify function
+  const interactionResults = data.interactionTypeGroup || 
+                            data.data?.interactionTypeGroup || 
+                            data.data?.fullInteractionTypeGroup || [];
   
   // Cache the successful result
   interactionCache.set(cacheKey, interactionResults);
