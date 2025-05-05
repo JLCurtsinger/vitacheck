@@ -25,6 +25,12 @@ const handler: Handler = async (event, context) => {
       requestBody
     });
     
+    // Normalize rxcuis parameter if it's sent as a concatenated string
+    if (requestBody.rxcui && requestBody.rxcui.includes('+') && !requestBody.rxcuis) {
+      console.log(`⚠️ RxNorm: Converting concatenated rxcui string to array: ${requestBody.rxcui}`);
+      requestBody.rxcuis = requestBody.rxcui.split('+').filter(Boolean);
+    }
+    
     return await handleOperation(operation, requestBody);
     
   } catch (error) {

@@ -1,4 +1,3 @@
-
 import { corsHeaders } from '../utils/cors-utils';
 import { createErrorResponse } from '../utils/error-utils';
 import { fetchRxCUIByName } from './rxcui-service';
@@ -15,7 +14,22 @@ export async function handleOperation(operation: string, params: any) {
   const { name, rxcui, rxcuis, term } = params;
   
   // Support both rxcui and rxcuis for better compatibility
-  let resolvedRxcui = rxcui || rxcuis;
+  // If rxcuis is an array, use it directly; if rxcui is provided as a string, put it in an array
+  let resolvedRxcuis: string[] = [];
+  
+  if (Array.isArray(rxcuis)) {
+    // Use the array directly
+    resolvedRxcuis = rxcuis.filter(Boolean);
+    console.log(`🔍 RxNorm: Using provided rxcuis array: ${resolvedRxcuis.join(', ')}`);
+  } else if (rxcuis && typeof rxcuis === 'string') {
+    // If rxcuis is a string (maybe '+' delimited), split it
+    resolvedRxcuis = rxcuis.split('+').filter(Boolean);
+    console.log(`🔍 RxNorm: Converting string rxcuis to array: ${resolvedRxcuis.join(', ')}`);
+  } else if (rxcui) {
+    // Fallback to single rxcui if provided
+    resolvedRxcuis = [rxcui].filter(Boolean);
+    console.log(`🔍 RxNorm: Using single rxcui: ${rxcui}`);
+  }
   
   // Validate the operation
   if (!operation) {
@@ -36,38 +50,32 @@ export async function handleOperation(operation: string, params: any) {
       break;
       
     case 'interactions':
-      // If rxcui is missing but name is provided, try to fetch the rxcui first
-      if (!resolvedRxcui && name) {
-        console.log(`🔍 RxNorm: RxCUI missing for interactions. Attempting to fetch RxCUI for: ${name}`);
+      // If rxcuis are missing but name is provided, try to fetch the rxcui first
+      if (resolvedRxcuis.length === 0 && name) {
+        console.log(`🔍 RxNorm: RxCUIs missing for interactions. Attempting to fetch RxCUI for: ${name}`);
         
-        resolvedRxcui = await fetchRxCUIByName(name);
+        const fetchedRxcui = await fetchRxCUIByName(name);
         
-        if (!resolvedRxcui) {
+        if (!fetchedRxcui) {
           return createErrorResponse(404, 'Could not find RxCUI for the given medication name', name);
         }
         
-        console.log(`✅ RxNorm: Successfully resolved RxCUI for ${name}: ${resolvedRxcui}`);
+        resolvedRxcuis = [fetchedRxcui];
+        console.log(`✅ RxNorm: Successfully resolved RxCUI for ${name}: ${fetchedRxcui}`);
       }
       
-      if (!resolvedRxcui) {
-        return createErrorResponse(400, 'RxCUI parameter is required for interactions operation');
+      if (resolvedRxcuis.length === 0) {
+        return createErrorResponse(400, 'RxCUIs parameter is required for interactions operation');
       }
       
-      // Check if we have multiple RxCUIs (separated by +)
-      if (resolvedRxcui.includes('+')) {
-        // Split the RxCUIs and make separate requests
-        const rxcuiArray = resolvedRxcui.split('+').filter(Boolean);
-        console.log(`🔍 RxNorm: Handling multiple RxCUIs (${rxcuiArray.length}): ${rxcuiArray.join(', ')}`);
-        
-        if (rxcuiArray.length < 2) {
-          apiUrl = `https://rxnav.nlm.nih.gov/REST/interaction/interaction.json?rxcui=${rxcuiArray[0]}`;
-          break;
-        }
+      // If we have multiple RxCUIs
+      if (resolvedRxcuis.length >= 2) {
+        console.log(`🔍 RxNorm: Handling multiple RxCUIs (${resolvedRxcuis.length}): ${resolvedRxcuis.join(', ')}`);
         
         // Make separate requests for each RxCUI
         try {
           const interactionResults = await Promise.all(
-            rxcuiArray.map(async (id) => {
+            resolvedRxcuis.map(async (id) => {
               const url = `https://rxnav.nlm.nih.gov/REST/interaction/interaction.json?rxcui=${id}`;
               const result = await makeRxNormApiRequest(url);
               return {
@@ -80,14 +88,14 @@ export async function handleOperation(operation: string, params: any) {
           console.log(`✅ RxNorm: Completed ${interactionResults.length} individual RxCUI requests`);
           
           // Merge and filter results to find interactions involving both medications
-          return await mergeInteractionResults(interactionResults, rxcuiArray);
+          return await mergeInteractionResults(interactionResults, resolvedRxcuis);
         } catch (error) {
           console.error('❌ RxNorm: Error fetching multiple interactions:', error);
           return createErrorResponse(500, 'Error processing multiple RxCUI requests', error.message);
         }
       } else {
         // Single RxCUI case - use the original logic
-        apiUrl = `https://rxnav.nlm.nih.gov/REST/interaction/interaction.json?rxcui=${resolvedRxcui}`;
+        apiUrl = `https://rxnav.nlm.nih.gov/REST/interaction/interaction.json?rxcui=${resolvedRxcuis[0]}`;
       }
       break;
       

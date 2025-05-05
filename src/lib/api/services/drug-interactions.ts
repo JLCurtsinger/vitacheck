@@ -14,7 +14,10 @@ import { fetchInteractionData } from './rxnorm-client';
 export async function getDrugInteractions(rxCUIs: string[]): Promise<any[]> {
   console.log('🔍 [RxNorm Client] Checking interactions for RxCUIs:', rxCUIs);
   
-  const interactionResults = await fetchInteractionData(rxCUIs);
+  // Ensure rxCUIs is always an array, never a concatenated string
+  const rxCUIsArray = Array.isArray(rxCUIs) ? rxCUIs : [rxCUIs];
+  
+  const interactionResults = await fetchInteractionData(rxCUIsArray);
   
   console.log('✅ [RxNorm Client] Processed interaction results:', 
     interactionResults.length > 0 ? `Found ${interactionResults.length} interaction groups` : 'No interactions');

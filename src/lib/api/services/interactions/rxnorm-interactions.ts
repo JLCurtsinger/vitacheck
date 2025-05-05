@@ -47,8 +47,8 @@ export async function checkRxNormInteractions(
   console.log(`Checking RxNorm interactions for ${med1Name}(${med1Id}) and ${med2Name}(${med2Id})`);
   
   try {
-    // Send an array of RxCUIs to the getDrugInteractions function
-    const rxcuis = [med1Id, med2Id];
+    // Pass med1Id and med2Id as separate array elements, never concatenated
+    const rxcuis = [med1Id, med2Id].filter(Boolean);
     const rxnormInteractions = await getDrugInteractions(rxcuis);
     
     const { hasInteractions, description } = processRxNormInteractionData(rxnormInteractions);

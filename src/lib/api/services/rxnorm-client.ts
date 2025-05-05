@@ -26,7 +26,7 @@ function getInteractionCacheKey(rxCUIs: string[]): string {
  */
 export async function makeRxNormApiRequest(
   operation: string, 
-  params: Record<string, string>
+  params: Record<string, string | string[]>
 ): Promise<any> {
   const requestBody = {
     operation,
@@ -81,13 +81,13 @@ export async function fetchInteractionData(rxCUIs: string[]): Promise<any> {
   // Add delay to prevent rate limiting
   await delay(INTERACTION_REQUEST_DELAY);
   
-  const rxcuiString = validRxCUIs.join('+');
-  console.log(`🔍 [RxNorm Client] Making interaction request with RxCUIs: ${rxcuiString}`);
+  console.log(`🔍 [RxNorm Client] Making interaction request with RxCUIs: ${validRxCUIs.join(', ')}`);
   
-  const data = await makeRxNormApiRequest('interactions', { rxcui: rxcuiString });
+  // IMPORTANT: Pass rxcuis as an array, not a concatenated string
+  const data = await makeRxNormApiRequest('interactions', { rxcuis: validRxCUIs });
   
   if (!data || data.status === 'error' || data.message === "No data found" || data.message === "No interactions found") {
-    console.log('⚠️ [RxNorm Client] No interactions found for RxCUIs:', rxcuiString);
+    console.log('⚠️ [RxNorm Client] No interactions found for RxCUIs:', validRxCUIs.join(', '));
     // Cache empty results
     interactionCache.set(cacheKey, []);
     return [];
