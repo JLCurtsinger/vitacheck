@@ -21,6 +21,15 @@ interface ReliableDataViewProps {
     reason?: string;
   };
   clinicianView: boolean;
+  otherSources?: {
+    rxnorm?: boolean;
+    fda?: boolean;
+    suppai?: boolean;
+    adverseEvents?: {
+      count: number;
+      serious: number;
+    } | null;
+  };
 }
 
 export function ReliableDataView({
@@ -31,7 +40,8 @@ export function ReliableDataView({
   citations,
   medications,
   reliability,
-  clinicianView
+  clinicianView,
+  otherSources
 }: ReliableDataViewProps) {
   return (
     <div className="pb-6">
@@ -64,7 +74,7 @@ export function ReliableDataView({
       )}
       
       {/* Source disclaimer and contribution */}
-      <LiteratureSourceFooter sourceData={data[0]} />
+      <LiteratureSourceFooter sourceData={data[0]} otherSources={otherSources} />
     </div>
   );
 }

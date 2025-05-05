@@ -7,6 +7,7 @@ import { NoReliableDataAlert } from "./NoReliableDataAlert";
 import { InteractionSource } from "@/lib/api/types";
 import { ReliabilityBanner } from "./ReliabilityBanner";
 import { BetaHeader } from "./BetaHeader";
+import { LiteratureSourceFooter } from "./LiteratureSourceFooter";
 
 interface UnreliableDataViewProps {
   data: InteractionSource[];
@@ -18,6 +19,15 @@ interface UnreliableDataViewProps {
     reason?: string;
   };
   clinicianView: boolean;
+  otherSources?: {
+    rxnorm?: boolean;
+    fda?: boolean;
+    suppai?: boolean;
+    adverseEvents?: {
+      count: number;
+      serious: number;
+    } | null;
+  };
 }
 
 export function UnreliableDataView({ 
@@ -26,7 +36,8 @@ export function UnreliableDataView({
   sourcesReferenced,
   bulletPoints,
   reliability,
-  clinicianView
+  clinicianView,
+  otherSources
 }: UnreliableDataViewProps) {
   // For clinician view, show unreliable data with warning banner
   if (clinicianView) {
@@ -49,10 +60,12 @@ export function UnreliableDataView({
         />
         
         <DetailsSection data={data} showRaw={true} />
+        
+        <LiteratureSourceFooter sourceData={data[0]} otherSources={otherSources} />
       </div>
     );
   }
   
   // For regular users, show the no reliable data alert
-  return <NoReliableDataAlert confidenceScore={confidenceScore} />;
+  return <NoReliableDataAlert confidenceScore={confidenceScore} otherSources={otherSources} />;
 }

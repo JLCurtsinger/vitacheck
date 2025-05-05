@@ -20,6 +20,22 @@ export function SourceContentRouter({
   medications,
   clinicianView = false
 }: SourceContentRouterProps) {
+  // Enhance data with source availability flags when routing to AILiteratureSourceContent
+  if (sourceName === "AI Literature Analysis") {
+    // For the AI Literature Analysis, we want to pass information about other available sources
+    // to improve the user experience when AI analysis is not available
+    data.forEach(item => {
+      if (item.rawData && !item.rawData.otherSourcesInfo) {
+        // Add information about other sources to help with fallback display
+        item.rawData.otherSourcesInfo = {
+          hasRxnormData: sourceName === "RxNorm" && data.length > 0,
+          hasFdaData: sourceName === "FDA" && data.length > 0,
+          hasSuppaiData: sourceName === "SUPP.AI" && data.length > 0
+        };
+      }
+    });
+  }
+
   // Route to the appropriate source content component based on the source name
   switch (sourceName) {
     case "FDA":

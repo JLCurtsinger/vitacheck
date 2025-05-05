@@ -23,7 +23,8 @@ export function AILiteratureSourceContent({
     referencedSources,
     reliability,
     bulletPoints,
-    citations
+    citations,
+    otherSources
   } = useMemo(() => {
     if (data.length === 0) return { 
       hasReliableData: false, 
@@ -31,7 +32,8 @@ export function AILiteratureSourceContent({
       referencedSources: [],
       reliability: { isReliable: false },
       bulletPoints: [],
-      citations: []
+      citations: [],
+      otherSources: {}
     };
     
     // Get all confidence scores that are valid numbers
@@ -94,13 +96,48 @@ export function AILiteratureSourceContent({
       }
     });
     
+    // Extract other source data that might be available
+    const otherSourceInfo = {
+      rxnorm: false,
+      fda: false,
+      suppai: false,
+      adverseEvents: null as { count: number; serious: number } | null
+    };
+    
+    // Check if other source data is referenced in rawData
+    data.forEach(item => {
+      if (item.rawData) {
+        // Check for specific source mentions
+        if (item.rawData.rxnormData || item.rawData.hasRxnormData) {
+          otherSourceInfo.rxnorm = true;
+        }
+        
+        if (item.rawData.fdaData || item.rawData.hasFdaData) {
+          otherSourceInfo.fda = true;
+        }
+        
+        if (item.rawData.suppaiData || item.rawData.hasSuppaiData) {
+          otherSourceInfo.suppai = true;
+        }
+        
+        // Check for adverse events data
+        if (item.rawData.adverseEvents) {
+          otherSourceInfo.adverseEvents = {
+            count: item.rawData.adverseEvents.eventCount || 0,
+            serious: item.rawData.adverseEvents.seriousCount || 0
+          };
+        }
+      }
+    });
+    
     return { 
       hasReliableData: explicitlyReliable || implicitlyReliable,
       confidenceScore: avgConfidence,
       referencedSources: [...new Set(sources)],
       reliability: reliabilityInfo,
       bulletPoints: formattedBulletPoints,
-      citations: [...new Set(extractedCitations)]
+      citations: [...new Set(extractedCitations)],
+      otherSources: otherSourceInfo
     };
   }, [data, medications]);
   
@@ -136,6 +173,7 @@ export function AILiteratureSourceContent({
       medications={medications}
       reliability={reliability}
       clinicianView={clinicianView}
+      otherSources={otherSources}
     />
   ) : (
     <UnreliableDataView
@@ -145,6 +183,7 @@ export function AILiteratureSourceContent({
       bulletPoints={bulletPoints}
       reliability={reliability}
       clinicianView={clinicianView}
+      otherSources={otherSources}
     />
   );
 }
