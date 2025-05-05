@@ -1,6 +1,6 @@
 
 import { InteractionResult } from "@/lib/api-utils";
-import { SourceAttribution } from "../sourceAttribution";
+import { SourceAttribution } from "../SourceAttribution";
 
 interface SourceAttributionSectionProps {
   interaction: InteractionResult;

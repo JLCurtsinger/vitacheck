@@ -5,13 +5,3 @@ import { InteractionSource, AdverseEventData } from "@/lib/api/types";
 export interface SourceData extends InteractionSource {
   adverseEvents?: AdverseEventData;
 }
-
-export interface SourceDetailsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  source: {
-    name: string;
-    data: SourceData[];
-    medications: string[];
-  } | null;
-}

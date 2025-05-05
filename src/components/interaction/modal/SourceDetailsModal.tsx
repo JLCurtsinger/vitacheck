@@ -4,9 +4,20 @@ import {
   Dialog, 
   DialogContent
 } from "@/components/ui/dialog";
-import { ModalHeader } from "./ModalHeader";
-import { ModalContent } from "./ModalContent";
-import { SourceDetailsModalProps } from "./types";
+import { InteractionSource, AdverseEventData } from "@/lib/api/types";
+import { ModalHeader } from "../sourceModal/ModalHeader";
+import { ModalContent } from "../sourceModal/ModalContent";
+import { SourceData } from "./types";
+
+interface SourceDetailsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  source: {
+    name: string;
+    data: SourceData[];
+    medications: string[];
+  } | null;
+}
 
 export function SourceDetailsModal({ isOpen, onClose, source }: SourceDetailsModalProps) {
   if (!source) return null;
