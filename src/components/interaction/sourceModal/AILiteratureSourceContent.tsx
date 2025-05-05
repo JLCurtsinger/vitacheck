@@ -4,6 +4,7 @@ import { InteractionSource } from "@/lib/api/types";
 import { formatDescriptionText } from "../utils/formatDescription";
 import { UnreliableDataView } from "./aiLiterature/UnreliableDataView";
 import { ReliableDataView } from "./aiLiterature/ReliableDataView";
+import { NoDataView } from "./aiLiterature/NoDataView";
 
 interface AILiteratureSourceContentProps {
   data: InteractionSource[];
@@ -19,20 +20,31 @@ export function AILiteratureSourceContent({
   // Check if we have valid and usable data
   const { 
     hasReliableData,
+    hasAnyData,
     confidenceScore,
     referencedSources,
     reliability,
     bulletPoints,
-    citations
+    citations,
+    isFallbackMode,
+    fallbackInfo
   } = useMemo(() => {
-    if (data.length === 0) return { 
-      hasReliableData: false, 
+    if (!data || data.length === 0) return { 
+      hasReliableData: false,
+      hasAnyData: false,
       confidenceScore: 0,
       referencedSources: [],
       reliability: { isReliable: false },
       bulletPoints: [],
-      citations: []
+      citations: [],
+      isFallbackMode: false,
+      fallbackInfo: null
     };
+    
+    // Check for fallback mode
+    const isFallback = data.some(item => item.fallbackMode);
+    const fallbackReason = data.find(item => item.fallbackReason)?.fallbackReason;
+    const fallbackSources = data.find(item => item.sources)?.sources || [];
     
     // Get all confidence scores that are valid numbers
     const validConfidences = data
@@ -63,14 +75,24 @@ export function AILiteratureSourceContent({
       .flatMap(item => item.rawData?.sources || item.sources || [])
       .filter(Boolean);
     
+    // Check if we have any PubMed IDs (direct evidence)
+    const hasPubMedIds = data.some(item => item.pubMedIds && item.pubMedIds.length > 0);
+    
     // Extract reliability info
     const reliabilityInfo = {
-      isReliable: explicitlyReliable || implicitlyReliable,
-      reason: data[0]?.validationReason || undefined
+      isReliable: explicitlyReliable || implicitlyReliable || isFallback,
+      reason: data[0]?.validationReason || undefined,
+      hasPubMedEvidence: hasPubMedIds
     };
     
+    // Check if we have any data at all (even if not reliable)
+    const hasAny = data.some(item => item.description && item.description.length > 15);
+    
     // Process all descriptions from all source items
-    const allDescriptions = data.map(item => item.description).filter(Boolean).join(". ");
+    const allDescriptions = data
+      .map(item => item.description)
+      .filter(Boolean)
+      .join(". ");
     
     // Format the text into bullet points
     const formattedBulletPoints = formatDescriptionText(allDescriptions, medications);
@@ -95,12 +117,18 @@ export function AILiteratureSourceContent({
     });
     
     return { 
-      hasReliableData: explicitlyReliable || implicitlyReliable,
+      hasReliableData: explicitlyReliable || implicitlyReliable || isFallback,
+      hasAnyData: hasAny,
       confidenceScore: avgConfidence,
       referencedSources: [...new Set(sources)],
       reliability: reliabilityInfo,
       bulletPoints: formattedBulletPoints,
-      citations: [...new Set(extractedCitations)]
+      citations: [...new Set(extractedCitations)],
+      isFallbackMode: isFallback,
+      fallbackInfo: isFallback ? {
+        reason: fallbackReason,
+        sources: fallbackSources
+      } : null
     };
   }, [data, medications]);
   
@@ -125,6 +153,11 @@ export function AILiteratureSourceContent({
     return Array.from(allSources);
   }, [data]);
 
+  // If we have no data, show the no data view
+  if (!hasAnyData) {
+    return <NoDataView clinicianView={clinicianView} />;
+  }
+
   // Show appropriate view based on data reliability
   return hasReliableData ? (
     <ReliableDataView
@@ -136,6 +169,8 @@ export function AILiteratureSourceContent({
       medications={medications}
       reliability={reliability}
       clinicianView={clinicianView}
+      isFallbackMode={isFallbackMode}
+      fallbackInfo={fallbackInfo}
     />
   ) : (
     <UnreliableDataView

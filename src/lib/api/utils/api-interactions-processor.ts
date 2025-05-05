@@ -37,8 +37,9 @@ export async function processApiInteractions(
   adverseEventsResult: AdverseEventData | null;
   aiAnalysisResult: StandardizedApiResponse | null;
   sources: InteractionSource[];
+  queryTimestamps: Record<string, number>;
 }> {
-  console.log(`Checking interactions between ${med1} (${med1Status.id || 'no id'}) and ${med2} (${med2Status.id || 'no id'})`);
+  console.log(`[API Processor] Checking interactions between ${med1} (${med1Status.id || 'no id'}) and ${med2} (${med2Status.id || 'no id'})`);
 
   // Fetch all API data in parallel
   const {
@@ -46,7 +47,8 @@ export async function processApiInteractions(
     suppaiRawResult,
     fdaRawResult,
     adverseEventsResult,
-    aiAnalysisRawResult
+    aiAnalysisRawResult,
+    queryTimestamps
   } = await fetchAllApiData(med1Status, med2Status, med1, med2);
   
   // Standardize and log API results
@@ -74,7 +76,7 @@ export async function processApiInteractions(
     aiAnalysisRawResult
   );
 
-  console.log('API Results:', {
+  console.log('[API Processor] API Results:', {
     rxnorm: rxnormResult ? `Found: ${rxnormResult.severity}` : 'No data',
     suppai: suppaiResult ? `Found: ${suppaiResult.severity}` : 'No data',
     fda: fdaResult ? `Found: ${fdaResult.severity}` : 'No data',
@@ -85,17 +87,41 @@ export async function processApiInteractions(
   // Merge all sources from different APIs and add confidence values
   const sources: InteractionSource[] = [];
   
+  // Create a map to track which sources have been processed
+  const processedSources = new Set<string>();
+
   // Process sources from each API
   processRxNormSources(rxnormResult, rxnormRawResult, sources);
+  processedSources.add('RxNorm');
+  
   processSuppAiSources(suppaiResult, suppaiRawResult, sources);
+  processedSources.add('SUPP.AI');
+  
   processFdaSources(fdaResult, fdaRawResult, sources);
+  processedSources.add('FDA');
+  
   processAdverseEventsSources(adverseEventsResult, sources);
-  processAiLiteratureSources(aiAnalysisResult, aiAnalysisRawResult, sources);
+  processedSources.add('OpenFDA Adverse Events');
+  
+  // Important: Pass fallback sources to the AI Literature processor
+  // to generate synthetic analysis when direct AI analysis fails
+  processAiLiteratureSources(
+    aiAnalysisResult, 
+    aiAnalysisRawResult, 
+    sources,
+    { rxnormResult, suppaiResult, fdaResult, adverseEventsResult }
+  );
+  processedSources.add('AI Literature Analysis');
   
   // Ensure we always have at least one source entry
   if (sources.length === 0) {
+    console.log('[API Processor] No sources found, adding default source');
     sources.push(createDefaultSource());
   }
+  
+  // Log summary of sources
+  console.log(`[API Processor] Processed ${sources.length} sources:`, 
+    sources.map(s => `${s.name}: ${s.severity} (${s.fallbackMode ? 'fallback' : 'primary'})`));
   
   return {
     rxnormResult,
@@ -103,6 +129,7 @@ export async function processApiInteractions(
     fdaResult, 
     adverseEventsResult,
     aiAnalysisResult,
-    sources
+    sources,
+    queryTimestamps
   };
 }
