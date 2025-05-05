@@ -1,12 +1,17 @@
 
 import { corsHeaders } from '../utils/cors-utils';
 
+// Debug flag for logging
+const isDebug = process.env.DEBUG === 'true';
+
 /**
  * Makes a direct request to RxNorm API
  * @param apiUrl - Complete URL for the RxNorm API call
  */
 export async function makeRxNormApiRequest(apiUrl: string): Promise<any> {
-  console.log(`🌐 RxNorm: Making API request to: ${apiUrl}`);
+  if (isDebug) {
+    console.log(`🌐 RxNorm: Making API request to: ${apiUrl}`);
+  }
   
   try {
     // Make request to RxNorm API
@@ -33,7 +38,9 @@ export async function makeRxNormApiRequest(apiUrl: string): Promise<any> {
     }
     
     const data = await response.json();
-    console.log(`✅ RxNorm: API response:`, JSON.stringify(data).substring(0, 200) + '...');
+    if (isDebug) {
+      console.log(`✅ RxNorm: API response:`, JSON.stringify(data).substring(0, 200) + '...');
+    }
     
     return {
       statusCode: 200,

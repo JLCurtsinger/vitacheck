@@ -1,11 +1,16 @@
 
 import { InteractionSource, StandardizedApiResponse } from '../types';
 
+// Debug flag check
+const isDebug = typeof window !== 'undefined' ? 
+  localStorage.getItem('DEBUG') === 'true' : 
+  process.env.DEBUG === 'true';
+
 /**
  * Logs issues with source severity
  */
 export function logSourceSeverityIssues(source: InteractionSource, context: string): void {
-  if (!source.severity) {
+  if (isDebug && !source.severity) {
     console.warn(`[${context}] Source missing severity:`, source);
   }
 }
@@ -14,6 +19,8 @@ export function logSourceSeverityIssues(source: InteractionSource, context: stri
  * Logs API response format
  */
 export function logApiResponseFormat(response: any, sourceName: string): void {
+  if (!isDebug) return;
+  
   if (!response) {
     console.log(`[API Format] ${sourceName} response is null or undefined`);
     return;
@@ -43,6 +50,8 @@ export function logApiResponseFormat(response: any, sourceName: string): void {
  * Logs standardized API response
  */
 export function logStandardizedResponse(response: StandardizedApiResponse | null, sourceName: string): void {
+  if (!isDebug) return;
+  
   if (!response) {
     console.log(`[Standardized] ${sourceName} standardized response is null`);
     return;
@@ -71,7 +80,9 @@ export function logStandardizedResponse(response: StandardizedApiResponse | null
  * Logs diagnostic information for debugging purposes
  */
 export function logDiagnosticInfo(message: string, data?: any): void {
-  console.log(`[Diagnostic] ${message}`, data || '');
+  if (isDebug) {
+    console.log(`[Diagnostic] ${message}`, data || '');
+  }
 }
 
 /**
@@ -83,6 +94,8 @@ export function logSeverityData(
   sources: InteractionSource[], 
   context: string
 ): void {
+  if (!isDebug) return;
+  
   console.log(`[Severity] ${context} - Final severity: ${severity}, confidence: ${confidenceScore}, sources: ${sources.length}`);
   
   // Check for any sources without severity

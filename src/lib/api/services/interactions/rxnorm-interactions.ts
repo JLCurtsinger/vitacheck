@@ -4,6 +4,11 @@ import { InteractionSource } from '../../types';
 import { detectSeverityFromDescription } from './utils/severity-detector';
 import { formatInteractionResponse } from './utils/response-formatter';
 
+// Debug flag check
+const isDebug = typeof window !== 'undefined' ? 
+  localStorage.getItem('DEBUG') === 'true' : 
+  process.env.DEBUG === 'true';
+
 /**
  * Processes RxNorm interaction data to extract information
  */
@@ -15,10 +20,12 @@ function processRxNormInteractionData(rxnormInteractions: any[]): {
                              rxnormInteractions[0]?.fullInteractionType && 
                              rxnormInteractions[0]?.fullInteractionType.length > 0;
   
-  console.log('RxNorm interaction response:', {
-    interactionsFound: rxnormInteractions.length > 0,
-    hasInteractionData
-  });
+  if (isDebug) {
+    console.log('RxNorm interaction response:', {
+      interactionsFound: rxnormInteractions.length > 0,
+      hasInteractionData
+    });
+  }
   
   // Extract description if available
   const description = hasInteractionData
@@ -44,7 +51,9 @@ export async function checkRxNormInteractions(
   description: string;
   severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
 } | null> {
-  console.log(`Checking RxNorm interactions for ${med1Name}(${med1Id}) and ${med2Name}(${med2Id})`);
+  if (isDebug) {
+    console.log(`Checking RxNorm interactions for ${med1Name}(${med1Id}) and ${med2Name}(${med2Id})`);
+  }
   
   try {
     // Pass med1Id and med2Id as separate array elements, never concatenated

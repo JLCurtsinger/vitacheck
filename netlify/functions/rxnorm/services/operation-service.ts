@@ -1,14 +1,20 @@
+
 import { corsHeaders } from '../utils/cors-utils';
 import { createErrorResponse } from '../utils/error-utils';
 import { fetchRxCUIByName } from './rxcui-service';
 import { fetchRxTermsSuggestions } from './suggestion-service';
 import { makeRxNormApiRequest } from './api-service';
 
+// Debug flag for logging
+const isDebug = process.env.DEBUG === 'true';
+
 /**
  * Handles different operation types for RxNorm API
  */
 export async function handleOperation(operation: string, params: any) {
-  console.log(`🔍 RxNorm: Processing ${operation} operation:`, params);
+  if (isDebug) {
+    console.log(`🔍 RxNorm: Processing ${operation} operation:`, params);
+  }
   
   // Extract common parameters
   const { name, rxcui, rxcuis, term } = params;
@@ -20,15 +26,21 @@ export async function handleOperation(operation: string, params: any) {
   if (Array.isArray(rxcuis)) {
     // Use the array directly
     resolvedRxcuis = rxcuis.filter(Boolean);
-    console.log(`🔍 RxNorm: Using provided rxcuis array: ${resolvedRxcuis.join(', ')}`);
+    if (isDebug) {
+      console.log(`🔍 RxNorm: Using provided rxcuis array: ${resolvedRxcuis.join(', ')}`);
+    }
   } else if (rxcuis && typeof rxcuis === 'string') {
     // If rxcuis is a string (maybe '+' delimited), split it
     resolvedRxcuis = rxcuis.split('+').filter(Boolean);
-    console.log(`🔍 RxNorm: Converting string rxcuis to array: ${resolvedRxcuis.join(', ')}`);
+    if (isDebug) {
+      console.log(`🔍 RxNorm: Converting string rxcuis to array: ${resolvedRxcuis.join(', ')}`);
+    }
   } else if (rxcui) {
     // Fallback to single rxcui if provided
     resolvedRxcuis = [rxcui].filter(Boolean);
-    console.log(`🔍 RxNorm: Using single rxcui: ${rxcui}`);
+    if (isDebug) {
+      console.log(`🔍 RxNorm: Using single rxcui: ${rxcui}`);
+    }
   }
   
   // Validate the operation
@@ -52,7 +64,9 @@ export async function handleOperation(operation: string, params: any) {
     case 'interactions':
       // If rxcuis are missing but name is provided, try to fetch the rxcui first
       if (resolvedRxcuis.length === 0 && name) {
-        console.log(`🔍 RxNorm: RxCUIs missing for interactions. Attempting to fetch RxCUI for: ${name}`);
+        if (isDebug) {
+          console.log(`🔍 RxNorm: RxCUIs missing for interactions. Attempting to fetch RxCUI for: ${name}`);
+        }
         
         const fetchedRxcui = await fetchRxCUIByName(name);
         
@@ -61,16 +75,20 @@ export async function handleOperation(operation: string, params: any) {
         }
         
         resolvedRxcuis = [fetchedRxcui];
-        console.log(`✅ RxNorm: Successfully resolved RxCUI for ${name}: ${fetchedRxcui}`);
+        if (isDebug) {
+          console.log(`✅ RxNorm: Successfully resolved RxCUI for ${name}: ${fetchedRxcui}`);
+        }
       }
       
       if (resolvedRxcuis.length === 0) {
         return createErrorResponse(400, 'RxCUIs parameter is required for interactions operation');
       }
       
-      // If we have multiple RxCUIs
-      if (resolvedRxcuis.length >= 2) {
-        console.log(`🔍 RxNorm: Handling multiple RxCUIs (${resolvedRxcuis.length}): ${resolvedRxcuis.join(', ')}`);
+      // If we have multiple RxCUIs (2 or 3 is the expected range for combinations)
+      if (resolvedRxcuis.length >= 2 && resolvedRxcuis.length <= 3) {
+        if (isDebug) {
+          console.log(`🔍 RxNorm: Handling multiple RxCUIs (${resolvedRxcuis.length}): ${resolvedRxcuis.join(', ')}`);
+        }
         
         // Make separate requests for each RxCUI
         try {
@@ -85,7 +103,9 @@ export async function handleOperation(operation: string, params: any) {
             })
           );
           
-          console.log(`✅ RxNorm: Completed ${interactionResults.length} individual RxCUI requests`);
+          if (isDebug) {
+            console.log(`✅ RxNorm: Completed ${interactionResults.length} individual RxCUI requests`);
+          }
           
           // Merge and filter results to find interactions involving both medications
           return await mergeInteractionResults(interactionResults, resolvedRxcuis);
@@ -138,7 +158,9 @@ export async function handleOperation(operation: string, params: any) {
  * to find interactions that involve both medications
  */
 async function mergeInteractionResults(results: any[], rxcuiArray: string[]) {
-  console.log(`🔍 RxNorm: Merging interaction results for RxCUIs: ${rxcuiArray.join(', ')}`);
+  if (isDebug) {
+    console.log(`🔍 RxNorm: Merging interaction results for RxCUIs: ${rxcuiArray.join(', ')}`);
+  }
   
   // Filter out failed requests
   const validResults = results.filter(r => 
@@ -148,7 +170,9 @@ async function mergeInteractionResults(results: any[], rxcuiArray: string[]) {
   );
   
   if (validResults.length === 0) {
-    console.log('⚠️ RxNorm: No valid results from any RxCUI request');
+    if (isDebug) {
+      console.log('⚠️ RxNorm: No valid results from any RxCUI request');
+    }
     return createErrorResponse(404, 'No valid interaction data found');
   }
   
@@ -211,9 +235,13 @@ async function mergeInteractionResults(results: any[], rxcuiArray: string[]) {
       }]
     }];
     
-    console.log(`✅ RxNorm: Found ${relevantInteractions.length} relevant interactions involving both medications`);
+    if (isDebug) {
+      console.log(`✅ RxNorm: Found ${relevantInteractions.length} relevant interactions involving both medications`);
+    }
   } else {
-    console.log('ℹ️ RxNorm: No interactions found involving both medications');
+    if (isDebug) {
+      console.log('ℹ️ RxNorm: No interactions found involving both medications');
+    }
   }
   
   // Return a response with the same format as the original API

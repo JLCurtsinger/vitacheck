@@ -11,6 +11,12 @@ const interactionCache = new Map<string, any[]>();
 
 // Constants
 const INTERACTION_REQUEST_DELAY = 500; // milliseconds
+const RETRY_DELAY = 500; // milliseconds
+
+// Debug flag check
+const isDebug = typeof window !== 'undefined' ? 
+  localStorage.getItem('DEBUG') === 'true' : 
+  process.env.DEBUG === 'true';
 
 /**
  * Generates a cache key for interaction lookups
@@ -33,7 +39,9 @@ export async function makeRxNormApiRequest(
     ...params
   };
   
-  console.log(`📡 [RxNorm Client] Sending request to RxNorm:`, requestBody);
+  if (isDebug) {
+    console.log(`📡 [RxNorm Client] Sending request to RxNorm:`, requestBody);
+  }
   
   try {
     const response = await fetch('/.netlify/functions/rxnorm', {
@@ -44,11 +52,41 @@ export async function makeRxNormApiRequest(
       body: JSON.stringify(requestBody)
     });
     
-    if (!response.ok) {
-      console.error('❌ [RxNorm Client] API error:', {
-        status: response.status,
-        params
+    // Handle potential 404 on cold start
+    if (response.status === 404) {
+      console.log("⚠️ [RxNorm Client] Netlify function 404 detected (cold start suspected), retrying once...");
+      await delay(RETRY_DELAY);
+      
+      // Retry the request once
+      const retryResponse = await fetch('/.netlify/functions/rxnorm', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
       });
+      
+      if (!retryResponse.ok) {
+        if (isDebug) {
+          console.error('❌ [RxNorm Client] API error after retry:', {
+            status: retryResponse.status,
+            params
+          });
+        }
+        return null;
+      }
+      
+      const retryData = await retryResponse.json();
+      return retryData;
+    }
+    
+    if (!response.ok) {
+      if (isDebug) {
+        console.error('❌ [RxNorm Client] API error:', {
+          status: response.status,
+          params
+        });
+      }
       return null;
     }
     
@@ -67,27 +105,36 @@ export async function fetchInteractionData(rxCUIs: string[]): Promise<any> {
   // Validate RxCUIs before proceeding
   const validRxCUIs = rxCUIs.filter(Boolean);
   if (validRxCUIs.length === 0) {
-    console.warn('⚠️ [RxNorm Client] No valid RxCUIs provided for interaction check');
+    if (isDebug) {
+      console.warn('⚠️ [RxNorm Client] No valid RxCUIs provided for interaction check');
+    }
     return [];
   }
 
   // Check cache for this set of RxCUIs
   const cacheKey = getInteractionCacheKey(validRxCUIs);
   if (interactionCache.has(cacheKey)) {
-    console.log(`✅ [RxNorm Client] Using cached interactions for RxCUIs: ${cacheKey}`);
+    if (isDebug) {
+      console.log(`✅ [RxNorm Client] Using cached interactions for RxCUIs: ${cacheKey}`);
+    }
     return interactionCache.get(cacheKey) || [];
   }
   
   // Add delay to prevent rate limiting
   await delay(INTERACTION_REQUEST_DELAY);
   
-  console.log(`🔍 [RxNorm Client] Making interaction request with RxCUIs: ${validRxCUIs.join(', ')}`);
+  if (isDebug) {
+    console.log(`🔍 [RxNorm Client] Making interaction request with RxCUIs: ${validRxCUIs.join(', ')}`);
+  }
   
-  // IMPORTANT: Pass rxcuis as an array, not a concatenated string
+  // Always pass rxcuis as an array
   const data = await makeRxNormApiRequest('interactions', { rxcuis: validRxCUIs });
   
   if (!data || data.status === 'error' || data.message === "No data found" || data.message === "No interactions found") {
-    console.log('⚠️ [RxNorm Client] No interactions found for RxCUIs:', validRxCUIs.join(', '));
+    // No interactions is an expected result - don't log as warning
+    if (isDebug) {
+      console.log('ℹ️ [RxNorm Client] No interactions found for RxCUIs:', validRxCUIs.join(', '));
+    }
     // Cache empty results
     interactionCache.set(cacheKey, []);
     return [];

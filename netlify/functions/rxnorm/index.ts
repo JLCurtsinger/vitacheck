@@ -4,6 +4,9 @@ import { corsHeaders, handleCorsRequest } from './utils/cors-utils';
 import { createErrorResponse } from './utils/error-utils';
 import { handleOperation } from './services/operation-service';
 
+// Debug flag for logging
+const isDebug = process.env.DEBUG === 'true';
+
 const handler: Handler = async (event, context) => {
   // Handle CORS preflight requests
   const corsResponse = handleCorsRequest(event);
@@ -20,14 +23,18 @@ const handler: Handler = async (event, context) => {
     const requestBody = JSON.parse(event.body);
     const { operation } = requestBody;
     
-    console.log(`🔍 RxNorm: Processing request:`, { 
-      operation,
-      requestBody
-    });
+    if (isDebug) {
+      console.log(`🔍 RxNorm: Processing request:`, { 
+        operation,
+        requestBody
+      });
+    }
     
     // Normalize rxcuis parameter if it's sent as a concatenated string
     if (requestBody.rxcui && requestBody.rxcui.includes('+') && !requestBody.rxcuis) {
-      console.log(`⚠️ RxNorm: Converting concatenated rxcui string to array: ${requestBody.rxcui}`);
+      if (isDebug) {
+        console.log(`⚠️ RxNorm: Converting concatenated rxcui string to array: ${requestBody.rxcui}`);
+      }
       requestBody.rxcuis = requestBody.rxcui.split('+').filter(Boolean);
     }
     
