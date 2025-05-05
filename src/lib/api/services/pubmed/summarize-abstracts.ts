@@ -1,11 +1,11 @@
 
 /**
  * PubMed Abstract Summarization Service
- * Handles summarizing PubMed abstracts using Netlify serverless function
+ * Handles summarizing PubMed abstracts using OpenAI
  */
 
 /**
- * Summarizes PubMed abstracts, focusing on drug interactions for the search term
+ * Summarizes PubMed abstracts using OpenAI, focusing on drug interactions for the search term
  * 
  * @param abstractText - The combined text of PubMed abstracts to summarize
  * @param searchTerm - The medication or substance name to focus on
@@ -45,14 +45,14 @@ export async function summarizePubMedAbstracts(abstractText: string, searchTerm:
     // Get the summary from the response
     const summary = data.summary || 'Unable to generate summary.';
     
-    console.log(`✅ [PubMed] Successfully received summary for: ${searchTerm} (${summary.length} characters)`);
+    console.log(`✅ [PubMed] Successfully received summary for: ${searchTerm}`);
     
     return summary;
     
   } catch (error) {
     // Log the error but don't throw - return a fallback message instead
     console.error('Error summarizing PubMed abstracts:', error);
-    return `Unable to summarize scientific literature at this time. Please check other data sources for information about ${searchTerm} interactions.
+    return `Unable to summarize scientific literature at this time. Please check the original sources for information about ${searchTerm} interactions.
 
 This summary is based on published scientific literature and is for informational purposes only. Always consult a healthcare provider before making decisions about medications.`;
   }

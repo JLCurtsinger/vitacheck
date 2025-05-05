@@ -9,22 +9,19 @@ interface LiteratureSummaryProps {
   reliability?: {
     isReliable: boolean;
     reason?: string;
-    hasPubMedEvidence?: boolean;
   };
-  isFallback?: boolean;
 }
 
 export function LiteratureSummary({ 
   bulletPoints, 
   sourcesReferenced,
-  reliability,
-  isFallback = false
+  reliability 
 }: LiteratureSummaryProps) {
   return (
     <div className="rounded-md border mb-4 p-4">
       <h3 className="font-medium mb-3 flex items-center">
         <Book className="h-4 w-4 mr-2 text-amber-700" />
-        {isFallback ? 'Analysis Summary' : 'AI Literature Summary'}
+        AI Literature Summary
       </h3>
       
       {reliability && !reliability.isReliable && (
@@ -32,14 +29,6 @@ export function LiteratureSummary({
           <p>
             <strong>Note:</strong> This analysis has {reliability.reason ? `limited reliability: ${reliability.reason}` : 'limited reliability'}.
             Please consider other sources.
-          </p>
-        </div>
-      )}
-      
-      {isFallback && (
-        <div className="bg-blue-50 p-2 rounded-md mb-3 text-xs text-blue-800">
-          <p>
-            <strong>Note:</strong> This summary was generated from available data sources as specific literature analysis could not be retrieved.
           </p>
         </div>
       )}

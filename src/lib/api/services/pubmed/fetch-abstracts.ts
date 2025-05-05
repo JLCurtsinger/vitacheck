@@ -1,7 +1,7 @@
+
 /**
  * PubMed Abstract Fetching Service
  * Handles fetching abstracts from the PubMed/Entrez E-Utilities API
- * via Netlify function to keep API keys secure
  */
 
 /**
@@ -18,45 +18,54 @@ export async function fetchPubMedAbstracts(ids: string[]): Promise<string> {
       return '';
     }
 
-    // Join the IDs into a comma-separated string
-    const idsString = ids.join(',');
+    // Get the API key from environment variables
+    const apiKey = import.meta.env.VITE_ENTREZ_API_KEY || '';
     
-    // Use Netlify function to fetch abstracts while keeping API key secure
-    const response = await fetch('/.netlify/functions/pubmedSearch', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        query: `uid:${idsString}`
-      })
-    });
+    // Join the IDs into a comma-separated string
+    const idString = ids.join(',');
+    
+    // Construct the URL with all required parameters
+    const url = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${idString}&rettype=abstract&retmode=xml${apiKey ? `&api_key=${apiKey}` : ''}`;
+    
+    console.log(`🔍 [PubMed] Fetching abstracts for IDs: ${idString}`);
+    
+    // Fetch data from the API
+    const response = await fetch(url);
     
     // Check if the request was successful
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`PubMed Search API error: ${response.status} ${response.statusText}\n${errorText}`);
+      throw new Error(`PubMed API error: ${response.status} ${response.statusText}`);
     }
     
-    // Parse the response as JSON
-    const data = await response.json();
+    // Get the XML text from the response
+    const xmlText = await response.text();
     
-    if (data.error) {
-      console.error(`PubMed Search error: ${data.error}`);
-      return '';
-    }
+    // Parse the XML
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
     
-    // Get the abstract text
-    const abstracts = data?.abstracts || '';
+    // Extract all AbstractText elements
+    const abstractElements = xmlDoc.querySelectorAll('AbstractText');
     
-    if (!abstracts || abstracts.trim() === '') {
+    // If no abstracts found, return empty string
+    if (abstractElements.length === 0) {
       console.log(`ℹ️ [PubMed] No abstracts found for the provided IDs`);
       return '';
     }
     
-    console.log(`✅ [PubMed] Successfully fetched abstracts (${abstracts.length} characters)`);
+    // Combine all abstracts into a single string
+    const abstracts: string[] = [];
+    abstractElements.forEach((element) => {
+      if (element.textContent) {
+        abstracts.push(element.textContent.trim());
+      }
+    });
     
-    return abstracts;
+    const combinedAbstracts = abstracts.join('\n\n');
+    
+    console.log(`✅ [PubMed] Successfully fetched ${abstracts.length} abstract sections`);
+    
+    return combinedAbstracts;
     
   } catch (error) {
     // Log the error but don't throw - return empty string instead

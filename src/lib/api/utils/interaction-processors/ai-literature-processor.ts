@@ -8,8 +8,8 @@
 
 import { InteractionSource, StandardizedApiResponse } from '../../types';
 import { logSourceSeverityIssues } from '../debug-logger';
+import { validateStandardizedResponse, standardizedResponseToSource } from '../api-response-standardizer';
 import { logFullApiResponse, logParsingIssue } from '../diagnostics/api-response-logger';
-import { extractSourcesFromInteractions } from '../data-sources/source-extractor';
 
 /**
  * Enhanced AI Literature Analysis processor with improved reliability checks
@@ -21,46 +21,66 @@ import { extractSourcesFromInteractions } from '../data-sources/source-extractor
 export function processAiLiteratureSources(
   aiAnalysisResult: StandardizedApiResponse | null,
   aiAnalysisRawResult: any | null,
-  sources: InteractionSource[],
-  // New parameter to receive fallback sources data
-  fallbackSources?: {
-    rxnormResult?: StandardizedApiResponse | null,
-    suppaiResult?: StandardizedApiResponse | null, 
-    fdaResult?: StandardizedApiResponse | null,
-    adverseEventsResult?: any | null
-  }
+  sources: InteractionSource[]
 ): void {
-  console.log('[AI Literature] Starting AI Literature Analysis processing');
-  
-  // Check if we have direct AI analysis data
-  const hasDirectAnalysis = !!aiAnalysisResult && !!aiAnalysisRawResult;
-  
-  // Check if fallback data is available when direct analysis is missing
-  const hasFallbackData = !hasDirectAnalysis && fallbackSources && 
-    (fallbackSources.rxnormResult || fallbackSources.suppaiResult || 
-     fallbackSources.fdaResult || fallbackSources.adverseEventsResult);
-  
-  // Log data availability status
-  console.log(`[AI Literature] Direct analysis available: ${hasDirectAnalysis}, Fallback data available: ${hasFallbackData}`);
-  
-  // If no AI Literature data and no fallback, exit early
-  if (!hasDirectAnalysis && !hasFallbackData) {
-    console.log('[AI Literature] No AI Literature Analysis data or fallback data available');
+  if (!aiAnalysisResult || !aiAnalysisRawResult) {
+    console.log('[AI Literature] No AI Literature Analysis data available');
     return;
   }
 
+  // Log the full raw data for debugging purposes
+  logFullApiResponse('AI Literature', aiAnalysisRawResult, 'pre-processing');
+  
   try {
-    // CASE 1: We have direct AI analysis data - process it normally
-    if (hasDirectAnalysis) {
-      processPrimaryAiLiteratureData(aiAnalysisResult!, aiAnalysisRawResult!, sources);
-      return;
-    }
+    // Extract confidence score, defaulting to 50 if not specified
+    const confidenceScore = extractConfidenceScore(aiAnalysisRawResult, aiAnalysisResult);
     
-    // CASE 2: We need to use fallback data to create a synthetic AI literature entry
-    if (hasFallbackData) {
-      processFallbackData(fallbackSources!, sources);
-      return;
-    }
+    // Extract description and ensure it's a valid string
+    const description = extractDescription(aiAnalysisResult);
+    
+    // Extract severity (may be null/unknown)
+    const severity = extractSeverity(aiAnalysisResult, aiAnalysisRawResult);
+    
+    // Perform enhanced validation for reliability
+    const validationResult = validateAiLiteratureResult(
+      description,
+      confidenceScore,
+      severity,
+      aiAnalysisRawResult
+    );
+    
+    // New: Add detailed reliability logging with full validation context
+    console.log(`[AI Literature] Reliability validation:`, {
+      confidence: confidenceScore,
+      descriptionLength: description?.length || 0,
+      severity: severity,
+      containsErrorMessage: validationResult.containsErrorMessage,
+      hasInsight: validationResult.hasInsight,
+      isReliable: validationResult.isReliable,
+      validationReason: validationResult.reason
+    });
+
+    // Always include the AI result in sources, but mark its reliability
+    const source: InteractionSource = {
+      name: 'AI Literature Analysis',
+      severity: severity || 'unknown',
+      description: description || 'Analysis unavailable',
+      confidence: confidenceScore,
+      isReliable: validationResult.isReliable,
+      rawData: aiAnalysisRawResult,
+      // Include validation metadata for debugging and UI display
+      validationReason: !validationResult.isReliable ? validationResult.reason : undefined,
+      hasInsight: validationResult.hasInsight,
+    };
+    
+    // Add debug log before pushing
+    logSourceSeverityIssues(source, 'Before push - AI Literature');
+    
+    // Add the source to our collection
+    sources.push(source);
+    
+    console.log(`[AI Literature] Added source with confidence ${confidenceScore}% and reliability: ${validationResult.isReliable}`);
+    
   } catch (error) {
     console.error('[AI Literature] Unhandled error in processor:', error);
     
@@ -71,9 +91,7 @@ export function processAiLiteratureSources(
       description: 'An error occurred while processing AI literature analysis data',
       confidence: 10,
       isReliable: false,
-      errorMessage: error instanceof Error ? error.message : String(error),
-      fallbackMode: true,
-      fallbackReason: 'Error during processing'
+      errorMessage: error instanceof Error ? error.message : String(error)
     };
     
     sources.push(errorSource);
@@ -82,225 +100,6 @@ export function processAiLiteratureSources(
     // Log the full error for debugging
     logParsingIssue('AI Literature', aiAnalysisRawResult, error);
   }
-}
-
-/**
- * Process primary AI Literature data when available directly
- */
-function processPrimaryAiLiteratureData(
-  aiAnalysisResult: StandardizedApiResponse,
-  aiAnalysisRawResult: any,
-  sources: InteractionSource[]
-): void {
-  // Log the full raw data for debugging purposes
-  logFullApiResponse('AI Literature', aiAnalysisRawResult, 'pre-processing');
-  
-  // Extract confidence score, defaulting to 50 if not specified
-  const confidenceScore = extractConfidenceScore(aiAnalysisRawResult, aiAnalysisResult);
-  
-  // Extract description and ensure it's a valid string
-  const description = extractDescription(aiAnalysisResult);
-  
-  // Extract severity (may be null/unknown)
-  const severity = extractSeverity(aiAnalysisResult, aiAnalysisRawResult);
-  
-  // Perform enhanced validation for reliability
-  const validationResult = validateAiLiteratureResult(
-    description,
-    confidenceScore,
-    severity,
-    aiAnalysisRawResult
-  );
-  
-  // Add detailed reliability logging with full validation context
-  console.log(`[AI Literature] Reliability validation:`, {
-    confidence: confidenceScore,
-    descriptionLength: description?.length || 0,
-    severity: severity,
-    containsErrorMessage: validationResult.containsErrorMessage,
-    hasInsight: validationResult.hasInsight,
-    isReliable: validationResult.isReliable,
-    validationReason: validationResult.reason
-  });
-
-  // Always include the AI result in sources, but mark its reliability
-  const source: InteractionSource = {
-    name: 'AI Literature Analysis',
-    severity: severity || 'unknown',
-    description: description || 'Analysis unavailable',
-    confidence: confidenceScore,
-    isReliable: validationResult.isReliable,
-    rawData: aiAnalysisRawResult,
-    // Include validation metadata for debugging and UI display
-    validationReason: !validationResult.isReliable ? validationResult.reason : undefined,
-    hasInsight: validationResult.hasInsight,
-    fallbackMode: false
-  };
-  
-  // Add debug log before pushing
-  logSourceSeverityIssues(source, 'Before push - AI Literature');
-  
-  // Add the source to our collection
-  sources.push(source);
-  
-  console.log(`[AI Literature] Added source with confidence ${confidenceScore}% and reliability: ${validationResult.isReliable}`);
-}
-
-/**
- * Process fallback data when direct AI analysis is not available
- * Creates a synthetic AI Literature source from available data
- */
-function processFallbackData(
-  fallbackSources: {
-    rxnormResult?: StandardizedApiResponse | null,
-    suppaiResult?: StandardizedApiResponse | null, 
-    fdaResult?: StandardizedApiResponse | null,
-    adverseEventsResult?: any | null
-  },
-  sources: InteractionSource[]
-): void {
-  console.log('[AI Literature] Processing fallback data to create synthetic AI Literature source');
-  
-  // Extract useful data from other sources 
-  const availableSources = extractSourcesFromInteractions(fallbackSources);
-  
-  // If no sources available, exit
-  if (availableSources.length === 0) {
-    console.log('[AI Literature] No valid fallback sources available');
-    return;
-  }
-  
-  // Generate a fallback description from available sources
-  const { description, severity, confidence } = generateFallbackAnalysis(availableSources);
-  
-  // Create a synthetic AI Literature source
-  const syntheticSource: InteractionSource = {
-    name: 'AI Literature Analysis',
-    severity: severity || 'unknown',
-    description,
-    confidence: confidence,
-    isReliable: true, // We consider fallback data from other sources to be reliable
-    fallbackMode: true, // Mark as fallback so UI can adapt if needed
-    fallbackReason: 'Generated from available data sources',
-    hasInsight: true,
-    sources: availableSources.map(s => s.name)
-  };
-  
-  // Add the synthetic source
-  sources.push(syntheticSource);
-  
-  console.log(`[AI Literature] Added synthetic source with confidence ${confidence}% using ${availableSources.length} fallback sources`);
-}
-
-/**
- * Generate a fallback analysis from available sources
- */
-function generateFallbackAnalysis(sources: InteractionSource[]): {
-  description: string;
-  severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
-  confidence: number;
-} {
-  // Default result
-  let result = {
-    description: 'Based on available data, a potential interaction may exist.',
-    severity: 'unknown' as "safe" | "minor" | "moderate" | "severe" | "unknown",
-    confidence: 60
-  };
-  
-  // Start building description parts
-  const descriptionParts: string[] = [];
-  
-  // Track if we have found any evidence of interaction
-  let hasInteractionEvidence = false;
-  let maxSeverity: "safe" | "minor" | "moderate" | "severe" | "unknown" = "unknown";
-  let severityCount = {
-    safe: 0,
-    minor: 0,
-    moderate: 0,
-    severe: 0,
-    unknown: 0
-  };
-  
-  // Process each source and extract useful information
-  sources.forEach(source => {
-    // Count severity levels
-    if (source.severity) {
-      severityCount[source.severity]++;
-      
-      // Track the highest severity level found
-      if (source.severity === 'severe') maxSeverity = 'severe';
-      else if (source.severity === 'moderate' && maxSeverity !== 'severe') maxSeverity = 'moderate';
-      else if (source.severity === 'minor' && maxSeverity !== 'severe' && maxSeverity !== 'moderate') maxSeverity = 'minor';
-      else if (source.severity === 'safe' && maxSeverity === 'unknown') maxSeverity = 'safe';
-    }
-    
-    // Extract description if available
-    if (source.description && source.description.length > 20) {
-      // Clean up the description to avoid weird text artifacts
-      const cleanedDesc = source.description
-        .replace(/\s+/g, ' ')
-        .replace(/(an error occurred|unable to analyze|timed out)/i, '')
-        .trim();
-      
-      if (cleanedDesc.length > 20) {
-        descriptionParts.push(cleanedDesc);
-      }
-    }
-    
-    // Check if this source indicates an interaction
-    if (source.severity && source.severity !== 'safe' && source.severity !== 'unknown') {
-      hasInteractionEvidence = true;
-    }
-  });
-  
-  // Use severity count to determine final severity
-  if (severityCount.severe > 0) result.severity = 'severe';
-  else if (severityCount.moderate > 0) result.severity = 'moderate';
-  else if (severityCount.minor > 0) result.severity = 'minor';
-  else if (severityCount.safe > 0) result.severity = 'safe';
-  
-  // Adjust confidence based on amount and quality of data
-  const totalSeverityVotes = severityCount.safe + severityCount.minor + 
-    severityCount.moderate + severityCount.severe;
-  
-  if (totalSeverityVotes > 2) result.confidence = 80;
-  else if (totalSeverityVotes > 0) result.confidence = 70;
-  else result.confidence = 50;
-  
-  // Create a comprehensive description
-  if (descriptionParts.length > 0) {
-    // Select the most informative description (usually the longest one)
-    descriptionParts.sort((a, b) => b.length - a.length);
-    result.description = descriptionParts[0];
-    
-    // Add a synthetic introduction
-    if (hasInteractionEvidence) {
-      switch (result.severity) {
-        case 'severe':
-          result.description = `Analysis indicates a potentially severe interaction. ${result.description}`;
-          break;
-        case 'moderate':
-          result.description = `Analysis indicates a moderate interaction may exist. ${result.description}`;
-          break;
-        case 'minor':
-          result.description = `Analysis indicates a minor interaction may occur. ${result.description}`;
-          break;
-        default:
-          result.description = `Analysis of available data shows a potential interaction. ${result.description}`;
-      }
-    } else {
-      result.description = `Analysis of available data: ${result.description}`;
-    }
-  } else {
-    // Fallback description when no useful text is available
-    if (hasInteractionEvidence) {
-      result.description = `Analysis of available data sources indicates a potential ${result.severity} interaction may exist between these substances. No detailed description is available.`;
-    } else {
-      result.description = `Analysis of available data did not yield specific details about potential interactions between these substances.`;
-    }
-  }
-  
-  return result;
 }
 
 /**
@@ -450,23 +249,40 @@ function validateAiLiteratureResult(
     insightPatterns.some(pattern => pattern.test(description)) : 
     false;
   
-  // IMPORTANT: We're now being much more lenient with what we consider reliable
-  // Because we want to show as much data as possible
-  let isReliable = true;
-  let reason = "Accepted as reliable data";
+  // Determine reliability using multiple factors
+  let isReliable = false;
+  let reason = "";
   
-  // Only disqualify for major issues
-  if (!description || description.length < 10) {
+  // Start with true, then disqualify based on checks
+  if (!description || description.length < 20) {
     isReliable = false;
     reason = "Missing or too short description";
   }
-  else if (containsErrorMessage && !hasInsight) {
+  else if (containsErrorMessage) {
     isReliable = false;
-    reason = "Contains error messages without meaningful content";
+    reason = "Contains error messages";
   }
-  else if (confidenceScore < 15) {
+  else if (confidenceScore < 20) {
     isReliable = false;
     reason = "Extremely low confidence score";
+  }
+  else if (!hasInsight && !severity) {
+    isReliable = false;
+    reason = "Lacks meaningful insight and severity assessment";
+  }
+  else {
+    // Default to reliable if it passes all checks above
+    isReliable = true;
+    reason = "Passed reliability checks";
+    
+    // Conditional reliability based on confidence
+    if (confidenceScore < 60) {
+      // For lower confidence sources, require more validation
+      if (!hasInsight || !severity) {
+        isReliable = false;
+        reason = `Low confidence (${confidenceScore}%) and insufficient supporting evidence`;
+      }
+    }
   }
   
   return {
