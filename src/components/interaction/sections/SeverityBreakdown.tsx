@@ -2,7 +2,7 @@
 import { SeverityLegend } from "./severity/SeverityLegend";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
-import { SourceDetailsModal } from "../SourceDetailsModal";
+import { SourceDetailsModal } from "../sourceDetailsModal";
 import { useSeverityBreakdown } from "./severityBreakdown/useSeverityBreakdown";
 import { SeverityBreakdownTable } from "./severityBreakdown/SeverityBreakdownTable";
 import { InteractionSource, AdverseEventData } from "@/lib/api-utils";
