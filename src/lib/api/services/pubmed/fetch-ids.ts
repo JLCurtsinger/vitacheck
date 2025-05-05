@@ -1,7 +1,7 @@
-
 /**
  * PubMed ID Fetching Service
  * Handles fetching article IDs from the PubMed/Entrez E-Utilities API
+ * via Netlify function to keep API keys secure
  */
 
 /**
@@ -12,30 +12,34 @@
  */
 export async function fetchPubMedIds(searchTerm: string): Promise<string[]> {
   try {
-    // Get the API key from environment variables
-    const apiKey = import.meta.env.VITE_ENTREZ_API_KEY || '';
-    
-    // Construct the search query - encode the term to handle special characters
-    const encodedTerm = encodeURIComponent(`${searchTerm} drug interaction`);
-    
-    // Construct the URL with all required parameters
-    const url = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodedTerm}&retmode=json&retmax=3${apiKey ? `&api_key=${apiKey}` : ''}`;
-    
-    console.log(`🔍 [PubMed] Searching for: ${searchTerm}`);
-    
-    // Fetch data from the API
-    const response = await fetch(url);
+    // Use Netlify function to keep API key secure
+    const response = await fetch('/.netlify/functions/pubmedSearch', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        query: `${searchTerm} drug interaction`,
+        limit: 5
+      })
+    });
     
     // Check if the request was successful
     if (!response.ok) {
-      throw new Error(`PubMed API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`PubMed Search API error: ${response.status} ${response.statusText}\n${errorText}`);
     }
     
     // Parse the response as JSON
     const data = await response.json();
     
+    if (data.error) {
+      console.error(`PubMed Search error: ${data.error}`);
+      return [];
+    }
+    
     // Extract the PubMed IDs from the response
-    const ids = data?.esearchresult?.idlist || [];
+    const ids = data?.ids || [];
     
     console.log(`✅ [PubMed] Found ${ids.length} articles for: ${searchTerm}`);
     

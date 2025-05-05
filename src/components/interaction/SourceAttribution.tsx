@@ -2,7 +2,7 @@
 import { useCallback, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Database, FileText, TestTube, AlertTriangle, BookOpen, BarChart } from "lucide-react";
-import { InteractionResult } from "@/lib/api/types";
+import { InteractionResult, AdverseEventData } from "@/lib/api/types";
 import { SourceDetailsModal } from "./modal/SourceDetailsModal";
 
 interface SourceAttributionProps {
@@ -91,29 +91,6 @@ export function SourceAttribution({ sources, interaction }: SourceAttributionPro
       });
       
       return;
-    }
-    
-    // If this is AI Literature Analysis, enhance it with info about other sources
-    if (sourceName.toUpperCase() === "AI LITERATURE ANALYSIS" && sourceData.length > 0) {
-      // Add information about other sources for context
-      sourceData.forEach(item => {
-        if (!item.rawData) item.rawData = {};
-        
-        // Check for adverse events data
-        if (interaction.adverseEvents) {
-          item.rawData.adverseEvents = {
-            eventCount: interaction.adverseEvents.eventCount || 0,
-            seriousCount: interaction.adverseEvents.seriousCount || 0
-          };
-        }
-        
-        // Check what other sources are available
-        item.rawData.otherSourcesInfo = {
-          hasRxnormData: interaction.sources.some(s => s.name === "RxNorm"),
-          hasFdaData: interaction.sources.some(s => s.name === "FDA"),
-          hasSuppaiData: interaction.sources.some(s => s.name === "SUPP.AI")
-        };
-      });
     }
     
     setSelectedSource({
