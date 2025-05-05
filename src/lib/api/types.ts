@@ -1,3 +1,4 @@
+
 /**
  * API Types
  * 
@@ -69,6 +70,8 @@ export interface InteractionSource {
   validationReason?: string; // Why a source was considered valid or invalid
   errorMessage?: string; // Error message if processing failed
   hasInsight?: boolean; // Whether the source provides meaningful insight
+  pubMedIds?: string[]; // PubMed article IDs related to this interaction
+  hasDirectEvidence?: boolean; // Indicates whether there is direct evidence from PubMed
 }
 
 /**

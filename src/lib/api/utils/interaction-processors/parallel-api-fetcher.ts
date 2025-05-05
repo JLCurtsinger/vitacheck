@@ -54,7 +54,11 @@ export async function fetchAllApiData(
     }),
     
     // FDA check with error handling
-    checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || []).then(result => {
+    checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || []).catch(err => {
+      console.error(`[API Fetcher] FDA API error: ${err.message}`);
+      queryTimestamps.fda_error = Date.now();
+      return null;
+    }).then(result => {
       queryTimestamps.fda_end = Date.now();
       return result;
     }),
