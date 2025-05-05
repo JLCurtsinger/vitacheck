@@ -1,3 +1,4 @@
+
 import { useCallback, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Database, FileText, TestTube, AlertTriangle, BookOpen, BarChart } from "lucide-react";
@@ -10,7 +11,7 @@ interface SourceAttributionProps {
 }
 
 export function SourceAttribution({ sources, interaction }: SourceAttributionProps) {
-  const [selectedSource, setSelectedSource<{
+  const [selectedSource, setSelectedSource] = useState<{
     name: string;
     data: any[];
     medications: string[];
