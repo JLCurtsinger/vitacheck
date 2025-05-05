@@ -53,8 +53,8 @@ export async function fetchAllApiData(
       return result;
     }),
     
-    // FDA check with error handling
-    checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || []).catch(err => {
+    // FDA check with error handling - fixed to use Promise.resolve() to ensure we have a Promise
+    Promise.resolve(checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || [])).catch(err => {
       console.error(`[API Fetcher] FDA API error: ${err.message}`);
       queryTimestamps.fda_error = Date.now();
       return null;
