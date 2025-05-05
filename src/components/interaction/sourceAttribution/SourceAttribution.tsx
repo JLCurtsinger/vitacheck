@@ -1,7 +1,7 @@
 
 import { useCallback, useState } from "react";
 import { SourceBadge } from "./SourceBadge";
-import { SourceDetailsModal } from "../SourceDetailsModal";
+import { SourceDetailsModal } from "../sourceDetailsModal";
 import { SourceAttributionProps, SourceModalData } from "./types";
 
 export function SourceAttribution({ sources, interaction }: SourceAttributionProps) {
