@@ -10,6 +10,7 @@ import { analyzeInteractionRisk } from "@/lib/utils/risk-assessment";
 import { HighRiskWarning } from "./severity/HighRiskWarning";
 import { RiskAssessmentButton } from "./risk/RiskAssessmentButton";
 import { RiskAssessmentOutput } from "@/lib/utils/risk-assessment/types";
+import { PubMedFallback } from "./sections/PubMedFallback";
 
 interface InteractionResultProps {
   interaction: InteractionResultType;
@@ -58,6 +59,24 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
   // Determine if this is a high-risk interaction
   const isHighRisk = riskAssessment?.riskScore >= 70;
 
+  // Determine if we should show PubMed fallback
+  // Only show if:
+  // 1. There are no meaningful sources or all sources are "unknown"
+  // 2. The interaction isn't already marked as "safe"
+  const hasStructuredData = interaction.sources?.some(
+    source => source.severity !== "unknown" && source.name !== "Default"
+  );
+  
+  const shouldShowFallback = 
+    !hasStructuredData && 
+    interaction.severity !== "safe" &&
+    interaction.medications.length > 0;
+  
+  // If we need fallback, use the first medication as search term
+  // This is a simplification - ideally we'd search for both medications
+  const fallbackSearchTerm = shouldShowFallback ? 
+    interaction.medications[0] : undefined;
+
   return (
     <div className={cn(
       "p-6 transition-transform hover:scale-[1.01]",
@@ -72,6 +91,15 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
       <HighRiskWarning isHighRisk={!!isHighRisk} />
       
       <InteractionDescription interaction={interaction} />
+      
+      {/* PubMed Fallback - only shown when no structured data is available */}
+      {shouldShowFallback && fallbackSearchTerm && (
+        <PubMedFallback 
+          searchTerm={fallbackSearchTerm}
+          shouldFetch={shouldShowFallback}
+        />
+      )}
+      
       <InteractionFooter interaction={interaction} />
       
       <RiskAssessmentButton onClick={() => setRiskModalOpen(true)} />

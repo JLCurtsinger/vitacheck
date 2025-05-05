@@ -12,6 +12,11 @@ import { hasInteractionCache, getCachedInteractionResult, cacheInteractionResult
 import { checkForHighRiskPair } from './check-high-risk';
 import { processApiInteractions } from '../api-interactions-processor';
 import { saveInteractionToDatabase } from './database-ops';
+import { 
+  fetchPubMedIds, 
+  fetchPubMedAbstracts, 
+  summarizePubMedAbstracts 
+} from '../../services/pubmed';
 
 /**
  * Processes a pair of medications to determine potential interactions
@@ -95,6 +100,14 @@ export async function processMedicationPair(
 
     // Ensure we always have at least one source entry
     const finalSources = sources.length > 0 ? sources : [createDefaultSource()];
+    
+    // Check if we have meaningful data or if all sources are "unknown"
+    const hasStructuredData = finalSources.some(
+      source => source.severity !== "unknown" && source.name !== "Default"
+    );
+
+    // If we don't have meaningful structured data, don't attempt PubMed fallback here
+    // The UI will handle that based on the results we return
 
     const result = {
       medications: [med1, med2],
@@ -129,4 +142,3 @@ export async function processMedicationPair(
 
 // Import severity processor from the dedicated module
 import { determineFinalSeverity, createDefaultSource } from '../severity-processor';
-
