@@ -1,9 +1,8 @@
-
 import { useCallback, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Database, FileText, TestTube, AlertTriangle, BookOpen, BarChart } from "lucide-react";
 import { InteractionResult, AdverseEventData } from "@/lib/api/types";
-import { SourceDetailsModal } from "./SourceDetailsModal";
+import { SourceDetailsModal } from "./modal/SourceDetailsModal";
 
 interface SourceAttributionProps {
   sources: string[];
@@ -11,7 +10,7 @@ interface SourceAttributionProps {
 }
 
 export function SourceAttribution({ sources, interaction }: SourceAttributionProps) {
-  const [selectedSource, setSelectedSource] = useState<{
+  const [selectedSource, setSelectedSource<{
     name: string;
     data: any[];
     medications: string[];

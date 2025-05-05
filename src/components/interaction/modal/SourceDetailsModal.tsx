@@ -5,13 +5,9 @@ import {
   DialogContent
 } from "@/components/ui/dialog";
 import { InteractionSource, AdverseEventData } from "@/lib/api/types";
-import { ModalHeader } from "./sourceModal/ModalHeader";
-import { ModalContent } from "./sourceModal/ModalContent";
-
-// Extended interface to handle different source-specific data
-interface SourceData extends InteractionSource {
-  adverseEvents?: AdverseEventData;
-}
+import { ModalHeader } from "../sourceModal/ModalHeader";
+import { ModalContent } from "../sourceModal/ModalContent";
+import { SourceData } from "./types";
 
 interface SourceDetailsModalProps {
   isOpen: boolean;
