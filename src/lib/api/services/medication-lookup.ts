@@ -37,16 +37,11 @@ export async function lookupRxNormMedication(name: string): Promise<MedicationLo
     // Make sure we handle potential null response
     const response = await getRxCUI(name);
     
-    // Check if response exists and has required data
-    if (response !== null && 
-        typeof response === 'object' && 
-        response.data !== undefined && 
-        response.data.idGroup !== undefined && 
-        response.data.idGroup.rxnormId !== undefined && 
-        Array.isArray(response.data.idGroup.rxnormId) && 
-        response.data.idGroup.rxnormId.length > 0) {
-      
-      const rxcui = response.data.idGroup.rxnormId[0];
+    // Use optional chaining to safely access nested properties
+    const rxnormId = response?.data?.idGroup?.rxnormId;
+
+    if (Array.isArray(rxnormId) && rxnormId.length > 0) {
+      const rxcui = rxnormId[0];
       
       return {
         name,
