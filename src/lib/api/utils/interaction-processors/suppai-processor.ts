@@ -74,14 +74,10 @@ export function processSuppAiSources(
         // Add debug log before pushing
         console.log(`[SUPP.AI] Processing relevant source: "${source.severity}" severity, description length: ${source.description?.length || 0}`);
         
-        // Validate and standardize the source before pushing - fixing 'source' to 'sources'
+        // Validate and standardize the source before pushing
         const standardizedResponse = validateStandardizedResponse({
-          sources: [source], // Fix: Fix source field to array with source
-          severity: source.severity,
-          description: source.description,
-          confidence: source.confidence,
-          rawData: {},
-          processed: false
+          ...source,
+          source: "SUPP.AI"
         });
         
         console.log(`[SUPP.AI] Standardized response: severity="${standardizedResponse.severity}", confidence=${standardizedResponse.confidence}`);

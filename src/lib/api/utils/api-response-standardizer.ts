@@ -17,11 +17,7 @@ export function standardizeApiResponse(
   description: string = "No description available"
 ): StandardizedApiResponse {
   return {
-    sources: [{
-      name: sourceName,
-      severity: "unknown",
-      description
-    }],
+    sources: [], // Initialize with empty array
     severity: null, // Will be assigned by scoring or ML
     description,
     confidence: undefined,
