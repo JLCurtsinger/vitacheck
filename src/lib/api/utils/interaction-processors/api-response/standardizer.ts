@@ -1,150 +1,190 @@
 
-/**
- * API Response Standardizer
- * 
- * This module standardizes various API responses into a consistent format
- * for processing and analysis.
- */
-
 import { StandardizedApiResponse } from '../../../types';
+import { logApiResponseFormat, logStandardizedResponse } from '../../debug-logger';
+import { validateAndLogSchemaDiscrepancies } from './schema-validator';
+import { logFullApiResponse, logParsingIssue } from '../../diagnostics/api-response-logger';
+import {
+  rxNormExpectedSchemas,
+  suppAiExpectedSchemas,
+  fdaExpectedSchemas,
+  aiAnalysisExpectedSchemas
+} from '../../diagnostics/expected-schemas';
 
 /**
- * Standardizes an API response into a consistent format
+ * Standardizes API results from all sources and logs them
+ * Enhanced with comprehensive validation and fallback handling
  */
-export function standardizeApiResponse(
+export function standardizeAndLogApiResults(
+  rxnormRawResult: any | null,
+  suppaiRawResult: any | null,
+  fdaRawResult: any | null,
+  aiAnalysisRawResult: any | null
+): {
+  rxnormResult: StandardizedApiResponse | null;
+  suppaiResult: StandardizedApiResponse | null;
+  fdaResult: StandardizedApiResponse | null;
+  aiAnalysisResult: StandardizedApiResponse | null;
+} {
+  // Log full API response data for debugging
+  if (rxnormRawResult) logFullApiResponse('RxNorm', rxnormRawResult, 'raw');
+  if (suppaiRawResult) logFullApiResponse('SUPP.AI', suppaiRawResult, 'raw');
+  if (fdaRawResult) logFullApiResponse('FDA', fdaRawResult, 'raw');
+  if (aiAnalysisRawResult) logFullApiResponse('AI Literature', aiAnalysisRawResult, 'raw');
+  
+  // Validate schemas against expected formats with enhanced validation
+  const rxnormValidation = validateAndLogSchemaDiscrepancies(rxnormRawResult, 'RxNorm', rxNormExpectedSchemas);
+  const suppaiValidation = validateAndLogSchemaDiscrepancies(suppaiRawResult, 'SUPP.AI', suppAiExpectedSchemas);
+  const fdaValidation = validateAndLogSchemaDiscrepancies(fdaRawResult, 'FDA', fdaExpectedSchemas);
+  const aiValidation = validateAndLogSchemaDiscrepancies(aiAnalysisRawResult, 'AI Literature', aiAnalysisExpectedSchemas);
+  
+  // Log API response formats before standardization
+  logApiResponseFormat(rxnormRawResult, 'RxNorm');
+  logApiResponseFormat(suppaiRawResult, 'SUPP.AI');
+  logApiResponseFormat(fdaRawResult, 'FDA');
+  logApiResponseFormat(aiAnalysisRawResult, 'AI Literature');
+  
+  // Standardize each API response with fallback handling
+  const rxnormResult = rxnormRawResult 
+    ? standardizeApiResponse(
+        "RxNorm", 
+        rxnormRawResult, 
+        extractDescription(rxnormRawResult),
+        rxnormValidation && rxnormValidation.fallbackUsed || false,
+        rxnormValidation && rxnormValidation.fallbackReason || ""
+      ) 
+    : null;
+    
+  const suppaiResult = suppaiRawResult 
+    ? standardizeApiResponse(
+        "SUPP.AI", 
+        suppaiRawResult, 
+        extractDescription(suppaiRawResult),
+        suppaiValidation && suppaiValidation.fallbackUsed || false,
+        suppaiValidation && suppaiValidation.fallbackReason || ""
+      )
+    : null;
+    
+  const fdaResult = fdaRawResult 
+    ? standardizeApiResponse(
+        "FDA", 
+        fdaRawResult, 
+        extractDescription(fdaRawResult),
+        fdaValidation && fdaValidation.fallbackUsed || false,
+        fdaValidation && fdaValidation.fallbackReason || ""
+      )
+    : null;
+    
+  const aiAnalysisResult = aiAnalysisRawResult 
+    ? standardizeApiResponse(
+        "AI Literature Analysis", 
+        aiAnalysisRawResult, 
+        extractDescription(aiAnalysisRawResult),
+        aiValidation && aiValidation.fallbackUsed || false,
+        aiValidation && aiValidation.fallbackReason || ""
+      )
+    : null;
+  
+  // Log standardized responses
+  logStandardizedResponse(rxnormResult, 'RxNorm');
+  logStandardizedResponse(suppaiResult, 'SUPP.AI');
+  logStandardizedResponse(fdaResult, 'FDA');
+  logStandardizedResponse(aiAnalysisResult, 'AI Literature');
+
+  return {
+    rxnormResult,
+    suppaiResult,
+    fdaResult,
+    aiAnalysisResult
+  };
+}
+
+/**
+ * Standardizes an API response into a consistent format with fallback support
+ */
+function standardizeApiResponse(
   sourceName: string,
   rawData: any,
-  description: string = "No description available"
+  description: string = "No description available",
+  fallbackMode: boolean = false,
+  fallbackReason: string = ""
 ): StandardizedApiResponse {
   return {
-    sources: [{
-      name: sourceName,
-      severity: "unknown",
-      description
-    }],
+    sources: [{ name: sourceName, severity: "unknown", description }], // Fix: Use proper sources array
     severity: null, // Will be assigned by scoring or ML
     description,
-    confidence: undefined,
+    confidence: null,
     rawData,
-    processed: false
+    processed: false,
+    fallbackMode,
+    fallbackReason: fallbackMode ? fallbackReason : undefined
   };
 }
 
 /**
- * Standardizes the RxNorm API response into a consistent format
+ * Intelligently extracts description from various API response formats
  */
-export function standardizeRxNormResponse(
-  rxnormData: any
-): StandardizedApiResponse {
-  // Default values
-  let description = "No interaction information available from RxNorm.";
+function extractDescription(data: any): string {
+  if (!data) return "No description available";
   
-  try {
-    // Check if we have interaction data in expected format
-    if (rxnormData?.fullInteractionTypeGroup && rxnormData.fullInteractionTypeGroup.length > 0) {
-      // Format a basic description from the first interaction found
-      const firstGroup = rxnormData.fullInteractionTypeGroup[0];
-      if (firstGroup.fullInteractionType && firstGroup.fullInteractionType.length > 0) {
-        const firstInteraction = firstGroup.fullInteractionType[0];
-        if (firstInteraction.interactionPair && firstInteraction.interactionPair.length > 0) {
-          const pair = firstInteraction.interactionPair[0];
-          description = pair.description || description;
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Error standardizing RxNorm response:', error);
+  // Direct description field
+  if (data.description && typeof data.description === 'string') {
+    return data.description;
   }
   
-  return standardizeApiResponse('RxNorm', rxnormData, description);
-}
-
-/**
- * Standardizes the SUPP.AI API response into a consistent format
- */
-export function standardizeSuppAiResponse(
-  suppaiData: any
-): StandardizedApiResponse {
-  // Default values
-  let description = "No interaction information available from SUPP.AI.";
+  // Check sources array
+  if (data.sources && Array.isArray(data.sources) && data.sources.length > 0) {
+    const firstSource = data.sources[0];
+    if (firstSource && firstSource.description) {
+      return firstSource.description;
+    }
+  }
   
-  try {
-    // Check if we have interaction data in expected format
-    if (suppaiData?.interactions && suppaiData.interactions.length > 0) {
-      const firstInteraction = suppaiData.interactions[0];
+  // Check interactions array (for SUPP.AI format)
+  if (data.interactions && Array.isArray(data.interactions) && data.interactions.length > 0) {
+    const firstInteraction = data.interactions[0];
+    if (firstInteraction && firstInteraction.label) {
+      return firstInteraction.label;
+    }
+    if (firstInteraction && firstInteraction.evidence) {
+      return firstInteraction.evidence;
+    }
+  }
+  
+  // Check RxNorm specific format
+  if (data.fullInteractionTypeGroup && 
+      Array.isArray(data.fullInteractionTypeGroup) && 
+      data.fullInteractionTypeGroup.length > 0) {
+    
+    const interactionType = data.fullInteractionTypeGroup[0].fullInteractionType;
+    if (interactionType && 
+        Array.isArray(interactionType) && 
+        interactionType.length > 0 &&
+        interactionType[0].interactionPair &&
+        Array.isArray(interactionType[0].interactionPair) &&
+        interactionType[0].interactionPair.length > 0) {
       
-      // Extract evidence text if available
-      if (firstInteraction.evidences && firstInteraction.evidences.length > 0) {
-        const bestEvidence = firstInteraction.evidences
-          .sort((a: any, b: any) => (b.score || 0) - (a.score || 0))[0];
-        description = bestEvidence.sentence || bestEvidence.text || description;
-      }
+      return interactionType[0].interactionPair[0].description || "No description available";
     }
-  } catch (error) {
-    console.error('Error standardizing SUPP.AI response:', error);
   }
   
-  return standardizeApiResponse('SUPP.AI', suppaiData, description);
-}
-
-/**
- * Standardizes the FDA API response into a consistent format
- */
-export function standardizeFDAResponse(
-  fdaData: any
-): StandardizedApiResponse {
-  // Default values
-  let description = "No interaction information available from FDA.";
-  
-  try {
-    // Check if we have interaction data in expected format
-    if (fdaData?.results && fdaData.results.length > 0) {
-      const firstResult = fdaData.results[0];
-      
-      // Check for warnings or drug interactions
-      if (firstResult.warnings && firstResult.warnings.length > 0) {
-        description = firstResult.warnings[0];
-      } else if (firstResult.drug_interactions && firstResult.drug_interactions.length > 0) {
-        description = firstResult.drug_interactions[0];
-      }
+  // FDA specific format
+  if (data.results && 
+      Array.isArray(data.results) && 
+      data.results.length > 0) {
+    
+    const result = data.results[0];
+    if (result.drug_interactions) {
+      return result.drug_interactions;
     }
-  } catch (error) {
-    console.error('Error standardizing FDA response:', error);
+    if (result.boxed_warnings) {
+      return result.boxed_warnings;
+    }
+    if (result.warnings) {
+      return Array.isArray(result.warnings) 
+        ? result.warnings.join(' ') 
+        : result.warnings;
+    }
   }
   
-  return standardizeApiResponse('FDA', fdaData, description);
-}
-
-/**
- * Standardizes the AI Literature Analysis response into a consistent format
- */
-export function standardizeAiLiteratureResponse(
-  aiData: any
-): StandardizedApiResponse {
-  // Default values
-  let description = "No literature analysis available.";
-  let severity: "safe" | "minor" | "moderate" | "severe" | "unknown" = "unknown";
-  
-  try {
-    // Check if we have data in expected format
-    if (aiData?.analysis) {
-      description = aiData.analysis.summary || description;
-      severity = aiData.analysis.severity || "unknown";
-    }
-  } catch (error) {
-    console.error('Error standardizing AI Literature response:', error);
-  }
-  
-  return {
-    sources: [{
-      name: "AI Literature Analysis",
-      severity,
-      description
-    }],
-    severity: severity,
-    description,
-    confidence: undefined,
-    rawData: aiData,
-    processed: false
-  };
+  return "No description available";
 }

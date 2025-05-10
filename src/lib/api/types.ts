@@ -9,7 +9,7 @@
  * Represents the status and ID information for a medication lookup
  */
 export interface MedicationLookupResult {
-  id?: string | null;
+  id?: string;
   name: string;
   source: "RxNorm" | "SUPP.AI" | "FDA" | "Manual" | "Unknown";
   status: "found" | "not_found" | "pending" | "active" | "inactive" | "unknown";
@@ -39,6 +39,8 @@ export interface StandardizedApiResponse {
   };
   fallbackMode?: boolean; // Flag to indicate if fallback processing was used
   fallbackReason?: string; // Reason for using fallback processing
+  // Adding source field for backward compatibility with existing code
+  source?: string;
 }
 
 /**
@@ -72,7 +74,6 @@ export interface InteractionSource {
   hasInsight?: boolean; // Whether the source provides meaningful insight
   pubMedIds?: string[]; // PubMed article IDs related to this interaction
   hasDirectEvidence?: boolean; // Indicates whether there is direct evidence from PubMed
-  evidences?: any[]; // Add evidences field for SUPP.AI data
 }
 
 /**

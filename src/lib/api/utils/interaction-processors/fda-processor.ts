@@ -26,7 +26,7 @@ export function processFdaSources(
       
       // Validate and standardize the source before pushing - fixing 'source' field to 'sources'
       const standardizedResponse = validateStandardizedResponse({
-        sources: [source], // Use 'sources' array property instead of 'source'
+        sources: [source], // Fix: Changed from source to array with source
         severity: source.severity,
         description: source.description,
         confidence: source.confidence,

@@ -1,3 +1,4 @@
+
 /**
  * Medication Pair Processing
  * 
@@ -52,15 +53,32 @@ export async function processMedicationPair(
   }
 
   try {
-    // Check if we have cached results for this interaction
-    // But don't return early - we'll compare with fresh API results
-    let cachedResult: InteractionResult | undefined = undefined;
+    // Check if we already have cached results for this interaction
+    let sessionCached = false;
     if (hasInteractionCache(med1, med2)) {
-      console.log(`📦 Found cached result for ${med1} + ${med2}, will compare after API fetch`);
-      cachedResult = getCachedInteractionResult(med1, med2);
+      console.log(`Using cached interaction data for ${med1} + ${med2}`);
+      const cachedResult = getCachedInteractionResult(med1, med2);
+      
+      // Even for cached results, verify they are valid
+      if (cachedResult && cachedResult.severity) {
+        sessionCached = true;
+        
+        // We still want to process the API interactions and update if needed,
+        // but we'll return the cached result immediately for better UX
+        console.log(`Returning cached result for ${med1} + ${med2} immediately while refreshing in background`);
+        
+        // Start the API processing in the background
+        setTimeout(() => {
+          refreshInteractionData(med1, med2, med1Status, med2Status);
+        }, 100);
+        
+        return cachedResult;
+      } else {
+        console.warn(`Invalid cached result for ${med1} + ${med2}, processing normally`);
+      }
     }
     
-    // ALWAYS process API interactions - query external APIs first
+    // Process API interactions - always query external APIs first
     console.log(`⚙️ Querying all external APIs for ${med1} + ${med2}`);
     
     const {
@@ -115,20 +133,9 @@ export async function processMedicationPair(
       
       return finalResult;
     } else {
-      // If API calls return no usable data, then try the fallbacks in order:
-      // 1. Session cache (if available)
-      // 2. Database (if available)
-      // 3. Generic fallback
-      console.log(`⚠️ No API results for ${med1} + ${med2}, using fallbacks`);
+      // If API calls return no usable data, then try the database as fallback
+      console.log(`⚠️ No API results for ${med1} + ${med2}, checking database fallback`);
       
-      // First fallback: Use cached result if available
-      if (cachedResult) {
-        console.log(`🧊 Using cached result as fallback for ${med1} + ${med2}`);
-        return cachedResult;
-      }
-      
-      // Second fallback: Try database
-      console.log(`⚠️ No cache available for ${med1} + ${med2}, checking database fallback`);
       const dbInteraction = await getDatabaseInteraction(med1, med2);
       
       if (dbInteraction) {
@@ -138,12 +145,12 @@ export async function processMedicationPair(
         const dbFallbackResult: InteractionResult = {
           medications: [med1, med2],
           severity: dbInteraction.severity,
-          description: `No current API data available. Using previously saved interaction data. Last updated: ${new Date(dbInteraction.last_checked).toLocaleDateString()}.`,
+          description: `This interaction data is from the VitaCheck Safety Database. No current external API data was found. Last updated: ${new Date(dbInteraction.last_checked).toLocaleDateString()}.`,
           sources: [
             {
               name: "VitaCheck Safety Database",
               severity: dbInteraction.severity,
-              description: "Previously cached interaction data.",
+              description: "This data is from previously cached API results. No current external API data was found.",
               confidence: dbInteraction.confidence_level,
               fallbackMode: true,
               fallbackReason: "No current API data available",
@@ -160,7 +167,7 @@ export async function processMedicationPair(
         return dbFallbackResult;
       }
       
-      // Last resort: If no data available anywhere, return a generic fallback
+      // If no data available anywhere, return a generic fallback
       console.log(`⚠️ No data available for ${med1} + ${med2} from any source`);
       const fallbackResult = createFallbackInteractionResult(med1, med2);
       
