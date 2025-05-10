@@ -1,4 +1,8 @@
 
+import { MedicationLookupResult } from '../types';
+import { getRxCUI } from '../rxnorm';
+import { getFDAWarnings } from '../fda';
+
 /**
  * Creates a default MedicationLookupResult object
  */
