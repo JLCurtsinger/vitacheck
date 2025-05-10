@@ -11,8 +11,8 @@
 export interface MedicationLookupResult {
   id?: string;
   name: string;
-  source: string;
-  status: "found" | "not_found" | "pending";
+  source: "RxNorm" | "SUPP.AI" | "FDA" | "Manual" | "Unknown";
+  status: "found" | "not_found" | "pending" | "active" | "inactive" | "unknown";
   found?: boolean; // Added for backward compatibility
   warnings?: string[];
   fallback?: boolean; // Indicates if a fallback mechanism was used
@@ -24,7 +24,7 @@ export interface MedicationLookupResult {
  * before risk scoring and ML prediction
  */
 export interface StandardizedApiResponse {
-  source: string;
+  sources: InteractionSource[];
   severity: "safe" | "minor" | "moderate" | "severe" | "unknown" | null;
   description: string;
   confidence?: number;

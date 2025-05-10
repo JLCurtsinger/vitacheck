@@ -50,6 +50,23 @@ export async function processApiInteractions(
     aiAnalysisRawResult,
     queryTimestamps
   } = await fetchAllApiData(med1Status, med2Status, med1, med2);
+
+  // Log failures with warnings for better visibility
+  if (queryTimestamps.rxnorm_error) {
+    console.warn(`[VitaCheck API] RxNorm query failed. ${queryTimestamps.rxnorm_error === 404 ? 'Netlify function returned 404.' : 'API error occurred.'} Fallback may be used.`);
+  }
+  
+  if (queryTimestamps.suppai_error) {
+    console.warn(`[VitaCheck API] SUPP.AI query failed. API error occurred. Fallback may be used.`);
+  }
+  
+  if (queryTimestamps.fda_error) {
+    console.warn(`[VitaCheck API] FDA query failed. API error occurred. Fallback may be used.`);
+  }
+  
+  if (queryTimestamps.openfda_error) {
+    console.warn(`[VitaCheck API] OpenFDA Adverse Events query failed. API error occurred. Fallback may be used.`);
+  }
   
   // Standardize and log API results
   const {

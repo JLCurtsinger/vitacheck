@@ -6,21 +6,21 @@
  * before risk scoring and ML prediction.
  */
 
-import { StandardizedApiResponse } from '../types';
+import { StandardizedApiResponse, InteractionSource } from '../types';
 
 /**
  * Standardizes an API response into a consistent format
  */
 export function standardizeApiResponse(
-  source: string,
+  sourceName: string,
   rawData: any,
   description: string = "No description available"
 ): StandardizedApiResponse {
   return {
-    source,
+    sources: [], // Initialize with empty array
     severity: null, // Will be assigned by scoring or ML
     description,
-    confidence: null,
+    confidence: undefined,
     rawData,
     processed: false
   };
@@ -58,14 +58,19 @@ export function extractEventData(adverseEvents: any): StandardizedApiResponse['e
 export function validateStandardizedResponse(
   response: Partial<StandardizedApiResponse>
 ): StandardizedApiResponse {
+  // Ensure we have sources array
+  const sources = response.sources || [];
+  
   return {
-    source: response.source || "Unknown",
+    sources,
     severity: response.severity || null,
     description: response.description || "No description available",
-    confidence: response.confidence || null,
+    confidence: response.confidence,
     rawData: response.rawData || {},
     processed: response.processed || false,
-    eventData: response.eventData
+    eventData: response.eventData,
+    fallbackMode: response.fallbackMode,
+    fallbackReason: response.fallbackReason
   };
 }
 
@@ -75,18 +80,12 @@ export function validateStandardizedResponse(
  */
 export function standardizedResponseToSource(
   response: StandardizedApiResponse
-): {
-  name: string;
-  severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
-  description: string;
-  confidence?: number;
-  eventData?: StandardizedApiResponse['eventData'];
-} {
+): InteractionSource {
   // Ensure we have a valid severity
   const severity = response.severity || "unknown";
   
   return {
-    name: response.source,
+    name: response.sources && response.sources.length > 0 ? response.sources[0].name : "Unknown Source",
     severity: severity as "safe" | "minor" | "moderate" | "severe" | "unknown",
     description: response.description,
     confidence: response.confidence,

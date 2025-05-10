@@ -35,7 +35,8 @@ export async function fetchAllApiData(
     med1Status.source === 'RxNorm' && med2Status.source === 'RxNorm' && med1Status.id && med2Status.id
       ? checkRxNormInteractions(med1Status.id, med2Status.id, med1, med2).catch(err => {
           console.error(`[API Fetcher] RxNorm API error: ${err.message}`);
-          queryTimestamps.rxnorm_error = Date.now();
+          queryTimestamps.rxnorm_error = err.status || 500;
+          console.warn(`[VitaCheck API] RxNorm query failed with ${err.status || 'unknown error'}. Retrying or fallback may be needed.`);
           return null;
         }).then(result => {
           queryTimestamps.rxnorm_end = Date.now();
@@ -46,7 +47,8 @@ export async function fetchAllApiData(
     // SUPP.AI check with error handling
     checkSuppAiInteractions(med1, med2).catch(err => {
       console.error(`[API Fetcher] SUPP.AI API error: ${err.message}`);
-      queryTimestamps.suppai_error = Date.now();
+      queryTimestamps.suppai_error = err.status || 500;
+      console.warn(`[VitaCheck API] SUPP.AI query failed. Retrying or fallback may be needed.`);
       return null;
     }).then(result => {
       queryTimestamps.suppai_end = Date.now();
@@ -56,7 +58,8 @@ export async function fetchAllApiData(
     // FDA check with error handling - fixed to use Promise.resolve() to ensure we have a Promise
     Promise.resolve(checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || [])).catch(err => {
       console.error(`[API Fetcher] FDA API error: ${err.message}`);
-      queryTimestamps.fda_error = Date.now();
+      queryTimestamps.fda_error = err.status || 500;
+      console.warn(`[VitaCheck API] FDA query failed. Retrying or fallback may be needed.`);
       return null;
     }).then(result => {
       queryTimestamps.fda_end = Date.now();
@@ -66,7 +69,8 @@ export async function fetchAllApiData(
     // OpenFDA Adverse Events check with error handling
     getAdverseEvents(med1, med2).catch(err => {
       console.error(`[API Fetcher] OpenFDA Adverse Events API error: ${err.message}`);
-      queryTimestamps.openfda_error = Date.now();
+      queryTimestamps.openfda_error = err.status || 500;
+      console.warn(`[VitaCheck API] OpenFDA Adverse Events query failed. Retrying or fallback may be needed.`);
       return null;
     }).then(result => {
       queryTimestamps.openfda_end = Date.now();
@@ -77,7 +81,8 @@ export async function fetchAllApiData(
   // AI Analysis is run separately to ensure it doesn't delay API results
   const aiAnalysisPromise = queryAiLiteratureAnalysis(med1, med2).catch(err => {
     console.error(`[API Fetcher] AI Literature Analysis error: ${err.message}`);
-    queryTimestamps.ai_literature_error = Date.now();
+    queryTimestamps.ai_literature_error = err.status || 500;
+    console.warn(`[VitaCheck API] AI Literature Analysis query failed. Retrying or fallback may be needed.`);
     return null;
   }).then(result => {
     queryTimestamps.ai_literature_end = Date.now();
