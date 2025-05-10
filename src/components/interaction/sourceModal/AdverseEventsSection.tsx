@@ -128,7 +128,7 @@ export function AdverseEventsSection({
                   {Object.entries(adverseEvents.demographics.ageGroups).map(([age, count], i) => (
                     <div key={i} className="flex justify-between text-xs">
                       <span>{age}:</span>
-                      <Badge variant="outline" className="ml-2">{count}</Badge>
+                      <Badge variant="outline" className="ml-2">{String(count)}</Badge>
                     </div>
                   ))}
                 </div>
@@ -142,7 +142,7 @@ export function AdverseEventsSection({
                   {Object.entries(adverseEvents.demographics.genders).map(([gender, count], i) => (
                     <div key={i} className="flex justify-between text-xs">
                       <span>{gender}:</span>
-                      <Badge variant="outline" className="ml-2">{count}</Badge>
+                      <Badge variant="outline" className="ml-2">{String(count)}</Badge>
                     </div>
                   ))}
                 </div>

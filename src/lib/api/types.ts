@@ -1,3 +1,4 @@
+
 /**
  * Type definitions for the Medication API
  */
@@ -20,12 +21,32 @@ export interface InteractionSource {
   eventData?: any;
   fallbackMode?: boolean;
   fromDatabase?: boolean;
+  
+  // Additional properties used in components that were missing
+  rawData?: any;
+  sources?: string[];
+  fallbackReason?: string;
+  fallbackFields?: string[];
+  isReliable?: boolean;
+  errorMessage?: string;
+  pubMedIds?: string[];
+  validationReason?: string;
+  timestamp?: string | Date;
+  date?: string;
+  processed?: boolean;
+  tags?: string[];
 }
 
 export interface AdverseEventData {
   eventCount: number;
   seriousCount: number;
   commonReactions: string[];
+  // Additional properties used in components that were missing
+  seriousCaseDetails?: string[];
+  demographics?: {
+    ageGroups?: Record<string, number>;
+    genders?: Record<string, number>;
+  };
 }
 
 export interface StandardizedApiResponse {
