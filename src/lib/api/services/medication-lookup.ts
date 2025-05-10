@@ -38,7 +38,7 @@ export async function lookupRxNormMedication(name: string): Promise<MedicationLo
   try {
     const response = await getRxCUI(name);
     
-    if (response?.data?.idGroup?.rxnormId?.length > 0) {
+    if (response && typeof response === 'object' && response.data?.idGroup?.rxnormId?.length > 0) {
       const rxcui = response.data.idGroup.rxnormId[0];
       
       return {
@@ -95,6 +95,22 @@ export async function lookupFDAWarnings(medication: MedicationLookupResult): Pro
     console.error('Error looking up FDA warnings:', error);
     return medication;
   }
+}
+
+/**
+ * Comprehensive medication lookup function that tries multiple sources
+ */
+export async function lookupMedication(name: string): Promise<MedicationLookupResult> {
+  // First try RxNorm
+  const rxResult = await lookupRxNormMedication(name);
+  
+  // If we found it in RxNorm, check for FDA warnings
+  if (rxResult.status === 'active') {
+    return lookupFDAWarnings(rxResult);
+  }
+  
+  // If not found in RxNorm, return the not found result
+  return rxResult;
 }
 
 /**

@@ -1,4 +1,3 @@
-
 /**
  * API Types
  * 
@@ -17,6 +16,7 @@ export interface MedicationLookupResult {
   warnings?: string[];
   fallback?: boolean; // Indicates if a fallback mechanism was used
   fallbackType?: 'local_cache' | 'alternative_format' | 'fda' | 'suppai'; // Type of fallback used
+  rxcui?: string | null; // Added missing rxcui property
 }
 
 /**
@@ -39,8 +39,6 @@ export interface StandardizedApiResponse {
   };
   fallbackMode?: boolean; // Flag to indicate if fallback processing was used
   fallbackReason?: string; // Reason for using fallback processing
-  // Adding source field for backward compatibility with existing code
-  source?: string;
 }
 
 /**
@@ -74,6 +72,7 @@ export interface InteractionSource {
   hasInsight?: boolean; // Whether the source provides meaningful insight
   pubMedIds?: string[]; // PubMed article IDs related to this interaction
   hasDirectEvidence?: boolean; // Indicates whether there is direct evidence from PubMed
+  evidences?: any[]; // Add evidences field for SUPP.AI data
 }
 
 /**
