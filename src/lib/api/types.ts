@@ -1,3 +1,4 @@
+
 /**
  * API Types
  * 
@@ -8,7 +9,7 @@
  * Represents the status and ID information for a medication lookup
  */
 export interface MedicationLookupResult {
-  id?: string;
+  id?: string | null;
   name: string;
   source: "RxNorm" | "SUPP.AI" | "FDA" | "Manual" | "Unknown";
   status: "found" | "not_found" | "pending" | "active" | "inactive" | "unknown";
@@ -16,7 +17,6 @@ export interface MedicationLookupResult {
   warnings?: string[];
   fallback?: boolean; // Indicates if a fallback mechanism was used
   fallbackType?: 'local_cache' | 'alternative_format' | 'fda' | 'suppai'; // Type of fallback used
-  rxcui?: string | null; // Added missing rxcui property
 }
 
 /**

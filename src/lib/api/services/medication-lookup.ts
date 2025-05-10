@@ -12,7 +12,6 @@ export function createDefaultMedicationLookup(name: string): MedicationLookupRes
     status: 'unknown',
     source: 'Unknown',
     id: null,
-    rxcui: null,
     warnings: []
   };
 }
@@ -26,7 +25,6 @@ export function createNotFoundMedicationLookup(name: string): MedicationLookupRe
     status: 'inactive',
     source: 'Unknown',
     id: null,
-    rxcui: null,
     warnings: []
   };
 }
@@ -38,6 +36,7 @@ export async function lookupRxNormMedication(name: string): Promise<MedicationLo
   try {
     const response = await getRxCUI(name);
     
+    // Add null check for response
     if (response && typeof response === 'object' && response.data?.idGroup?.rxnormId?.length > 0) {
       const rxcui = response.data.idGroup.rxnormId[0];
       
@@ -46,7 +45,6 @@ export async function lookupRxNormMedication(name: string): Promise<MedicationLo
         status: 'active',
         source: 'RxNorm',
         id: rxcui,
-        rxcui,
         warnings: []
       };
     } else {
