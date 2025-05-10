@@ -12,6 +12,7 @@ export function createDefaultMedicationLookup(name: string): MedicationLookupRes
     status: 'unknown',
     source: 'Unknown',
     id: null,
+    rxcui: null,
     warnings: []
   };
 }
@@ -25,6 +26,7 @@ export function createNotFoundMedicationLookup(name: string): MedicationLookupRe
     status: 'inactive',
     source: 'Unknown',
     id: null,
+    rxcui: null,
     warnings: []
   };
 }
@@ -34,27 +36,22 @@ export function createNotFoundMedicationLookup(name: string): MedicationLookupRe
  */
 export async function lookupRxNormMedication(name: string): Promise<MedicationLookupResult> {
   try {
-    // Make sure we handle potential null response
     const response = await getRxCUI(name);
     
-    // Use optional chaining to safely access nested properties
-    const rxnormId = response?.data?.idGroup?.rxnormId;
-
-    if (Array.isArray(rxnormId) && rxnormId.length > 0) {
-      const rxcui = rxnormId[0];
+    if (response?.data?.idGroup?.rxnormId?.length > 0) {
+      const rxcui = response.data.idGroup.rxnormId[0];
       
       return {
         name,
         status: 'active',
         source: 'RxNorm',
         id: rxcui,
+        rxcui,
         warnings: []
       };
+    } else {
+      return createNotFoundMedicationLookup(name);
     }
-    
-    // If we get here, either response is null or doesn't have the expected structure
-    return createNotFoundMedicationLookup(name);
-    
   } catch (error) {
     console.error('Error looking up RxNorm medication:', error);
     return createNotFoundMedicationLookup(name);
@@ -98,22 +95,6 @@ export async function lookupFDAWarnings(medication: MedicationLookupResult): Pro
     console.error('Error looking up FDA warnings:', error);
     return medication;
   }
-}
-
-/**
- * Comprehensive medication lookup function that tries multiple sources
- */
-export async function lookupMedication(name: string): Promise<MedicationLookupResult> {
-  // First try RxNorm
-  const rxResult = await lookupRxNormMedication(name);
-  
-  // If we found it in RxNorm, check for FDA warnings
-  if (rxResult.status === 'active') {
-    return lookupFDAWarnings(rxResult);
-  }
-  
-  // If not found in RxNorm, return the not found result
-  return rxResult;
 }
 
 /**

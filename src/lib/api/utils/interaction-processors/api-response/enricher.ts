@@ -1,120 +1,103 @@
 
-/**
- * API Response Enricher
- * 
- * Utility functions to enrich API responses with additional data.
- */
-
 import { StandardizedApiResponse } from '../../../types';
+import { logParsingIssue } from '../../diagnostics/api-response-logger';
 
 /**
- * Extracts severity from an API response
- */
-export function extractSeverity(response: any): "safe" | "minor" | "moderate" | "severe" | "unknown" {
-  if (!response) return "unknown";
-  
-  // Extract based on known severity field names
-  if (response.severity) {
-    return response.severity as "safe" | "minor" | "moderate" | "severe" | "unknown";
-  }
-  
-  return "unknown";
-}
-
-/**
- * Extracts confidence score from an API response
- */
-export function extractConfidence(response: any): number | undefined {
-  if (!response) return undefined;
-  
-  if (typeof response.confidence === 'number') {
-    return response.confidence;
-  }
-  
-  return undefined;
-}
-
-/**
- * Enriches standardized API results with additional data from raw responses
+ * Enriches standardized results with raw data information
+ * Enhanced with validation and fallback logic
  */
 export function enrichApiResults(
   rxnormResult: StandardizedApiResponse | null,
-  suppaiResult: StandardizedApiResponse | null,
+  suppaiResult: StandardizedApiResponse | null, 
   fdaResult: StandardizedApiResponse | null,
   aiAnalysisResult: StandardizedApiResponse | null,
-  rxnormRawResult: any,
-  suppaiRawResult: any,
-  fdaRawResult: any,
-  aiAnalysisRawResult: any
+  rxnormRawResult: any | null,
+  suppaiRawResult: any | null,
+  fdaRawResult: any | null,
+  aiAnalysisRawResult: any | null
 ): void {
-  console.log('[API Enricher] Enriching API results with raw data');
-  
-  // Do not proceed if results are null
-  if (!rxnormResult && !suppaiResult && !fdaResult && !aiAnalysisResult) {
-    return;
+  try {
+    // Set severity and confidence from raw data for backward compatibility
+    if (rxnormResult && rxnormRawResult) {
+      rxnormResult.severity = extractSeverity(rxnormRawResult) || "unknown";
+      rxnormResult.confidence = extractConfidence(rxnormRawResult, 'RxNorm');
+    }
+    
+    if (suppaiResult && suppaiRawResult) {
+      suppaiResult.severity = extractSeverity(suppaiRawResult) || "unknown";
+      suppaiResult.confidence = extractConfidence(suppaiRawResult, 'SUPP.AI');
+    }
+    
+    if (fdaResult && fdaRawResult) {
+      fdaResult.severity = extractSeverity(fdaRawResult) || "unknown";
+      fdaResult.confidence = extractConfidence(fdaRawResult, 'FDA');
+    }
+    
+    if (aiAnalysisResult && aiAnalysisRawResult) {
+      aiAnalysisResult.severity = extractSeverity(aiAnalysisRawResult) || "unknown";
+      aiAnalysisResult.confidence = aiAnalysisRawResult.confidence || extractConfidence(aiAnalysisRawResult, 'AI');
+    }
+    
+    // Log successful enrichment completion
+    console.log('[API Processing] Successfully enriched API results with additional data');
+  } catch (error) {
+    console.error('[API Processing] Error enriching API results:', error);
+    logParsingIssue('API Enrichment', 
+      { rxnormResult, suppaiResult, fdaResult, aiAnalysisResult }, 
+      error instanceof Error ? error : String(error)
+    );
   }
+}
 
-  // Enrich RxNorm result
-  if (rxnormResult && rxnormRawResult) {
-    rxnormResult.rawData = rxnormRawResult;
-    
-    // Check if we have severity information in the raw data
-    const severity = extractSeverity(rxnormRawResult);
-    if (severity !== "unknown") {
-      rxnormResult.severity = severity;
-    }
-    
-    // Check for confidence info
-    const confidence = extractConfidence(rxnormRawResult);
-    if (confidence !== undefined) {
-      rxnormResult.confidence = confidence;
-    }
+/**
+ * Helper to extract severity from raw result with fallback logic
+ */
+export function extractSeverity(rawResult: any): "safe" | "minor" | "moderate" | "severe" | "unknown" | null {
+  // Direct severity field
+  if (rawResult.severity) {
+    return rawResult.severity;
   }
   
-  // Enrich SuppAI result
-  if (suppaiResult && suppaiRawResult) {
-    suppaiResult.rawData = suppaiRawResult;
-    
-    const severity = extractSeverity(suppaiRawResult);
-    if (severity !== "unknown") {
-      suppaiResult.severity = severity;
-    }
-    
-    const confidence = extractConfidence(suppaiRawResult);
-    if (confidence !== undefined) {
-      suppaiResult.confidence = confidence;
-    }
+  // Check first source if available
+  if (rawResult.sources?.[0]?.severity) {
+    return rawResult.sources[0].severity;
   }
   
-  // Enrich FDA result
-  if (fdaResult && fdaRawResult) {
-    fdaResult.rawData = fdaRawResult;
+  // Check in interaction pairs (RxNorm format)
+  if (rawResult.fullInteractionTypeGroup?.[0]?.fullInteractionType?.[0]?.interactionPair?.[0]?.severity) {
+    const severity = rawResult.fullInteractionTypeGroup[0].fullInteractionType[0].interactionPair[0].severity;
     
-    const severity = extractSeverity(fdaRawResult);
-    if (severity !== "unknown") {
-      fdaResult.severity = severity;
-    }
-    
-    const confidence = extractConfidence(fdaRawResult);
-    if (confidence !== undefined) {
-      fdaResult.confidence = confidence;
-    }
+    // Map RxNorm severities to our format
+    if (severity === 'N/A') return 'unknown';
+    if (severity === 'high') return 'severe';
+    if (severity === 'medium') return 'moderate';
+    if (severity === 'low') return 'minor';
   }
   
-  // Enrich AI Analysis result
-  if (aiAnalysisResult && aiAnalysisRawResult) {
-    aiAnalysisResult.rawData = aiAnalysisRawResult;
-    
-    const severity = extractSeverity(aiAnalysisRawResult);
-    if (severity !== "unknown") {
-      aiAnalysisResult.severity = severity;
-    }
-    
-    const confidence = extractConfidence(aiAnalysisRawResult);
-    if (confidence !== undefined) {
-      aiAnalysisResult.confidence = confidence;
-    }
+  // No valid severity found
+  return null;
+}
+
+/**
+ * Helper to extract confidence from raw result with fallback logic
+ */
+export function extractConfidence(rawResult: any, source: string): number {
+  // Direct confidence field
+  if (typeof rawResult.confidence === 'number') {
+    return rawResult.confidence;
   }
   
-  console.log('[API Enricher] Enrichment complete');
+  // Check first source if available
+  if (typeof rawResult.sources?.[0]?.confidence === 'number') {
+    return rawResult.sources[0].confidence;
+  }
+  
+  // Use source-specific default confidence values
+  switch (source) {
+    case 'RxNorm': return 90; // High confidence for RxNorm
+    case 'SUPP.AI': return 80; // Medium-high for SUPP.AI
+    case 'FDA': return 95;    // Very high for FDA
+    case 'AI': return 70;     // Medium for AI analysis
+    default: return 50;       // Default middle value
+  }
 }
