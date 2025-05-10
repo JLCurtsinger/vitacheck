@@ -11,7 +11,7 @@ export async function lookupMedication(medication: string): Promise<MedicationLo
   // Create a result object to collect data from all sources
   const result: MedicationLookupResult = { 
     name: medication,
-    source: '',
+    source: 'Unknown', // Fix: Changed from empty string to 'Unknown'
     status: 'not_found'
   };
   
@@ -49,7 +49,7 @@ export async function lookupMedication(medication: string): Promise<MedicationLo
     if (suppAiResult && suppAiResult.length > 0) {
       result.status = 'found';
       // Only override source if RxNorm didn't find anything
-      if (!result.source) {
+      if (!result.source || result.source === 'Unknown') {
         result.source = 'SUPP.AI';
         console.log(`✅ [Medication Lookup] Found in SUPP.AI: ${medication}`);
       }
@@ -67,7 +67,7 @@ export async function lookupMedication(medication: string): Promise<MedicationLo
     if (fdaResult && fdaResult.results && fdaResult.results.length > 0) {
       result.status = 'found';
       // Only override source if no previous source was set
-      if (!result.source) {
+      if (!result.source || result.source === 'Unknown') {
         result.source = 'FDA';
         console.log(`✅ [Medication Lookup] Found in FDA: ${medication}`);
       }
@@ -94,4 +94,3 @@ export async function lookupMedication(medication: string): Promise<MedicationLo
   console.log(`✅ [Medication Lookup] Final result for ${medication}:`, result);
   return result;
 }
-

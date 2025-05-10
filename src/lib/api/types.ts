@@ -39,6 +39,8 @@ export interface StandardizedApiResponse {
   };
   fallbackMode?: boolean; // Flag to indicate if fallback processing was used
   fallbackReason?: string; // Reason for using fallback processing
+  // Adding source field for backward compatibility with existing code
+  source?: string;
 }
 
 /**
