@@ -13,20 +13,36 @@ export function getRiskAssessment(interaction: InteractionResult): RiskAssessmen
   // Return a basic risk assessment based on the interaction severity
   const severity = interaction.severity;
   
+  // Check if there are high-confidence sources reporting severe
+  const hasHighConfidenceSource = interaction.sources?.some(source => 
+    source.name === "FDA" || source.name === "RxNorm" || source.name === "OpenFDA Adverse Events"
+  );
+  
+  // Check if only AI is reporting severe
+  const onlyAiReportsSevere = 
+    severity === "severe" && 
+    interaction.sources?.filter(s => s.severity === "severe")
+      .every(s => s.name === "AI Literature Analysis");
+  
+  // Apply RULE 1: Restrict severe classification if only AI reports it
+  const adjustedSeverity = (severity === "severe" && onlyAiReportsSevere && !hasHighConfidenceSource)
+    ? "moderate"
+    : severity;
+  
   const baseRisk: RiskAssessmentOutput = {
-    riskScore: severity === "severe" ? 80 : 
-               severity === "moderate" ? 50 : 
-               severity === "minor" ? 30 : 
-               severity === "unknown" ? 20 : 10,
-    severityFlag: severity === "severe" ? '🔴' : 
-                  severity === "moderate" || severity === "minor" ? '🟡' : '🟢',
-    riskLevel: severity === "severe" ? 'High' : 
-              severity === "moderate" ? 'Moderate' : 'Low',
+    riskScore: adjustedSeverity === "severe" ? 80 : 
+               adjustedSeverity === "moderate" ? 50 : 
+               adjustedSeverity === "minor" ? 30 : 
+               adjustedSeverity === "unknown" ? 20 : 10,
+    severityFlag: adjustedSeverity === "severe" ? '🔴' : 
+                  adjustedSeverity === "moderate" || adjustedSeverity === "minor" ? '🟡' : '🟢',
+    riskLevel: adjustedSeverity === "severe" ? 'High' : 
+              adjustedSeverity === "moderate" ? 'Moderate' : 'Low',
     adjustments: [],
     avoidanceStrategy: 'Consult a healthcare professional for guidance.',
     inputData: {
-      severity: severity === "severe" ? "severe" : 
-                severity === "moderate" ? "moderate" : "mild"
+      severity: adjustedSeverity === "severe" ? "severe" : 
+                adjustedSeverity === "moderate" ? "moderate" : "mild"
     }
   };
   
@@ -76,10 +92,26 @@ export function getCombinedRiskAssessment(
   let moderateCount = 0;
   let minorCount = 0;
   
+  // Count high-confidence sources that report severe interactions
+  let highConfidenceSevereCount = 0;
+  
   // Process all interactions to determine the combined risk
   interactions.forEach(interaction => {
     // Count by severity
-    if (interaction.severity === "severe") severeCount++;
+    if (interaction.severity === "severe") {
+      severeCount++;
+      
+      // Check if any high-confidence source reports severe
+      const hasHighConfidenceSource = interaction.sources?.some(source => 
+        (source.severity === "severe") && 
+        (source.name === "FDA" || source.name === "RxNorm" || source.name === "OpenFDA Adverse Events")
+      );
+      
+      if (hasHighConfidenceSource) {
+        highConfidenceSevereCount++;
+      }
+    }
+    
     if (interaction.severity === "moderate") moderateCount++;
     if (interaction.severity === "minor") minorCount++;
     
@@ -101,16 +133,29 @@ export function getCombinedRiskAssessment(
     }
   });
   
+  // RULE 1: If no high-confidence source reports severe, cap at moderate
+  const aiOnlySevere = severeCount > 0 && highConfidenceSevereCount === 0;
+  
   // Calculate an aggregate risk score based on counts
   const totalInteractions = interactions.length;
+  
+  // If only AI sources report severe, cap the weighting for severe counts
+  const effectiveSevereCount = aiOnlySevere ? Math.min(severeCount, 1) * 0.5 : severeCount;
+  
   const weightedScore = Math.min(
     100,
-    (severeCount * 40 + moderateCount * 20 + minorCount * 10) / 
+    (effectiveSevereCount * 40 + moderateCount * 20 + minorCount * 10) / 
     Math.max(1, totalInteractions) * 2.5
   );
   
   // Use the higher of highest individual risk or weighted score
-  const finalRiskScore = Math.max(highestRiskScore, weightedScore);
+  // But cap if only AI reports severe
+  let finalRiskScore = Math.max(highestRiskScore, weightedScore);
+  
+  if (aiOnlySevere) {
+    finalRiskScore = Math.min(finalRiskScore, 69); // Cap just below high risk threshold
+    severestFlag = '🟡'; // Downgrade to yellow
+  }
   
   // Determine final risk level based on the final score
   const finalRiskLevel = 
@@ -121,10 +166,17 @@ export function getCombinedRiskAssessment(
   const adjustments = [];
   
   if (severeCount > 0) {
-    adjustments.push({
-      sources: ['Severe Interactions'],
-      description: `${severeCount} severe interaction${severeCount > 1 ? 's' : ''} found`
-    });
+    if (highConfidenceSevereCount > 0) {
+      adjustments.push({
+        sources: ['High-Confidence Data Sources'],
+        description: `${highConfidenceSevereCount} high-confidence severe interaction${highConfidenceSevereCount > 1 ? 's' : ''} found`
+      });
+    } else {
+      adjustments.push({
+        sources: ['Limited Confidence Sources'],
+        description: `${severeCount} potential severe interaction${severeCount > 1 ? 's' : ''} with limited verification`
+      });
+    }
   }
   
   if (moderateCount > 0) {
@@ -152,7 +204,9 @@ export function getCombinedRiskAssessment(
     adjustments: adjustments,
     avoidanceStrategy: avoidanceStrategy,
     inputData: {
-      severity: severeCount > 0 ? 'severe' : moderateCount > 0 ? 'moderate' : 'mild'
+      severity: highConfidenceSevereCount > 0 ? 'severe' : 
+                aiOnlySevere ? 'moderate' : 
+                moderateCount > 0 ? 'moderate' : 'mild'
     }
   };
 }

@@ -16,25 +16,41 @@ export function determineFinalSeverity(
   sourceWeights: { source: any, weight: number }[]
 ): "safe" | "minor" | "moderate" | "severe" | "unknown" {
   try {
-    console.log('[Severity Determiner] Processing severity votes:', severityVotes);
+    const isDebug = process.env.DEBUG === 'true';
+    if (isDebug) {
+      console.log('[Severity Determiner] Processing severity votes:', severityVotes);
+    }
     
-    // First check if we have any "severe" votes from high-confidence sources
-    const hasSevereFromHighConfidence = sourceWeights.some(({ source, weight }) => 
-      source.severity === "severe" && weight >= 0.6);
-      
-    if (severityVotes.severe > 0 && hasSevereFromHighConfidence) {
-      console.log('[Severity Determiner] Found severe rating from high-confidence source');
+    // Count high-confidence sources (weight >= 0.6) reporting severe
+    const highConfidenceSevereSources = sourceWeights.filter(({ source, weight }) => 
+      source.severity === "severe" && weight >= 0.6 && source.name !== "AI Literature Analysis"
+    );
+    
+    // Count moderate reports from different sources (excluding AI)
+    const moderateSourceCount = sourceWeights.filter(({ source }) => 
+      source.severity === "moderate" && source.name !== "AI Literature Analysis"
+    ).length;
+    
+    // RULE 1: Only assign "severe" if at least one high-confidence source reports severe
+    // OR if multiple (2+) sources report moderate
+    if (severityVotes.severe > 0 && 
+        (highConfidenceSevereSources.length > 0 || moderateSourceCount >= 2)) {
+      if (isDebug) {
+        console.log('[Severity Determiner] Found severe rating from high-confidence source or multiple moderate sources');
+      }
       return "severe";
     }
     
     // Debug information about vote distribution
-    console.log('[Severity Determiner] Vote distribution:', {
-      severe: severityVotes.severe || 0,
-      moderate: severityVotes.moderate || 0,
-      minor: severityVotes.minor || 0,
-      safe: severityVotes.safe || 0,
-      unknown: severityVotes.unknown || 0
-    });
+    if (isDebug) {
+      console.log('[Severity Determiner] Vote distribution:', {
+        severe: severityVotes.severe || 0,
+        moderate: severityVotes.moderate || 0,
+        minor: severityVotes.minor || 0,
+        safe: severityVotes.safe || 0,
+        unknown: severityVotes.unknown || 0
+      });
+    }
     
     // Otherwise determine by highest weighted vote
     // Process severity keys in a fixed order for deterministic results
@@ -48,19 +64,42 @@ export function determineFinalSeverity(
       if (currentVote > maxVote) {
         maxVote = currentVote;
         finalSeverity = severity;
-        console.log(`[Severity Determiner] New highest vote: ${severity} with ${currentVote}`);
+        if (isDebug) {
+          console.log(`[Severity Determiner] New highest vote: ${severity} with ${currentVote}`);
+        }
+      }
+    }
+    
+    // RULE 2: Never allow AI to directly dictate severe rating
+    // If AI is the only source suggesting severe, cap at moderate
+    if (finalSeverity === "severe" && highConfidenceSevereSources.length === 0) {
+      // Check if any non-AI source contributed to the severe rating
+      const hasNonAiSevereSources = sourceWeights.some(({ source }) => 
+        source.severity === "severe" && source.name !== "AI Literature Analysis"
+      );
+      
+      // If no non-AI severe sources, cap at moderate
+      if (!hasNonAiSevereSources) {
+        finalSeverity = "moderate";
+        if (isDebug) {
+          console.log('[Severity Determiner] Capping severity at moderate due to lack of high-confidence sources');
+        }
       }
     }
     
     // Fallback mechanism: If all votes are zero or very low, but we have sources
     if (maxVote < 0.1 && sourceWeights.length > 0) {
-      console.log('[Severity Determiner] Very low votes detected, applying fallback logic');
+      if (isDebug) {
+        console.log('[Severity Determiner] Very low votes detected, applying fallback logic');
+      }
       
       // Try to find any explicit severity in sources
       for (const { source } of sourceWeights) {
-        if (source.severity && source.severity !== "unknown") {
+        if (source.severity && source.severity !== "unknown" && source.name !== "AI Literature Analysis") {
           finalSeverity = source.severity;
-          console.log(`[Severity Determiner] Fallback: Using explicit severity "${finalSeverity}" from source`);
+          if (isDebug) {
+            console.log(`[Severity Determiner] Fallback: Using explicit severity "${finalSeverity}" from source`);
+          }
           break;
         }
       }
@@ -68,11 +107,15 @@ export function determineFinalSeverity(
       // If still unknown, use conservative approach for safety
       if (finalSeverity === "unknown" && sourceWeights.length > 1) {
         finalSeverity = "moderate"; // Conservative assumption when multiple sources but unclear severity
-        console.log('[Severity Determiner] Fallback: Using conservative "moderate" rating due to multiple sources');
+        if (isDebug) {
+          console.log('[Severity Determiner] Fallback: Using conservative "moderate" rating due to multiple sources');
+        }
       }
     }
     
-    console.log(`[Severity Determiner] Final severity determined: ${finalSeverity}`);
+    if (isDebug) {
+      console.log(`[Severity Determiner] Final severity determined: ${finalSeverity}`);
+    }
     return finalSeverity;
   } catch (error) {
     // Log the error and provide a fallback severity
