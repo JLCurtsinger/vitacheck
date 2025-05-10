@@ -1,9 +1,11 @@
 
 import { useCallback, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Database, FileText, TestTube, AlertTriangle, BookOpen, BarChart } from "lucide-react";
+import { Database, FileText, TestTube, AlertTriangle, BookOpen, BarChart, ServerIcon } from "lucide-react";
 import { InteractionResult, AdverseEventData } from "@/lib/api/types";
 import { SourceDetailsModal } from "./modal/SourceDetailsModal";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { InfoIcon } from "lucide-react";
 
 interface SourceAttributionProps {
   sources: string[];
@@ -18,6 +20,10 @@ export function SourceAttribution({ sources, interaction }: SourceAttributionPro
   } | null>(null);
   
   if (!sources.length) return null;
+  
+  // Check if this is a fallback result from the database
+  const isFromDatabase = interaction?.fromDatabase === true;
+  const isFromCache = interaction?.fromCache === true;
   
   // Sort sources to prioritize FDA Adverse Events
   const sortedSources = [...sources].sort((a, b) => {
@@ -41,7 +47,12 @@ export function SourceAttribution({ sources, interaction }: SourceAttributionPro
         return <BookOpen className="h-3 w-3 mr-1" />;
       case 'OPENFDA ADVERSE EVENTS':
         return <BarChart className="h-3 w-3 mr-1" />;
+      case 'VITACHECK SAFETY DATABASE':
+        return <ServerIcon className="h-3 w-3 mr-1" />;
       default:
+        if (source.includes("Database")) {
+          return <ServerIcon className="h-3 w-3 mr-1" />;
+        }
         return null;
     }
   };
@@ -61,7 +72,12 @@ export function SourceAttribution({ sources, interaction }: SourceAttributionPro
         return "bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700";
       case 'OPENFDA ADVERSE EVENTS':
         return "bg-red-50 hover:bg-red-100 border-red-200 text-red-700";
+      case 'VITACHECK SAFETY DATABASE':
+        return "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700";
       default:
+        if (source.includes("Database")) {
+          return "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700";
+        }
         return "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700";
     }
   };
@@ -79,7 +95,7 @@ export function SourceAttribution({ sources, interaction }: SourceAttributionPro
     if (sourceName.toUpperCase().includes("ADVERSE") && interaction.adverseEvents) {
       const adverseEventSource = {
         name: "OpenFDA Adverse Events",
-        severity: interaction.adverseEvents ? "unknown" : "unknown", // Fixed: Don't access severity on adverseEvents
+        severity: interaction.adverseEvents ? "unknown" : "unknown",
         description: `${interaction.adverseEvents.eventCount} adverse events reported for this combination`,
         adverseEvents: interaction.adverseEvents
       };
@@ -106,19 +122,39 @@ export function SourceAttribution({ sources, interaction }: SourceAttributionPro
   
   return (
     <>
-      <div className="flex flex-wrap gap-2 mb-4">
-        <span className="text-sm font-medium text-gray-500 mr-1">Data Sources:</span>
-        {sortedSources.map((source, index) => (
-          <Badge 
-            key={index} 
-            variant="outline" 
-            className={`flex items-center cursor-pointer ${getSourceColorClass(source)}`}
-            onClick={() => handleSourceClick(source)}
-          >
-            {getSourceIcon(source)}
-            {source}
-          </Badge>
-        ))}
+      <div className="flex flex-col gap-2 mb-4">
+        <div className="flex flex-wrap gap-2">
+          <span className="text-sm font-medium text-gray-500 mr-1">Data Sources:</span>
+          {sortedSources.map((source, index) => (
+            <Badge 
+              key={index} 
+              variant="outline" 
+              className={`flex items-center cursor-pointer ${getSourceColorClass(source)}`}
+              onClick={() => handleSourceClick(source)}
+            >
+              {getSourceIcon(source)}
+              {source}
+            </Badge>
+          ))}
+        </div>
+        
+        {isFromDatabase && (
+          <Alert className="bg-gray-50 border-gray-200 mt-2">
+            <InfoIcon className="h-4 w-4 text-gray-600" />
+            <AlertDescription className="text-gray-700">
+              <strong>Data Source:</strong> VitaCheck Safety Database (used as fallback; no current external sources found)
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {isFromCache && (
+          <Alert className="bg-gray-50 border-gray-200 mt-2">
+            <InfoIcon className="h-4 w-4 text-gray-600" />
+            <AlertDescription className="text-gray-700">
+              <strong>Data Source:</strong> Session cache (used as fallback; external APIs and database queries failed)
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
       
       <SourceDetailsModal 
