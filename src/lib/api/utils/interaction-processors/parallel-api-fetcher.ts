@@ -35,9 +35,6 @@ export async function fetchAllApiData(
     med1Status.source === 'RxNorm' && med2Status.source === 'RxNorm' && med1Status.id && med2Status.id
       ? checkRxNormInteractions(med1Status.id, med2Status.id, med1, med2).catch(err => {
           console.error(`[API Fetcher] RxNorm API error: ${err.message}`);
-          if (err.message?.includes('404') || err.status === 404) {
-            console.warn('[VitaCheck API] Skipped RxNorm query due to Netlify function error (404). Retrying or fallback may be needed.');
-          }
           queryTimestamps.rxnorm_error = Date.now();
           return null;
         }).then(result => {
@@ -49,9 +46,6 @@ export async function fetchAllApiData(
     // SUPP.AI check with error handling
     checkSuppAiInteractions(med1, med2).catch(err => {
       console.error(`[API Fetcher] SUPP.AI API error: ${err.message}`);
-      if (err.message?.includes('404') || err.status === 404) {
-        console.warn('[VitaCheck API] Skipped SUPP.AI query due to API error (404). Retrying or fallback may be needed.');
-      }
       queryTimestamps.suppai_error = Date.now();
       return null;
     }).then(result => {
@@ -62,9 +56,6 @@ export async function fetchAllApiData(
     // FDA check with error handling - fixed to use Promise.resolve() to ensure we have a Promise
     Promise.resolve(checkFDAInteractions(med1Status.warnings || [], med2Status.warnings || [])).catch(err => {
       console.error(`[API Fetcher] FDA API error: ${err.message}`);
-      if (err.message?.includes('404') || err.status === 404) {
-        console.warn('[VitaCheck API] Skipped FDA query due to API error (404). Retrying or fallback may be needed.');
-      }
       queryTimestamps.fda_error = Date.now();
       return null;
     }).then(result => {
@@ -75,9 +66,6 @@ export async function fetchAllApiData(
     // OpenFDA Adverse Events check with error handling
     getAdverseEvents(med1, med2).catch(err => {
       console.error(`[API Fetcher] OpenFDA Adverse Events API error: ${err.message}`);
-      if (err.message?.includes('404') || err.status === 404) {
-        console.warn('[VitaCheck API] Skipped OpenFDA Adverse Events query due to API error (404). Retrying or fallback may be needed.');
-      }
       queryTimestamps.openfda_error = Date.now();
       return null;
     }).then(result => {
@@ -89,9 +77,6 @@ export async function fetchAllApiData(
   // AI Analysis is run separately to ensure it doesn't delay API results
   const aiAnalysisPromise = queryAiLiteratureAnalysis(med1, med2).catch(err => {
     console.error(`[API Fetcher] AI Literature Analysis error: ${err.message}`);
-    if (err.message?.includes('404') || err.status === 404) {
-      console.warn('[VitaCheck API] Skipped AI Literature Analysis due to API error (404). Retrying or fallback may be needed.');
-    }
     queryTimestamps.ai_literature_error = Date.now();
     return null;
   }).then(result => {
