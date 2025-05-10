@@ -68,6 +68,12 @@ export function calculateRiskScore(input: RiskAssessmentInput): RiskAssessmentOu
     contributingFactors.push('SUPP.AI identified interaction');
   }
   
+  // Process RxNorm data
+  if (input.rxnorm?.signal) {
+    baseScore += 12; // Higher weight for RxNorm as it's a reliable source
+    contributingFactors.push('RxNorm database identified interaction');
+  }
+  
   // Process mechanism plausibility
   if (input.mechanism?.plausible) {
     baseScore += 8;

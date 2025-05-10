@@ -49,6 +49,9 @@ export async function analyzeInteractionRisk(interaction: InteractionResult): Pr
     suppAI: { 
       signal: interaction.sources.some(s => s.name.includes("SUPP.AI") && s.severity !== "safe") 
     },
+    rxnorm: {
+      signal: interaction.sources.some(s => s.name === "RxNorm" && s.severity !== "safe")
+    },
     mechanism: { 
       plausible: interaction.sources.some(s => s.name.includes("Mechanism") && s.severity !== "safe") 
     },

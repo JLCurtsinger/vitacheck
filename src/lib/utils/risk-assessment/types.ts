@@ -22,6 +22,9 @@ export interface RiskAssessmentInput {
   peerReports?: { 
     signal: boolean;
   };
+  rxnorm?: {
+    signal: boolean;
+  };
 }
 
 export interface RiskAdjustment {
