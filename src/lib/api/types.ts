@@ -7,9 +7,11 @@ export interface MedicationLookupResult {
   id?: string;
   name: string;
   normalizedName: string;
-  source: 'RxNorm' | 'SUPP.AI' | 'Manual' | 'Unknown';
-  status: 'active' | 'inactive' | 'unknown';
+  source: 'RxNorm' | 'SUPP.AI' | 'Manual' | 'Unknown' | 'FDA';
+  status: 'active' | 'inactive' | 'unknown' | 'found' | 'not_found' | 'pending';
   warnings?: string[];
+  fallback?: boolean;
+  fallbackType?: string;
 }
 
 export interface InteractionSource {
@@ -35,6 +37,8 @@ export interface InteractionSource {
   date?: string;
   processed?: boolean;
   tags?: string[];
+  hasDirectEvidence?: boolean;
+  hasInsight?: boolean;
 }
 
 export interface AdverseEventData {
@@ -55,6 +59,15 @@ export interface StandardizedApiResponse {
   sources: InteractionSource[];
   confidenceScore?: number;
   aiValidated?: boolean;
+
+  // Add properties that were missing but referenced in the code
+  source?: string;
+  confidence?: number;
+  rawData?: any;
+  processed?: boolean;
+  eventData?: any;
+  fallbackMode?: boolean;
+  fallbackReason?: string;
 }
 
 export interface CombinationResult {

@@ -7,75 +7,65 @@ import { AlertTriangle, CheckCircle, HelpCircle, XCircle, Info } from "lucide-re
 import { getSeverityIcon, getSeverityIconColor } from "./utils";
 
 interface SeverityConfidenceSectionProps {
-  data: InteractionSource[];
-  clinicianView?: boolean;
+  source: InteractionSource;
 }
 
-export function SeverityConfidenceSection({ data, clinicianView = false }: SeverityConfidenceSectionProps) {
-  const renderSeverityIcon = (severity: string) => {
-    const iconName = getSeverityIcon(severity);
-    const colorClass = getSeverityIconColor(severity);
+export function SeverityConfidenceSection({ source }: SeverityConfidenceSectionProps) {
+  // Get severity icon and text
+  const SeverityIcon = getSeverityIcon(source.severity);
+  const severityColor = getSeverityIconColor(source.severity);
+  
+  // Format date if available
+  const dateString = source.timestamp ? 
+    new Date(source.timestamp).toLocaleDateString() : 
+    source.date || 'Unknown';
     
-    switch (iconName) {
-      case "XCircle":
-        return <XCircle className={`h-4 w-4 ${colorClass}`} />;
-      case "AlertTriangle":
-        return <AlertTriangle className={`h-4 w-4 ${colorClass}`} />;
-      case "HelpCircle":
-        return <HelpCircle className={`h-4 w-4 ${colorClass}`} />;
-      case "CheckCircle":
-        return <CheckCircle className={`h-4 w-4 ${colorClass}`} />;
-      default:
-        return <HelpCircle className={`h-4 w-4 ${colorClass}`} />;
-    }
-  };
-
-  // Extract date information from data if available
-  const getSourceDate = (item: InteractionSource) => {
-    if (item.timestamp) {
-      return new Date(item.timestamp).toLocaleDateString();
-    }
-    if (item.date) {
-      return item.date;
-    }
-    return "Not specified";
-  };
-
+  // Format confidence as percentage if available
+  const confidenceDisplay = source.confidence ? 
+    `${Math.round(source.confidence)}%` : 
+    'Unknown';
+  
   return (
-    <div className="rounded-md border mb-4">
-      <div className="p-3 bg-gray-50 border-b flex items-center">
-        <Info className="h-4 w-4 text-gray-500 mr-2" />
-        <span className="font-medium text-sm">Source Assessment</span>
-      </div>
+    <div className="space-y-4">
+      <h3 className="font-medium text-gray-700">Severity & Confidence Assessment</h3>
+      
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Severity</TableHead>
-            <TableHead>Confidence</TableHead>
-            <TableHead>Retrieved</TableHead>
+            <TableHead className="w-1/3">Metric</TableHead>
+            <TableHead>Value</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map((item, idx) => (
-            <TableRow key={idx}>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  {renderSeverityIcon(item.severity)}
-                  <span className="capitalize">{item.severity}</span>
-                </div>
-              </TableCell>
-              <TableCell>
-                {item.confidence !== undefined ? (
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                    {item.confidence}%
+          <TableRow>
+            <TableCell className="font-medium">Severity Rating</TableCell>
+            <TableCell>
+              <div className="flex items-center space-x-2">
+                <SeverityIcon className={`h-4 w-4 ${severityColor}`} />
+                <span className="capitalize">{source.severity}</span>
+              </div>
+            </TableCell>
+          </TableRow>
+          
+          <TableRow>
+            <TableCell className="font-medium">Confidence Level</TableCell>
+            <TableCell>
+              <div className="flex items-center space-x-2">
+                {confidenceDisplay !== 'Unknown' ? (
+                  <Badge variant={parseInt(confidenceDisplay) > 70 ? "success" : parseInt(confidenceDisplay) > 40 ? "warning" : "outline"}>
+                    {confidenceDisplay}
                   </Badge>
-                ) : "N/A"}
-              </TableCell>
-              <TableCell className="text-xs text-gray-600">
-                {getSourceDate(item)}
-              </TableCell>
-            </TableRow>
-          ))}
+                ) : (
+                  <span className="text-gray-500 italic">Not available</span>
+                )}
+              </div>
+            </TableCell>
+          </TableRow>
+          
+          <TableRow>
+            <TableCell className="font-medium">Last Updated</TableCell>
+            <TableCell className="text-sm text-gray-600">{dateString}</TableCell>
+          </TableRow>
         </TableBody>
       </Table>
     </div>

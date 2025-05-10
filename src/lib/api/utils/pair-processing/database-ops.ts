@@ -69,7 +69,8 @@ export async function getInteractionFromDatabase(
 ): Promise<InteractionResult | null> {
   try {
     // Find the interaction in the database
-    const dbInteraction = await findOrCreateInteractionByNames(med1, med2, false);
+    // Fixed: Removed the extra boolean argument here
+    const dbInteraction = await findOrCreateInteractionByNames(med1, med2);
     
     if (!dbInteraction) {
       return null;
