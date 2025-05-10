@@ -37,26 +37,30 @@ export async function lookupRxNormMedication(name: string): Promise<MedicationLo
     // Make sure we handle potential null response
     const response = await getRxCUI(name);
     
-    // Properly check if response exists and has the expected structure
-    if (response && 
-        typeof response === 'object' && 
-        response.data && 
-        response.data.idGroup && 
-        response.data.idGroup.rxnormId && 
-        response.data.idGroup.rxnormId.length > 0) {
-      
-      const rxcui = response.data.idGroup.rxnormId[0];
-      
-      return {
-        name,
-        status: 'active',
-        source: 'RxNorm',
-        id: rxcui,
-        warnings: []
-      };
-    } else {
-      return createNotFoundMedicationLookup(name);
+    // Only proceed if response exists
+    if (response) {
+      // Properly check if response exists and has the expected structure
+      if (typeof response === 'object' && 
+          response.data && 
+          response.data.idGroup && 
+          response.data.idGroup.rxnormId && 
+          response.data.idGroup.rxnormId.length > 0) {
+        
+        const rxcui = response.data.idGroup.rxnormId[0];
+        
+        return {
+          name,
+          status: 'active',
+          source: 'RxNorm',
+          id: rxcui,
+          warnings: []
+        };
+      }
     }
+    
+    // If we get here, either response is null or doesn't have the expected structure
+    return createNotFoundMedicationLookup(name);
+    
   } catch (error) {
     console.error('Error looking up RxNorm medication:', error);
     return createNotFoundMedicationLookup(name);
