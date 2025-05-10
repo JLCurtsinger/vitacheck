@@ -1,8 +1,4 @@
 
-import { MedicationLookupResult } from '../types';
-import { getRxCUI } from '../rxnorm';
-import { getFDAWarnings } from '../fda';
-
 /**
  * Creates a default MedicationLookupResult object
  */
@@ -34,10 +30,17 @@ export function createNotFoundMedicationLookup(name: string): MedicationLookupRe
  */
 export async function lookupRxNormMedication(name: string): Promise<MedicationLookupResult> {
   try {
+    // Make sure we handle potential null response
     const response = await getRxCUI(name);
     
-    // Add null check for response
-    if (response && typeof response === 'object' && response.data?.idGroup?.rxnormId?.length > 0) {
+    // Properly check if response exists and has the expected structure
+    if (response && 
+        typeof response === 'object' && 
+        response.data && 
+        response.data.idGroup && 
+        response.data.idGroup.rxnormId && 
+        response.data.idGroup.rxnormId.length > 0) {
+      
       const rxcui = response.data.idGroup.rxnormId[0];
       
       return {
