@@ -1,80 +1,136 @@
 
-import { InteractionSource, AdverseEventData } from '../../types';
-import { logSourceSeverityIssues } from '../debug-logger';
+/**
+ * Adverse Events Processor
+ * 
+ * This module processes adverse event data from FDA databases
+ * into standardized formats for decision making.
+ */
+
+import { InteractionSource, AdverseEventData, StandardizedApiResponse } from '../../types';
 import { validateStandardizedResponse, standardizedResponseToSource } from '../api-response-standardizer';
-import { processAdverseEventsSource } from '../adverse-events-processor';
+import { logSourceSeverityIssues } from '../debug-logger';
 
 /**
- * Processes and adds adverse events data to the sources array
+ * Processes and adds FDA adverse event sources to the sources array
  */
 export function processAdverseEventsSources(
-  adverseEventsResult: AdverseEventData | null,
+  adverseEvents: AdverseEventData | null,
   sources: InteractionSource[]
 ): void {
-  // Skip processing if no adverse events data
-  if (!adverseEventsResult) {
-    console.log('No adverse events data to process');
-    return;
-  }
-  
-  console.log(`Processing adverse events data with ${adverseEventsResult.eventCount || 0} events`);
-  
-  try {
-    // Add adverse events as a source if found - always high confidence as it's real-world data
-    const adverseEventSource = processAdverseEventsSource(adverseEventsResult);
-    if (adverseEventSource) {
-      // Add debug log before pushing
-      logSourceSeverityIssues(adverseEventSource, 'Before push - OpenFDA Events');
-      
-      // Create proper event data structure for the source
-      const eventData = {
-        totalEvents: adverseEventsResult.eventCount || 0,
-        seriousEvents: adverseEventsResult.seriousCount || 0,
-        nonSeriousEvents: (adverseEventsResult.eventCount || 0) - (adverseEventsResult.seriousCount || 0),
-        commonReactions: adverseEventsResult.commonReactions || []
-      };
-      
-      // Validate and standardize before pushing - using proper structure to match StandardizedApiResponse
-      const standardizedResponse = validateStandardizedResponse({
-        sources: [adverseEventSource], // Fix: Use array of InteractionSource instead of strings
-        severity: adverseEventSource.severity,
-        description: adverseEventSource.description,
-        confidence: adverseEventSource.confidence,
-        rawData: {},
-        processed: false,
-        eventData
-      });
-      
-      // Convert standardized response to InteractionSource and push
-      const validatedSource = standardizedResponseToSource(standardizedResponse);
-      
-      // Ensure validatedSource has a severity
-      if (!validatedSource.severity) {
-        console.warn('Adverse event source missing severity, setting to unknown');
-        validatedSource.severity = 'unknown';
-      }
-      
-      sources.push(validatedSource);
-      
-      // Log the event data to help with debugging
-      console.log('OpenFDA Event Data added to source:', eventData);
-    } else {
-      console.log('No adverse event source created despite having event data');
-    }
-  } catch (error) {
-    console.error('Error processing adverse events data:', error);
-    // Create a fallback source for adverse events if processing fails
-    sources.push({
+  if (!adverseEvents) return;
+
+  // Only create a source if we have a meaningful number of events
+  if (adverseEvents.eventCount > 5) {
+    // Calculate severity based on seriousness ratio
+    const severity = determineAdverseEventSeverity(adverseEvents);
+    
+    // Generate description based on event counts
+    const description = generateAdverseEventDescription(adverseEvents);
+    
+    // Create the source object for adverse events
+    const source: InteractionSource = {
       name: "OpenFDA Adverse Events",
-      severity: "unknown",
-      description: "Adverse events data available but could not be processed",
-      confidence: 50,
+      severity,
+      description,
+      confidence: determineConfidenceScore(adverseEvents),
       eventData: {
-        totalEvents: adverseEventsResult.eventCount || 0,
-        seriousEvents: adverseEventsResult.seriousCount || 0,
-        nonSeriousEvents: (adverseEventsResult.eventCount || 0) - (adverseEventsResult.seriousCount || 0),
-        commonReactions: adverseEventsResult.commonReactions || []
+        totalEvents: adverseEvents.eventCount,
+        seriousEvents: adverseEvents.seriousCount,
+        nonSeriousEvents: adverseEvents.eventCount - adverseEvents.seriousCount,
+        commonReactions: adverseEvents.commonReactions
       }
+    };
+    
+    // Add debug log before pushing
+    logSourceSeverityIssues(source, 'Before push - OpenFDA Adverse Events');
+    
+    // Validate and standardize the source before pushing
+    const standardizedSourceArray: InteractionSource[] = [source];
+    const standardizedResponse = validateStandardizedResponse({
+      sources: standardizedSourceArray,
+      severity: source.severity,
+      description: source.description,
+      confidence: source.confidence,
+      eventData: source.eventData,
+      rawData: {},
+      processed: false
     });
+    
+    // Convert standardized response to InteractionSource and push
+    const validatedSource = standardizedResponseToSource(standardizedResponse);
+    sources.push(validatedSource);
   }
+}
+
+/**
+ * Determines severity level based on adverse event data
+ */
+function determineAdverseEventSeverity(
+  adverseEvents: AdverseEventData
+): "safe" | "minor" | "moderate" | "severe" | "unknown" {
+  // Calculate percentage of serious events
+  const totalEvents = adverseEvents.eventCount || 0;
+  const seriousEvents = adverseEvents.seriousCount || 0;
+  
+  if (totalEvents === 0) return "unknown";
+  
+  const seriousPercentage = (seriousEvents / totalEvents) * 100;
+  
+  // Determine severity based on serious percentage and absolute counts
+  if (seriousPercentage > 30 || seriousEvents > 50) {
+    return "severe";
+  } else if (seriousPercentage > 15 || seriousEvents > 20) {
+    return "moderate";
+  } else if (totalEvents > 10) {
+    return "minor";
+  } else {
+    return "unknown"; // Too few events to make a judgment
+  }
+}
+
+/**
+ * Generates a description summarizing adverse event data
+ */
+function generateAdverseEventDescription(
+  adverseEvents: AdverseEventData
+): string {
+  const { eventCount, seriousCount, commonReactions = [] } = adverseEvents;
+  
+  // Basic stats
+  const totalEvents = eventCount || 0;
+  const seriousEvents = seriousCount || 0;
+  const nonSeriousEvents = totalEvents - seriousEvents;
+  
+  // Format percentages for readability
+  const seriousPercent = totalEvents > 0 ? Math.round((seriousEvents / totalEvents) * 100) : 0;
+  
+  // Build description
+  let description = `FDA Adverse Event Reporting System (FAERS) shows ${totalEvents} reported adverse events when these substances are taken together. `;
+  
+  if (seriousEvents > 0) {
+    description += `${seriousEvents} (${seriousPercent}%) were classified as serious medical events. `;
+  }
+  
+  // Add information about common reactions if available
+  if (commonReactions.length > 0) {
+    const reactionsToShow = commonReactions.slice(0, 3);
+    description += `Common reported reactions include: ${reactionsToShow.join(', ')}.`;
+  }
+  
+  return description;
+}
+
+/**
+ * Calculates confidence score based on event quantity and quality
+ */
+function determineConfidenceScore(
+  adverseEvents: AdverseEventData
+): number {
+  const { eventCount = 0 } = adverseEvents;
+  
+  // Base confidence on number of events, with diminishing returns
+  // This creates a curve from 0.3 to 0.8 based on event count
+  let confidence = 0.3 + Math.min(0.5, Math.log10(eventCount + 1) / 3);
+  
+  return Math.round(confidence * 100) / 100; // Round to 2 decimal places
 }

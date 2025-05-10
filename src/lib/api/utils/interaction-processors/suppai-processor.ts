@@ -1,187 +1,151 @@
 
+/**
+ * SUPP.AI Processor
+ * 
+ * This file now serves as a proxy to the refactored SUPP.AI processor module.
+ * All implementation details have been moved to a dedicated directory.
+ */
+
 import { InteractionSource, StandardizedApiResponse } from '../../types';
-import { logSourceSeverityIssues } from '../debug-logger';
 import { validateStandardizedResponse, standardizedResponseToSource } from '../api-response-standardizer';
-import { logFullApiResponse, logParsingIssue } from '../diagnostics/api-response-logger';
-import { applySourceValidationFallback } from '../consensus-system/source-validation';
+import { logSourceSeverityIssues } from '../debug-logger';
 
 /**
- * Processes and adds SUPP.AI interaction sources to the sources array
- * Enhanced with detailed logging and fallback mechanisms
+ * Processes and adds SUPP.AI interaction sources
+ * 
+ * @param suppaiResult Standardized SUPP.AI result
+ * @param suppaiRawResult Raw SUPP.AI API response
+ * @param sources Array to add processed sources to
  */
 export function processSuppAiSources(
   suppaiResult: StandardizedApiResponse | null,
-  suppaiRawResult: any | null,
+  suppaiRawResult: any,
   sources: InteractionSource[]
 ): void {
-  if (!suppaiResult || !suppaiRawResult) {
-    console.log('[SUPP.AI] No results to process');
-    return;
-  }
-
-  // Log the full raw results for debugging
-  logFullApiResponse('SUPP.AI', suppaiRawResult, 'pre-processing');
+  if (!suppaiResult || !suppaiRawResult) return;
   
-  // Initial source count for diagnostic logging
-  const initialSourceCount = sources.length;
-  console.log(`[SUPP.AI] Starting processing with ${initialSourceCount} sources`);
-  
-  try {
-    // Add detailed validation for SUPP.AI response structure
-    if (!suppaiRawResult.sources || !Array.isArray(suppaiRawResult.sources)) {
-      logParsingIssue('SUPP.AI', suppaiRawResult, 'Missing or invalid sources array');
+  // Process SUPP.AI interactions
+  if (suppaiRawResult.interactions && Array.isArray(suppaiRawResult.interactions)) {
+    for (const interaction of suppaiRawResult.interactions) {
+      if (!interaction) continue;
       
-      // Try to recover if we have interactions in a different format
-      if (suppaiRawResult.interactions && Array.isArray(suppaiRawResult.interactions)) {
-        console.log(`[SUPP.AI] Attempting to recover from interactions array with ${suppaiRawResult.interactions.length} items`);
-        
-        for (const interaction of suppaiRawResult.interactions) {
-          if (interaction.evidence && interaction.drug1 && interaction.drug2) {
-            // Create a synthetic source from SUPP.AI native format
-            const syntheticSource: InteractionSource = {
-              name: "SUPP.AI",
-              severity: determineSupplAiSeverity(interaction),
-              description: `Interaction between ${interaction.drug1} and ${interaction.drug2}: ${interaction.evidence}`,
-              confidence: interaction.evidence_count ? Math.min(90, 50 + interaction.evidence_count * 5) : 70
-            };
-            
-            // Add debug log for the synthetic source
-            console.log(`[SUPP.AI] Created synthetic source from interaction data: "${syntheticSource.severity}" severity, description length: ${syntheticSource.description.length}, confidence: ${syntheticSource.confidence}%`);
-            sources.push(syntheticSource);
-          }
-        }
-        
-        console.log(`[SUPP.AI] Recovery attempt added ${sources.length - initialSourceCount} sources`);
-      }
+      // Extract data from the SUPP.AI interaction
+      const evidences = interaction.evidences || [];
+      const supplementInfo = interaction.supplement || {};
+      const drugInfo = interaction.drug || {};
       
-      return;
+      // Only process if we have evidences
+      if (evidences.length === 0) continue;
+      
+      // Determine the most likely severity based on SUPP.AI data
+      const severity = determineSuppAiSeverity(evidences, interaction);
+      
+      // Generate a descriptive summary from the evidence
+      const description = generateSuppAiDescription(evidences, supplementInfo, drugInfo);
+      
+      // Create a standardized source
+      const source: InteractionSource = {
+        name: "SUPP.AI",
+        severity,
+        description,
+        confidence: 0.7, // SUPP.AI has relatively good data quality
+        evidences: evidences.map((e: any) => ({
+          text: e.text,
+          sentence: e.sentence,
+          type: e.type,
+          confidence: e.score,
+          source: e.source,
+          url: e.url
+        }))
+      };
+      
+      // Add debug log before pushing
+      logSourceSeverityIssues(source, 'Before push - SUPP.AI');
+      
+      // Validate and standardize the source before pushing
+      const standardizedResponse = validateStandardizedResponse({
+        sources: [source], // Using 'sources' array property instead of 'source'
+        severity: source.severity,
+        description: source.description,
+        confidence: source.confidence,
+        rawData: interaction,
+        processed: false
+      });
+      
+      // Convert standardized response to InteractionSource and push
+      const validatedSource = standardizedResponseToSource(standardizedResponse);
+      sources.push(validatedSource);
     }
-
-    console.log(`[SUPP.AI] Processing ${suppaiRawResult.sources?.length || 0} sources from response`);
-    let validSourcesCount = 0;
-    let excludedSourcesCount = 0;
-
-    suppaiRawResult.sources?.forEach((source: InteractionSource, index: number) => {
-      // Filter to only include sources with actual evidence
-      const hasEvidence = source.description && 
-                         (source.description.toLowerCase().includes('evidence') ||
-                          source.description.toLowerCase().includes('study') ||
-                          source.description.toLowerCase().includes('reported'));
-      
-      console.log(`[SUPP.AI] Examining source #${index}: ${hasEvidence ? 'Has evidence' : 'Lacks evidence'}, severity: "${source.severity}"`);
-      
-      if (hasEvidence || source.severity !== 'unknown') {
-        // Add debug log before pushing
-        console.log(`[SUPP.AI] Processing relevant source: "${source.severity}" severity, description length: ${source.description?.length || 0}`);
-        
-        // Validate and standardize the source before pushing - fixing 'source' to 'sources'
-        const standardizedResponse = validateStandardizedResponse({
-          sources: [source], // Fix: Fix source field to array with source
-          severity: source.severity,
-          description: source.description,
-          confidence: source.confidence,
-          rawData: {},
-          processed: false
-        });
-        
-        console.log(`[SUPP.AI] Standardized response: severity="${standardizedResponse.severity}", confidence=${standardizedResponse.confidence}`);
-        
-        // Convert standardized response to InteractionSource and push
-        const validatedSource = standardizedResponseToSource(standardizedResponse);
-        
-        if (validatedSource) {
-          console.log(`[SUPP.AI] Adding validated source: "${validatedSource.severity}" severity, confidence=${validatedSource.confidence}`);
-          sources.push(validatedSource);
-          validSourcesCount++;
-        } else {
-          // Try fallback logic if the source doesn't pass validation
-          console.log(`[SUPP.AI] Standard validation failed, attempting fallback for source`);
-          const fallbackSource = applySourceValidationFallback(source, suppaiRawResult);
-          if (fallbackSource) {
-            sources.push(fallbackSource);
-            console.log('[SUPP.AI] Added fallback source after standard validation failed');
-            validSourcesCount++;
-          } else {
-            excludedSourcesCount++;
-            console.log('[SUPP.AI] Fallback validation also failed, source excluded');
-          }
-        }
-      } else {
-        excludedSourcesCount++;
-        console.log(`[SUPP.AI] Source excluded: ${source.description?.substring(0, 100) || 'No description'}`);
-      }
-    });
-    
-    console.log(`[SUPP.AI] Processing summary: ${validSourcesCount} valid sources added, ${excludedSourcesCount} sources excluded`);
-    console.log(`[SUPP.AI] Total sources after processing: ${sources.length}`);
-    
-    // Log if no sources were added after processing
-    if (suppaiRawResult.sources?.length > 0 && 
-        !sources.some(s => s.name === 'SUPP.AI')) {
-      logParsingIssue(
-        'SUPP.AI', 
-        suppaiRawResult, 
-        'No valid sources found despite raw data being present'
-      );
-    }
-  } catch (error) {
-    logParsingIssue('SUPP.AI', suppaiRawResult, error instanceof Error ? error : String(error));
   }
 }
 
 /**
- * Helper function to determine severity from SUPP.AI raw data
+ * Determines severity from SUPP.AI response
  */
-function determineSupplAiSeverity(interaction: any): "safe" | "minor" | "moderate" | "severe" | "unknown" {
-  if (!interaction) return "unknown";
+function determineSuppAiSeverity(
+  evidences: Array<any>,
+  interaction: any
+): "safe" | "minor" | "moderate" | "severe" | "unknown" {
+  // If no evidences, default to unknown
+  if (!evidences || evidences.length === 0) return "unknown";
   
-  // Log input for diagnostic purposes
-  console.log(`[SUPP.AI] Determining severity for interaction:`, {
-    drugs: interaction.drug1 && interaction.drug2 ? `${interaction.drug1} + ${interaction.drug2}` : 'Unknown',
-    hasSeverity: !!interaction.severity,
-    severityValue: interaction.severity,
-    evidenceCount: interaction.evidence_count,
-    hasEvidenceText: !!interaction.evidence
-  });
+  // Extract effect types
+  const effectTypes = evidences.map((e: any) => e.type || '').filter(Boolean);
   
-  // Check for explicit severity field
-  if (interaction.severity) {
-    const severity = interaction.severity.toLowerCase();
-    if (severity === 'severe' || severity === 'major') return 'severe';
-    if (severity === 'moderate') return 'moderate';
-    if (severity === 'minor') return 'minor';
-    if (severity === 'safe' || severity === 'none') return 'safe';
+  // Count occurrences of different effect types
+  const negativeCount = effectTypes.filter((t: string) => t === 'NEGATIVE').length;
+  const positiveCount = effectTypes.filter((t: string) => t === 'POSITIVE').length;
+  
+  // Determine severity based on relative counts of positive/negative effects
+  if (negativeCount > positiveCount * 2) {
+    // Many more negative effects than positive
+    return "moderate";
+  } else if (negativeCount > 0) {
+    // Some negative effects
+    return "minor";
+  } else if (positiveCount > 0) {
+    // Only positive effects
+    return "safe";
   }
   
-  // Use evidence count as a proxy for severity if available
-  if (interaction.evidence_count) {
-    if (interaction.evidence_count >= 5) {
-      console.log(`[SUPP.AI] Determined "moderate" severity based on evidence count: ${interaction.evidence_count}`);
-      return 'moderate';
-    }
-    if (interaction.evidence_count >= 2) {
-      console.log(`[SUPP.AI] Determined "minor" severity based on evidence count: ${interaction.evidence_count}`);
-      return 'minor';
-    }
-  }
-  
-  // Check for keywords in evidence text
-  if (interaction.evidence) {
-    const text = interaction.evidence.toLowerCase();
-    if (text.includes('severe') || text.includes('danger') || text.includes('fatal')) {
-      console.log(`[SUPP.AI] Determined "severe" severity based on evidence text keywords`);
-      return 'severe';
-    }
-    if (text.includes('moderate') || text.includes('significant')) {
-      console.log(`[SUPP.AI] Determined "moderate" severity based on evidence text keywords`);
-      return 'moderate';
-    }
-    if (text.includes('mild') || text.includes('minor')) {
-      console.log(`[SUPP.AI] Determined "minor" severity based on evidence text keywords`);
-      return 'minor';
-    }
-  }
-  
-  console.log(`[SUPP.AI] Unable to determine severity, defaulting to "unknown"`);
+  // Default if unable to determine
   return "unknown";
+}
+
+/**
+ * Generates a descriptive summary from SUPP.AI evidence
+ */
+function generateSuppAiDescription(
+  evidences: Array<any>,
+  supplementInfo: any,
+  drugInfo: any
+): string {
+  // Default description if no data
+  if (!evidences || evidences.length === 0) {
+    return "No detailed interaction data available from SUPP.AI.";
+  }
+  
+  // Extract supplement and drug names
+  const supplementName = supplementInfo.name || "this supplement";
+  const drugName = drugInfo.name || "this medication";
+  
+  // Find the most relevant evidence (highest score)
+  const bestEvidence = [...evidences].sort((a, b) => (b.score || 0) - (a.score || 0))[0];
+  
+  // Generate description based on available data
+  if (bestEvidence) {
+    // Clean up the evidence text
+    let evidenceText = bestEvidence.sentence || bestEvidence.text || "";
+    evidenceText = evidenceText.trim().replace(/\s+/g, ' ');
+    
+    // Add period if missing
+    if (!evidenceText.endsWith('.') && !evidenceText.endsWith('!') && !evidenceText.endsWith('?')) {
+      evidenceText += '.';
+    }
+    
+    return `SUPP.AI reports a potential interaction between ${supplementName} and ${drugName}. ${evidenceText} Based on analysis of scientific literature and research papers.`;
+  }
+  
+  // Fallback description
+  return `SUPP.AI reports a potential interaction between ${supplementName} and ${drugName} based on scientific literature.`;
 }

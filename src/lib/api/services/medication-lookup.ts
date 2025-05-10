@@ -1,96 +1,105 @@
 
-import { getRxCUI } from '../rxnorm';
-import { getSupplementInteractions } from '../suppai';
-import { getFDAWarnings } from '../fda';
 import { MedicationLookupResult } from '../types';
-import { prepareMedicationNameForApi } from '@/utils/medication-formatter';
+import { getRxCUI } from '../rxnorm';
+import { getFDAWarnings } from '../fda';
 
-export async function lookupMedication(medication: string): Promise<MedicationLookupResult> {
-  console.log(`🔍 [Medication Lookup] Starting lookup for: ${medication}`);
-  
-  // Create a result object to collect data from all sources
-  const result: MedicationLookupResult = { 
-    name: medication,
-    source: 'Unknown', // Fix: Changed from empty string to 'Unknown'
-    status: 'not_found'
+/**
+ * Creates a default MedicationLookupResult object
+ */
+export function createDefaultMedicationLookup(name: string): MedicationLookupResult {
+  return {
+    name,
+    status: 'unknown',
+    source: 'Unknown',
+    id: null,
+    rxcui: null,
+    warnings: []
   };
-  
-  // Format medication name for API calls
-  const formattedMedication = prepareMedicationNameForApi(medication);
-  
-  // Check RxNorm with enhanced fallback system
+}
+
+/**
+ * Creates a not found MedicationLookupResult object
+ */
+export function createNotFoundMedicationLookup(name: string): MedicationLookupResult {
+  return {
+    name,
+    status: 'inactive',
+    source: 'Unknown',
+    id: null,
+    rxcui: null,
+    warnings: []
+  };
+}
+
+/**
+ * Looks up a medication in RxNorm
+ */
+export async function lookupRxNormMedication(name: string): Promise<MedicationLookupResult> {
   try {
-    console.log(`⚙️ [Medication Lookup] Checking RxNorm for: ${formattedMedication}`);
-    const rxCUI = await getRxCUI(formattedMedication);
-    if (rxCUI) {
-      result.status = 'found';
-      result.source = 'RxNorm';
-      result.id = rxCUI;
-      console.log(`✅ [Medication Lookup] Found in RxNorm: ${medication} (${rxCUI})`);
+    const response = await getRxCUI(name);
+    
+    if (response?.data?.idGroup?.rxnormId?.length > 0) {
+      const rxcui = response.data.idGroup.rxnormId[0];
       
-      // Track if this was from a fallback mechanism
-      if (rxCUI.startsWith('C') && !rxCUI.match(/^\d+$/)) {
-        // CUI format (from SUPP.AI) rather than RxCUI format
-        result.fallback = true;
-        result.fallbackType = 'suppai';
-        console.log(`⚠️ [Medication Lookup] Using fallback identifier from SUPP.AI: ${rxCUI}`);
-      }
+      return {
+        name,
+        status: 'active',
+        source: 'RxNorm',
+        id: rxcui,
+        rxcui,
+        warnings: []
+      };
     } else {
-      console.log(`⚠️ [Medication Lookup] Not found in RxNorm: ${medication}`);
+      return createNotFoundMedicationLookup(name);
     }
   } catch (error) {
-    console.error('❌ [Medication Lookup] RxNorm lookup failed:', error);
+    console.error('Error looking up RxNorm medication:', error);
+    return createNotFoundMedicationLookup(name);
   }
+}
 
-  // Check SUPP.AI - run regardless of RxNorm result
+/**
+ * Looks up FDA warnings for a medication
+ */
+export async function lookupFDAWarnings(medication: MedicationLookupResult): Promise<MedicationLookupResult> {
   try {
-    console.log(`⚙️ [Medication Lookup] Checking SUPP.AI for: ${formattedMedication}`);
-    const suppAiResult = await getSupplementInteractions(formattedMedication);
-    if (suppAiResult && suppAiResult.length > 0) {
-      result.status = 'found';
-      // Only override source if RxNorm didn't find anything
-      if (!result.source || result.source === 'Unknown') {
-        result.source = 'SUPP.AI';
-        console.log(`✅ [Medication Lookup] Found in SUPP.AI: ${medication}`);
-      }
-    } else {
-      console.log(`⚠️ [Medication Lookup] Not found in SUPP.AI: ${medication}`);
+    // Skip FDA lookup if we don't have a valid medication
+    if (medication.status === 'inactive') {
+      return medication;
     }
-  } catch (error) {
-    console.error('❌ [Medication Lookup] SUPP.AI lookup failed:', error);
-  }
-
-  // Check FDA - run regardless of previous results
-  try {
-    console.log(`⚙️ [Medication Lookup] Checking FDA for: ${formattedMedication}`);
-    const fdaResult = await getFDAWarnings(formattedMedication);
-    if (fdaResult && fdaResult.results && fdaResult.results.length > 0) {
-      result.status = 'found';
-      // Only override source if no previous source was set
-      if (!result.source || result.source === 'Unknown') {
-        result.source = 'FDA';
-        console.log(`✅ [Medication Lookup] Found in FDA: ${medication}`);
-      }
-      // Add FDA warnings to the result
-      result.warnings = fdaResult.results[0].drug_interactions || [];
+    
+    const fdaResponse = await getFDAWarnings(medication.name);
+    
+    if (fdaResponse?.results?.length > 0) {
+      // Extract warnings from FDA data
+      const warnings: string[] = [];
       
-      // Check if we can get an RxCUI from the FDA response if we don't already have one
-      if (!result.id && fdaResult.results[0].openfda?.rxcui?.[0]) {
-        result.id = fdaResult.results[0].openfda.rxcui[0];
-        result.fallback = true;
-        result.fallbackType = 'fda';
-        console.log(`✅ [Medication Lookup] Using RxCUI from FDA: ${result.id}`);
-      }
-    } else {
-      console.log(`⚠️ [Medication Lookup] Not found in FDA: ${medication}`);
+      fdaResponse.results.forEach(result => {
+        if (result.warnings) {
+          warnings.push(...result.warnings);
+        }
+        if (result.drug_interactions) {
+          warnings.push(...result.drug_interactions);
+        }
+      });
+      
+      return {
+        ...medication,
+        source: 'FDA',
+        warnings: warnings
+      };
     }
+    
+    return medication;
   } catch (error) {
-    console.error('❌ [Medication Lookup] FDA lookup failed:', error);
+    console.error('Error looking up FDA warnings:', error);
+    return medication;
   }
+}
 
-  // Set found property for backward compatibility
-  result.found = result.status === 'found';
-
-  console.log(`✅ [Medication Lookup] Final result for ${medication}:`, result);
-  return result;
+/**
+ * Checks if a medication lookup was successful
+ */
+export function isMedicationFound(lookup: MedicationLookupResult): boolean {
+  return lookup.status === 'active' && !!lookup.id;
 }
