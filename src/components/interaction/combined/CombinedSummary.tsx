@@ -1,6 +1,8 @@
 
 import { cn } from "@/lib/utils";
-import { AlertTriangle, FileText } from "lucide-react";
+import { AlertTriangle, FileText, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { containsMildLanguage } from "@/lib/utils/text-analysis";
 
 interface CombinedSummaryProps {
   description: string;
@@ -11,6 +13,9 @@ interface CombinedSummaryProps {
 export function CombinedSummary({ description, warnings, severity }: CombinedSummaryProps) {
   // Only show warnings for non-safe interactions
   const hasWarnings = warnings.length > 0 && severity !== "safe";
+  
+  // Check if there's a mismatch between severe rating and mild description
+  const showDisclaimer = severity === "severe" && containsMildLanguage(description);
   
   // Get appropriate styling based on severity
   const getSeverityClass = () => {
@@ -63,6 +68,21 @@ export function CombinedSummary({ description, warnings, severity }: CombinedSum
         {severity === "safe" && <FileText className="h-5 w-5" />}
         Combined Analysis
       </h3>
+      
+      {/* Severity disclaimer */}
+      {showDisclaimer && (
+        <Alert className="mb-4 bg-yellow-50 border-yellow-300">
+          <AlertCircle className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="text-yellow-800">
+            <strong className="font-medium">Why This Is Marked Severe</strong>
+            <p className="mt-1">
+              This combination is statistically classified as high risk (based on adverse event data), 
+              but most descriptions indicate mild effects. This warning reflects reported case severity, 
+              not necessarily the typical clinical experience. Use caution and consult a provider if unsure.
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
       
       <div className="space-y-3">
         <p className={getTextColorClass()}>
