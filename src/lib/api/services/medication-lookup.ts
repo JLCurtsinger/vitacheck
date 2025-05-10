@@ -94,3 +94,4 @@ export async function lookupMedication(medication: string): Promise<MedicationLo
   console.log(`✅ [Medication Lookup] Final result for ${medication}:`, result);
   return result;
 }
+
