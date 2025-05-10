@@ -1,3 +1,4 @@
+
 import { StandardizedApiResponse } from '../../../types';
 import { logApiResponseFormat, logStandardizedResponse } from '../../debug-logger';
 import { validateAndLogSchemaDiscrepancies } from './schema-validator';
@@ -101,14 +102,14 @@ export function standardizeAndLogApiResults(
  * Standardizes an API response into a consistent format with fallback support
  */
 function standardizeApiResponse(
-  source: string,
+  sourceName: string,
   rawData: any,
   description: string = "No description available",
   fallbackMode: boolean = false,
   fallbackReason: string = ""
 ): StandardizedApiResponse {
   return {
-    source,
+    sources: [{ name: sourceName, severity: "unknown", description }], // Fix: Use proper sources array
     severity: null, // Will be assigned by scoring or ML
     description,
     confidence: null,

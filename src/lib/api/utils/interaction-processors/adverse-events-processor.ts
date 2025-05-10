@@ -34,10 +34,14 @@ export function processAdverseEventsSources(
         commonReactions: adverseEventsResult.commonReactions || []
       };
       
-      // Validate and standardize before pushing
+      // Validate and standardize before pushing - using proper structure to match StandardizedApiResponse
       const standardizedResponse = validateStandardizedResponse({
-        ...adverseEventSource,
-        // For OpenFDA events, include the event data for confidence calculation
+        sources: [adverseEventSource], // Fix: Use array of InteractionSource instead of strings
+        severity: adverseEventSource.severity,
+        description: adverseEventSource.description,
+        confidence: adverseEventSource.confidence,
+        rawData: {},
+        processed: false,
         eventData
       });
       

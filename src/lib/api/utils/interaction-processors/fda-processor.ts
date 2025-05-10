@@ -24,10 +24,14 @@ export function processFdaSources(
       // Add debug log before pushing
       logSourceSeverityIssues(source, 'Before push - FDA');
       
-      // Validate and standardize the source before pushing
+      // Validate and standardize the source before pushing - fixing 'source' field to 'sources'
       const standardizedResponse = validateStandardizedResponse({
-        ...source,
-        source: "FDA"
+        sources: [source], // Fix: Changed from source to array with source
+        severity: source.severity,
+        description: source.description,
+        confidence: source.confidence,
+        rawData: {},
+        processed: false
       });
       
       // Convert standardized response to InteractionSource and push

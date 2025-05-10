@@ -58,7 +58,7 @@ export function logStandardizedResponse(response: StandardizedApiResponse | null
   }
   
   console.log(`[Standardized] ${sourceName} response:`, {
-    source: response.source,
+    sources: response.sources, // Fixed: Using 'sources' instead of 'source'
     severity: response.severity,
     hasDescription: !!response.description,
     confidence: response.confidence,
