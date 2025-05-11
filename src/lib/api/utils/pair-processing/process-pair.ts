@@ -1,4 +1,3 @@
-
 /**
  * Medication Pair Processing
  * 
@@ -6,12 +5,89 @@
  * interaction severity based on multiple data sources.
  */
 
-import { InteractionResult, MedicationLookupResult } from '../../types';
+import { InteractionResult, MedicationLookupResult, InteractionSource } from '../../types';
 import { createFallbackInteractionResult } from './fallback-result';
 import { hasInteractionCache, getCachedInteractionResult, cacheInteractionResult } from './cache-utils';
 import { checkForHighRiskPair } from './check-high-risk';
 import { processApiInteractions } from '../api-interactions-processor';
 import { saveInteractionToDatabase, getDatabaseInteraction } from './database-ops';
+import { determineFinalSeverity, createDefaultSource } from '../severity-processor';
+
+/**
+ * Determines if a new API result should replace an existing database result
+ * based on various quality and freshness criteria
+ */
+function shouldUpdateInteraction(
+  newResult: InteractionResult,
+  existingResult: {
+    id: string;
+    severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
+    confidence_level: number;
+    sources: string[];
+    last_checked: string;
+  } | null
+): boolean {
+  if (!existingResult) return true;
+
+  // Check for more sources
+  if (newResult.sources.length > existingResult.sources.length) return true;
+
+  // Check for higher confidence score (at least 0.1 higher)
+  if (newResult.confidenceScore && newResult.confidenceScore > (existingResult.confidence_level + 0.1)) return true;
+
+  // Check for more severe interaction
+  const severityLevels = { 'none': 0, 'mild': 1, 'moderate': 2, 'severe': 3, 'contraindicated': 4 };
+  if (severityLevels[newResult.severity] > severityLevels[existingResult.severity]) return true;
+
+  // Check for AI validation when it wasn't present before
+  if (newResult.aiValidated) return true;
+
+  // Check if the new result is significantly newer (≥ 7 days)
+  const newTimestamp = new Date(newResult.sources[0]?.timestamp || Date.now());
+  const oldTimestamp = new Date(existingResult.last_checked);
+  const daysDifference = (newTimestamp.getTime() - oldTimestamp.getTime()) / (1000 * 60 * 60 * 24);
+  if (daysDifference >= 7) return true;
+
+  return false;
+}
+
+/**
+ * Maps a database interaction result to the InteractionResult type
+ */
+function mapDatabaseResultToInteractionResult(
+  dbResult: {
+    id: string;
+    severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
+    confidence_level: number;
+    sources: string[];
+    last_checked: string;
+  },
+  med1: string,
+  med2: string
+): InteractionResult {
+  const source: InteractionSource = {
+    name: "VitaCheck Safety Database",
+    severity: dbResult.severity,
+    description: "This data is from previously cached API results. No current external API data was found.",
+    confidence: dbResult.confidence_level,
+    isReliable: true,
+    fallbackMode: true,
+    fallbackReason: "No current API data available",
+    timestamp: dbResult.last_checked,
+    processed: true,
+    hasInsight: true,
+    hasDirectEvidence: false
+  };
+
+  return {
+    medications: [med1, med2],
+    severity: dbResult.severity,
+    description: `This interaction data is from the VitaCheck Safety Database. No current external API data was found. Last updated: ${new Date(dbResult.last_checked).toLocaleDateString()}.`,
+    sources: [source],
+    confidenceScore: dbResult.confidence_level,
+    aiValidated: false
+  };
+}
 
 /**
  * Processes a pair of medications to determine potential interactions
@@ -53,32 +129,7 @@ export async function processMedicationPair(
   }
 
   try {
-    // Check if we already have cached results for this interaction
-    let sessionCached = false;
-    if (hasInteractionCache(med1, med2)) {
-      console.log(`Using cached interaction data for ${med1} + ${med2}`);
-      const cachedResult = getCachedInteractionResult(med1, med2);
-      
-      // Even for cached results, verify they are valid
-      if (cachedResult && cachedResult.severity) {
-        sessionCached = true;
-        
-        // We still want to process the API interactions and update if needed,
-        // but we'll return the cached result immediately for better UX
-        console.log(`Returning cached result for ${med1} + ${med2} immediately while refreshing in background`);
-        
-        // Start the API processing in the background
-        setTimeout(() => {
-          refreshInteractionData(med1, med2, med1Status, med2Status);
-        }, 100);
-        
-        return cachedResult;
-      } else {
-        console.warn(`Invalid cached result for ${med1} + ${med2}, processing normally`);
-      }
-    }
-    
-    // Process API interactions - always query external APIs first
+    // Always query external APIs first
     console.log(`⚙️ Querying all external APIs for ${med1} + ${med2}`);
     
     const {
@@ -98,14 +149,14 @@ export async function processMedicationPair(
       hasAiAnalysis: !!aiAnalysisResult,
       sourceCount: sources.length
     });
+
+    // Get existing database result for comparison
+    const existingResult = await getDatabaseInteraction(med1, med2);
     
     // Check if we got any meaningful API results
     const hasApiResults = sources.length > 0 && sources.some(s => s.name !== "No Data Available");
     
     if (hasApiResults) {
-      // Use API results if available
-      console.log(`✅ Using API results for ${med1} + ${med2}`);
-      
       // Determine final severity and description based on all results
       const { severity, description, confidenceScore, aiValidated } = determineFinalSeverity(
         rxnormResult,
@@ -115,7 +166,7 @@ export async function processMedicationPair(
         sources
       );
 
-      const finalResult = {
+      const apiResult: InteractionResult = {
         medications: [med1, med2],
         severity,
         description,
@@ -124,54 +175,31 @@ export async function processMedicationPair(
         confidenceScore,
         aiValidated
       };
-      
-      // Save the processed interaction to the database for future reference
-      await saveInteractionToDatabase(med1, med2, finalResult);
-      
+
+      // Only update database if the new result is better
+      if (shouldUpdateInteraction(apiResult, existingResult)) {
+        console.log(`✅ Saving improved API results for ${med1} + ${med2}`);
+        await saveInteractionToDatabase(med1, med2, apiResult);
+      }
+
       // Cache the result for this session
-      cacheInteractionResult(med1, med2, finalResult);
+      cacheInteractionResult(med1, med2, apiResult);
       
-      return finalResult;
+      return apiResult;
     } else {
-      // If API calls return no usable data, then try the database as fallback
-      console.log(`⚠️ No API results for ${med1} + ${med2}, checking database fallback`);
+      // If API calls return no usable data, use database as fallback
+      console.log(`⚠️ No API results for ${med1} + ${med2}, using database fallback`);
       
-      const dbInteraction = await getDatabaseInteraction(med1, med2);
-      
-      if (dbInteraction) {
+      if (existingResult) {
         console.log(`✅ Using database fallback for ${med1} + ${med2}`);
-        
-        // Create a fallback result from database data
-        const dbFallbackResult: InteractionResult = {
-          medications: [med1, med2],
-          severity: dbInteraction.severity,
-          description: `This interaction data is from the VitaCheck Safety Database. No current external API data was found. Last updated: ${new Date(dbInteraction.last_checked).toLocaleDateString()}.`,
-          sources: [
-            {
-              name: "VitaCheck Safety Database",
-              severity: dbInteraction.severity,
-              description: "This data is from previously cached API results. No current external API data was found.",
-              confidence: dbInteraction.confidence_level,
-              fallbackMode: true,
-              fallbackReason: "No current API data available",
-              timestamp: dbInteraction.last_checked
-            }
-          ],
-          confidenceScore: dbInteraction.confidence_level,
-          aiValidated: false
-        };
-        
-        // Cache this result for the session
+        const dbFallbackResult = mapDatabaseResultToInteractionResult(existingResult, med1, med2);
         cacheInteractionResult(med1, med2, dbFallbackResult);
-        
         return dbFallbackResult;
       }
       
       // If no data available anywhere, return a generic fallback
       console.log(`⚠️ No data available for ${med1} + ${med2} from any source`);
-      const fallbackResult = createFallbackInteractionResult(med1, med2);
-      
-      return fallbackResult;
+      return createFallbackInteractionResult(med1, med2);
     }
   } catch (error) {
     console.error(`Error processing medication pair ${med1} + ${med2}:`, error);
@@ -238,6 +266,3 @@ async function refreshInteractionData(
     console.error(`Error during background refresh for ${med1} + ${med2}:`, error);
   }
 }
-
-// Import severity processor from the dedicated module
-import { determineFinalSeverity, createDefaultSource } from '../severity-processor';
