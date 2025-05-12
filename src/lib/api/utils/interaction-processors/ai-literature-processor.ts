@@ -1,4 +1,3 @@
-
 /**
  * AI Literature Analysis Processor
  * 
@@ -30,7 +29,16 @@ export function processAiLiteratureSources(
     adverseEventsResult?: any | null
   }
 ): void {
-  console.log('[AI Literature] Starting AI Literature Analysis processing');
+  console.log('[AI Literature] Starting AI Literature Analysis processing', {
+    hasDirectAnalysis: !!aiAnalysisResult && !!aiAnalysisRawResult,
+    hasFallbackData: !!fallbackSources && (
+      !!fallbackSources.rxnormResult || 
+      !!fallbackSources.suppaiResult || 
+      !!fallbackSources.fdaResult || 
+      !!fallbackSources.adverseEventsResult
+    ),
+    currentSourceCount: sources.length
+  });
   
   // Check if we have direct AI analysis data
   const hasDirectAnalysis = !!aiAnalysisResult && !!aiAnalysisRawResult;
@@ -52,12 +60,14 @@ export function processAiLiteratureSources(
   try {
     // CASE 1: We have direct AI analysis data - process it normally
     if (hasDirectAnalysis) {
+      console.log('[AI Literature] Processing direct AI analysis data');
       processPrimaryAiLiteratureData(aiAnalysisResult!, aiAnalysisRawResult!, sources);
       return;
     }
     
     // CASE 2: We need to use fallback data to create a synthetic AI literature entry
     if (hasFallbackData) {
+      console.log('[AI Literature] Processing fallback data');
       processFallbackData(fallbackSources!, sources);
       return;
     }
@@ -82,6 +92,12 @@ export function processAiLiteratureSources(
     // Log the full error for debugging
     logParsingIssue('AI Literature', aiAnalysisRawResult, error);
   }
+
+  // Log final state
+  console.log('[AI Literature] Processing complete', {
+    finalSourceCount: sources.length,
+    hasAiLiteratureSource: sources.some(s => s.name === 'AI Literature Analysis')
+  });
 }
 
 /**

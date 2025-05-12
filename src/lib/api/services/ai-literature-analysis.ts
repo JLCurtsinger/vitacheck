@@ -1,4 +1,3 @@
-
 /**
  * AI-Powered Medical Literature Analysis
  * 
@@ -72,11 +71,15 @@ export async function queryAiLiteratureAnalysis(
     
     // First query: combined search for interaction between both medications
     const combinedQuery = `${med1} ${med2} interaction`;
+    console.log(`[AI Literature Service] Executing combined query: "${combinedQuery}"`);
+    
     let pubMedIds = await withTimeout(
       fetchPubMedIds(combinedQuery), 
       5000,  // 5 second timeout
       []     // Empty array fallback
     );
+    
+    console.log(`[AI Literature Service] Combined query results: ${pubMedIds.length} articles found`);
     
     // If no results, try individual queries for each medication
     if (pubMedIds.length === 0) {
@@ -88,18 +91,22 @@ export async function queryAiLiteratureAnalysis(
         withTimeout(fetchPubMedIds(`${med2} interaction`), 3000, [])
       ]);
       
+      console.log(`[AI Literature Service] Individual query results: ${med1Ids.length} for ${med1}, ${med2Ids.length} for ${med2}`);
+      
       // Combine results, taking max 2 from each to avoid overwhelming
       pubMedIds = [...med1Ids.slice(0, 2), ...med2Ids.slice(0, 2)];
     }
     
     // Log PubMed results
-    console.log(`[AI Literature Service] Found ${pubMedIds.length} PubMed articles`);
+    console.log(`[AI Literature Service] Found ${pubMedIds.length} PubMed articles:`, pubMedIds);
     
     // Variable to store abstract text
     let abstractText = '';
     
     // If we found any PubMed IDs, try to fetch and summarize abstracts
     if (pubMedIds.length > 0) {
+      console.log(`[AI Literature Service] Fetching abstracts for ${pubMedIds.length} articles`);
+      
       abstractText = await withTimeout(
         fetchPubMedAbstracts(pubMedIds),
         8000,  // 8 second timeout
@@ -125,6 +132,7 @@ export async function queryAiLiteratureAnalysis(
           
           if (summaryResponse && summaryResponse.length > 0) {
             console.log(`[AI Literature Service] Successfully summarized PubMed abstracts (${summaryResponse.length} chars)`);
+            console.log(`[AI Literature Service] Summary preview: ${summaryResponse.substring(0, 100)}...`);
             
             // Extract severity from summary if possible
             let severity: "safe" | "minor" | "moderate" | "severe" | "unknown" = "unknown";
@@ -139,6 +147,8 @@ export async function queryAiLiteratureAnalysis(
             } else if (/safe|no interaction|not interact|no evidence/i.test(summaryResponse)) {
               severity = "safe";
             }
+            
+            console.log(`[AI Literature Service] Extracted severity: ${severity}`);
             
             // Create source from summary
             const source: InteractionSource = {
@@ -157,12 +167,17 @@ export async function queryAiLiteratureAnalysis(
             console.log(`[AI Literature Service] Analysis complete in ${duration}ms with PubMed data`);
             
             return source;
+          } else {
+            console.log(`[AI Literature Service] No summary generated from PubMed abstracts`);
           }
         } catch (summaryError) {
           console.error('[AI Literature Service] Error summarizing PubMed abstracts:', summaryError);
-          // Continue to fallback (Netlify function)
         }
+      } else {
+        console.log(`[AI Literature Service] No abstract text retrieved from PubMed`);
       }
+    } else {
+      console.log(`[AI Literature Service] No PubMed articles found for the interaction`);
     }
     
     // If PubMed integration failed, fall back to the Netlify function approach
