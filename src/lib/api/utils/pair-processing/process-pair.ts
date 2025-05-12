@@ -14,6 +14,44 @@ import { saveInteractionToDatabase, getDatabaseInteraction } from './database-op
 import { determineFinalSeverity, createDefaultSource } from '../severity-processor';
 
 /**
+ * Calculates the average confidence score from a list of sources
+ */
+function calculateAverageConfidence(sources: InteractionSource[]): number {
+  if (!sources?.length) return 0;
+  
+  const validScores = sources
+    .map(s => s?.confidence)
+    .filter((score): score is number => score !== undefined && !isNaN(score));
+    
+  return validScores.length > 0
+    ? validScores.reduce((sum, score) => sum + score, 0) / validScores.length
+    : 0;
+}
+
+/**
+ * Generates a description for the interaction based on the sources
+ */
+function generateInteractionDescription(sources: InteractionSource[], med1: string, med2: string): string {
+  if (!sources?.length) {
+    return `No interaction data available for the combination of ${med1} and ${med2}.`;
+  }
+
+  const validSources = sources.filter(s => s?.description);
+  if (!validSources.length) {
+    return `No detailed interaction data available for ${med1} and ${med2}.`;
+  }
+
+  // Use the most severe source's description
+  const severityOrder = { 'severe': 0, 'moderate': 1, 'minor': 2, 'unknown': 3, 'safe': 4 };
+  const mostSevereSource = validSources.reduce((most, current) => 
+    severityOrder[current.severity] < severityOrder[most.severity] ? current : most
+  );
+
+  return mostSevereSource.description || 
+    `Interaction between ${med1} and ${med2} has been identified as ${mostSevereSource.severity}.`;
+}
+
+/**
  * Determines if a new API result should replace an existing database result
  * based on various quality and freshness criteria
  */
@@ -28,9 +66,13 @@ function shouldUpdateInteraction(
   } | null
 ): boolean {
   if (!existingResult) return true;
+  if (!newResult?.sources || !Array.isArray(newResult.sources)) {
+    console.warn('Cannot update interaction: new result has invalid sources');
+    return false;
+  }
 
   // Check for more sources
-  if (newResult.sources.length > existingResult.sources.length) return true;
+  if (newResult.sources.length > (existingResult.sources?.length || 0)) return true;
 
   // Check for higher confidence score (at least 0.1 higher)
   if (newResult.confidenceScore && newResult.confidenceScore > (existingResult.confidence_level + 0.1)) return true;
@@ -46,9 +88,8 @@ function shouldUpdateInteraction(
   const newTimestamp = new Date(newResult.sources[0]?.timestamp || Date.now());
   const oldTimestamp = new Date(existingResult.last_checked);
   const daysDifference = (newTimestamp.getTime() - oldTimestamp.getTime()) / (1000 * 60 * 60 * 24);
-  if (daysDifference >= 7) return true;
-
-  return false;
+  
+  return daysDifference >= 7;
 }
 
 /**
@@ -65,6 +106,11 @@ function mapDatabaseResultToInteractionResult(
   med1: string,
   med2: string
 ): InteractionResult {
+  if (!dbResult?.severity || !dbResult?.confidence_level) {
+    console.warn(`Invalid database result for ${med1} + ${med2}, using fallback values`);
+    return createFallbackInteractionResult(med1, med2);
+  }
+
   const source: InteractionSource = {
     name: "VitaCheck Safety Database",
     severity: dbResult.severity,
@@ -110,25 +156,30 @@ export async function processMedicationPair(
   med2: string,
   medicationStatuses: Map<string, MedicationLookupResult>
 ): Promise<InteractionResult> {
-  // Check for known high-risk combinations first
-  const highRiskResult = checkForHighRiskPair(med1, med2);
-  if (highRiskResult) {
-    // Save high-risk interaction to the database
-    await saveInteractionToDatabase(med1, med2, highRiskResult);
-    return highRiskResult;
-  }
-
-  // Get medication statuses
-  const med1Status = medicationStatuses.get(med1);
-  const med2Status = medicationStatuses.get(med2);
-  
-  if (!med1Status || !med2Status) {
-    console.warn(`Missing medication status for ${!med1Status ? med1 : med2}`);
-    return createFallbackInteractionResult(med1, med2, 
-      "Unable to process this medication pair due to missing medication information.");
-  }
-
   try {
+    // Check for known high-risk combinations first
+    const highRiskResult = checkForHighRiskPair(med1, med2);
+    if (highRiskResult) {
+      console.log(`Found high-risk combination for ${med1} + ${med2}`);
+      return highRiskResult;
+    }
+
+    // Check cache for existing result
+    const cachedResult = getCachedInteractionResult(med1, med2);
+    if (cachedResult?.sources && Array.isArray(cachedResult.sources) && cachedResult.sources.length > 0) {
+      console.log(`Using cached result for ${med1} + ${med2}`);
+      return cachedResult;
+    }
+
+    // Get medication statuses
+    const med1Status = medicationStatuses.get(med1);
+    const med2Status = medicationStatuses.get(med2);
+
+    if (!med1Status || !med2Status) {
+      console.warn(`Missing medication status for ${med1} or ${med2}`);
+      return createFallbackInteractionResult(med1, med2);
+    }
+
     // Always query external APIs first
     console.log(`⚙️ Querying all external APIs for ${med1} + ${med2}`);
     
@@ -147,17 +198,17 @@ export async function processMedicationPair(
       hasFda: !!fdaResult,
       hasAdverseEvents: !!adverseEventsResult,
       hasAiAnalysis: !!aiAnalysisResult,
-      sourceCount: sources.length
+      sourceCount: sources?.length || 0
     });
 
     // Get existing database result for comparison
     const existingResult = await getDatabaseInteraction(med1, med2);
     
     // Check if we got any meaningful API results
-    const hasApiResults = sources.length > 0 && sources.some(s => s.name !== "No Data Available");
-    
+    const hasApiResults = sources?.length > 0 && sources.some(s => s?.name && s.name !== "No Data Available");
+
     if (hasApiResults) {
-      // Determine final severity and description based on all results
+      // Process API results and determine final severity
       const { severity, description, confidenceScore, aiValidated } = determineFinalSeverity(
         rxnormResult,
         suppaiResult,
@@ -165,42 +216,37 @@ export async function processMedicationPair(
         adverseEventsResult,
         sources
       );
-
-      const apiResult: InteractionResult = {
+      
+      const result: InteractionResult = {
         medications: [med1, med2],
         severity,
         description,
-        sources,
-        adverseEvents: adverseEventsResult || undefined,
+        sources: sources.filter(s => s?.name && s?.severity), // Filter out any invalid sources
         confidenceScore,
         aiValidated
       };
 
-      // Only update database if the new result is better
-      if (shouldUpdateInteraction(apiResult, existingResult)) {
-        console.log(`✅ Saving improved API results for ${med1} + ${med2}`);
-        await saveInteractionToDatabase(med1, med2, apiResult);
+      // Save to database if it's better than existing result
+      if (shouldUpdateInteraction(result, existingResult)) {
+        await saveInteractionToDatabase(med1, med2, result);
       }
 
-      // Cache the result for this session
-      cacheInteractionResult(med1, med2, apiResult);
+      // Cache the result
+      cacheInteractionResult(med1, med2, result);
       
-      return apiResult;
-    } else {
-      // If API calls return no usable data, use database as fallback
-      console.log(`⚠️ No API results for ${med1} + ${med2}, using database fallback`);
-      
-      if (existingResult) {
-        console.log(`✅ Using database fallback for ${med1} + ${med2}`);
-        const dbFallbackResult = mapDatabaseResultToInteractionResult(existingResult, med1, med2);
-        cacheInteractionResult(med1, med2, dbFallbackResult);
-        return dbFallbackResult;
-      }
-      
-      // If no data available anywhere, return a generic fallback
-      console.log(`⚠️ No data available for ${med1} + ${med2} from any source`);
-      return createFallbackInteractionResult(med1, med2);
+      return result;
     }
+
+    // If no API results, try to use database result
+    if (existingResult) {
+      console.log(`Using database result for ${med1} + ${med2}`);
+      return mapDatabaseResultToInteractionResult(existingResult, med1, med2);
+    }
+
+    // If no results anywhere, return fallback
+    console.warn(`No results found for ${med1} + ${med2}, using fallback`);
+    return createFallbackInteractionResult(med1, med2);
+    
   } catch (error) {
     console.error(`Error processing medication pair ${med1} + ${med2}:`, error);
     return createFallbackInteractionResult(med1, med2, 

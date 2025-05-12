@@ -42,7 +42,19 @@ function aggregateSources(results: InteractionResult[]): InteractionSource[] {
   
   // Process all sources from all results
   results.forEach(result => {
+    // Skip results with missing or invalid sources
+    if (!result?.sources || !Array.isArray(result.sources)) {
+      console.warn(`Skipping result with invalid sources array for medications: ${result?.medications?.join(' + ') || 'unknown'}`);
+      return;
+    }
+
     result.sources.forEach(source => {
+      // Skip invalid sources
+      if (!source?.name || !source?.severity) {
+        console.warn(`Skipping invalid source in result for medications: ${result.medications.join(' + ')}`);
+        return;
+      }
+
       const key = `${source.name}-${source.severity}`;
       
       // If we haven't seen this source before, or if this one has higher confidence
@@ -55,6 +67,42 @@ function aggregateSources(results: InteractionResult[]): InteractionSource[] {
   });
   
   return Array.from(sourceMap.values());
+}
+
+/**
+ * Determines the overall severity for a triple based on pair results
+ * Prioritizes "severe" interactions and falls back to most severe remaining result
+ */
+function determineTripleSeverity(pairResults: InteractionResult[]): "unknown" | "safe" | "minor" | "moderate" | "severe" {
+  // First check if any pair has severe interaction
+  const hasSevere = pairResults.some(result => result.severity === "severe");
+  if (hasSevere) {
+    return "severe";
+  }
+
+  // If no severe interactions, find the most severe remaining result
+  const severityOrder: Record<"moderate" | "minor" | "unknown" | "safe", number> = {
+    "moderate": 0,
+    "minor": 1,
+    "unknown": 2,
+    "safe": 3
+  };
+
+  return pairResults.reduce((mostSevere, current) => {
+    return severityOrder[current.severity as keyof typeof severityOrder] < severityOrder[mostSevere as keyof typeof severityOrder]
+      ? current.severity
+      : mostSevere;
+  }, pairResults[0].severity);
+}
+
+/**
+ * Formats a confidence score for display purposes
+ * Uses 1 decimal place for scores with decimals, rounds whole numbers
+ */
+function formatConfidenceScore(score: number): string {
+  return score % 1 === 0 
+    ? Math.round(score).toString() 
+    : score.toFixed(1);
 }
 
 /**
@@ -85,10 +133,22 @@ export async function processMedicationTriple(
       processMedicationPair(med2, med3, medicationStatuses)
     ]);
     
-    // Filter out any invalid pair results
-    const pairResults = [pair1Result, pair2Result, pair3Result].filter(result => 
-      result && result.severity !== undefined && result.sources && result.sources.length > 0
-    );
+    // Filter out any invalid pair results with proper null checks
+    const pairResults = [pair1Result, pair2Result, pair3Result].filter(result => {
+      if (!result) {
+        console.warn('Skipping null pair result');
+        return false;
+      }
+      if (!result.sources || !Array.isArray(result.sources)) {
+        console.warn(`Skipping pair result with invalid sources for medications: ${result.medications?.join(' + ') || 'unknown'}`);
+        return false;
+      }
+      if (result.severity === undefined) {
+        console.warn(`Skipping pair result with undefined severity for medications: ${result.medications?.join(' + ') || 'unknown'}`);
+        return false;
+      }
+      return true;
+    });
     
     // If no valid pair results, return fallback
     if (pairResults.length === 0) {
@@ -98,48 +158,41 @@ export async function processMedicationTriple(
     
     console.log(`Found ${pairResults.length} valid pair results for triple ${med1}, ${med2}, ${med3}`);
     
-    // Determine the most severe interaction among the pairs
-    const severityOrder = {
-      "severe": 0,
-      "moderate": 1,
-      "minor": 2,
-      "unknown": 3,
-      "safe": 4
-    };
-    
-    // Sort by severity (most severe first)
-    pairResults.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
-    const mostSevereResult = pairResults[0];
-    
     // Calculate average confidence score from all valid pairs
     const validConfidenceScores = pairResults
       .map(result => result.confidenceScore)
-      .filter((score): score is number => score !== undefined);
+      .filter((score): score is number => score !== undefined && !isNaN(score));
     
     const averageConfidence = validConfidenceScores.length > 0
       ? validConfidenceScores.reduce((sum, score) => sum + score, 0) / validConfidenceScores.length
       : 0;
     
+    // Determine overall severity using new logic
+    const overallSeverity = determineTripleSeverity(pairResults);
+    
     // Aggregate all sources, removing duplicates and keeping the most relevant ones
     const aggregatedSources = aggregateSources(pairResults);
     
     // Generate a comprehensive description
-    const description = generateTripleDescription(med1, med2, med3, pairResults, mostSevereResult);
+    const description = generateTripleDescription(med1, med2, med3, pairResults, overallSeverity);
+    
+    // Ensure we always have at least one source
+    const finalSources = aggregatedSources.length > 0 ? aggregatedSources : [{
+      name: "Based on Pair Analysis",
+      severity: overallSeverity as "unknown" | "safe" | "minor" | "moderate" | "severe",
+      description: "Analysis based on pairwise medication interactions.",
+      confidence: averageConfidence,
+      processed: true,
+      hasInsight: true
+    }];
     
     return {
       medications: [med1, med2, med3],
-      severity: mostSevereResult.severity,
+      severity: overallSeverity,
       description,
-      sources: aggregatedSources.length > 0 ? aggregatedSources : [{
-        name: "Based on Pair Analysis",
-        severity: mostSevereResult.severity,
-        description: "Analysis based on pairwise medication interactions.",
-        confidence: averageConfidence,
-        processed: true,
-        hasInsight: true
-      }],
+      sources: finalSources,
       confidenceScore: averageConfidence,
-      aiValidated: pairResults.some(result => result.aiValidated)
+      aiValidated: pairResults.some(result => result?.aiValidated === true)
     };
   } catch (error) {
     console.error(`Error processing medication triple ${med1}, ${med2}, ${med3}:`, error);
@@ -156,18 +209,18 @@ function generateTripleDescription(
   med2: string,
   med3: string,
   pairResults: InteractionResult[],
-  mostSevereResult: InteractionResult
+  overallSeverity: string
 ): string {
   let description = `Analysis of triple combination: ${med1}, ${med2}, and ${med3}. `;
   
   // Add severity-specific information
-  if (mostSevereResult.severity === "severe") {
+  if (overallSeverity === "severe") {
     description += `WARNING: This combination includes a severe interaction that may be dangerous. `;
-  } else if (mostSevereResult.severity === "moderate") {
+  } else if (overallSeverity === "moderate") {
     description += `Caution: This combination includes a moderate interaction that requires careful monitoring. `;
-  } else if (mostSevereResult.severity === "minor") {
+  } else if (overallSeverity === "minor") {
     description += `This combination includes a minor interaction that may require monitoring. `;
-  } else if (mostSevereResult.severity === "safe") {
+  } else if (overallSeverity === "safe") {
     description += `No significant interactions detected between these medications. `;
   } else {
     description += `Insufficient data to fully evaluate this triple combination. `;
