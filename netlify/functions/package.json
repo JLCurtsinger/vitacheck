@@ -1,16 +1,16 @@
-{
-  "name": "vitacheck-netlify-functions",
-  "version": "1.0.0",
-  "description": "Netlify serverless functions for VitaCheck",
-  "main": "index.js",
-  "dependencies": {
-    "@netlify/functions": "^2.6.0",
-    "axios": "^1.6.7",
-    "fast-xml-parser": "^4.3.2",
-    "openai": "^4.28.0"
-  },
-  "devDependencies": {
-    "@types/node": "^20.11.19",
-    "typescript": "^5.3.3"
-  }
-} 
+// {
+//   "name": "vitacheck-netlify-functions",
+//   "version": "1.0.0",
+//   "description": "Netlify serverless functions for VitaCheck",
+//   "main": "index.js",
+//   "dependencies": {
+//     "@netlify/functions": "^2.6.0",
+//     "axios": "^1.6.7",
+//     "fast-xml-parser": "^4.3.2",
+//     "openai": "^4.28.0"
+//   },
+//   "devDependencies": {
+//     "@types/node": "^20.11.19",
+//     "typescript": "^5.3.3"
+//   }
+// } 
