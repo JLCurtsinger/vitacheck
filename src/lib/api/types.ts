@@ -1,4 +1,3 @@
-
 /**
  * API Types
  * 
@@ -20,6 +19,19 @@ export interface MedicationLookupResult {
 }
 
 /**
+ * Raw API response data structure
+ */
+export interface RawApiResponse {
+  status?: string;
+  data?: Record<string, unknown>;
+  error?: string;
+  details?: string;
+  message?: string;
+  timestamp?: string;
+  [key: string]: unknown;
+}
+
+/**
  * Standardized API response format to ensure consistent structure
  * before risk scoring and ML prediction
  */
@@ -28,7 +40,7 @@ export interface StandardizedApiResponse {
   severity: "safe" | "minor" | "moderate" | "severe" | "unknown" | null;
   description: string;
   confidence?: number;
-  rawData: any;
+  rawData: RawApiResponse;
   processed: boolean;
   eventData?: {
     totalEvents: number;

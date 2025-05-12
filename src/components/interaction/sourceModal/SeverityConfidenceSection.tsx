@@ -43,7 +43,7 @@ export function SeverityConfidenceSection({ data, clinicianView = false }: Sever
                 ) : "N/A"}
               </TableCell>
               <TableCell className="text-xs text-gray-600">
-                {new Date(item.retrievedAt).toLocaleDateString()}
+                {item.timestamp ? new Date(item.timestamp).toLocaleDateString() : "N/A"}
               </TableCell>
             </TableRow>
           ))}

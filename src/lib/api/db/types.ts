@@ -1,5 +1,5 @@
-
 import { PostgrestError } from '@supabase/supabase-js';
+import { RawApiResponse } from '../types';
 
 export type SubstanceType = 'medication' | 'supplement';
 export type SubstanceOrigin = 'RxNorm' | 'SUPP.AI' | 'openFDA' | 'Erowid' | 'User';
@@ -25,7 +25,7 @@ export interface Interaction {
   risk_score?: number;
   confidence_level?: number;
   sources?: string[];
-  api_responses?: any;
+  api_responses?: Record<string, RawApiResponse>;
   notes?: string;
   flagged_by_user?: boolean;
   first_detected: string;
