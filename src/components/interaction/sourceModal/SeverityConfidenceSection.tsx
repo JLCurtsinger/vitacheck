@@ -1,10 +1,10 @@
-
 import React from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { InteractionSource } from "@/lib/api/types";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle, HelpCircle, XCircle, Info } from "lucide-react";
-import { getSeverityIcon, getSeverityIconColor } from "./utils";
+import { Info } from "lucide-react";
+import { severityLabels, getSeverityIcon, getSeverityTextClasses } from "@/lib/utils/severity-utils";
+import { cn } from "@/lib/utils";
 
 interface SeverityConfidenceSectionProps {
   data: InteractionSource[];
@@ -12,35 +12,6 @@ interface SeverityConfidenceSectionProps {
 }
 
 export function SeverityConfidenceSection({ data, clinicianView = false }: SeverityConfidenceSectionProps) {
-  const renderSeverityIcon = (severity: string) => {
-    const iconName = getSeverityIcon(severity);
-    const colorClass = getSeverityIconColor(severity);
-    
-    switch (iconName) {
-      case "XCircle":
-        return <XCircle className={`h-4 w-4 ${colorClass}`} />;
-      case "AlertTriangle":
-        return <AlertTriangle className={`h-4 w-4 ${colorClass}`} />;
-      case "HelpCircle":
-        return <HelpCircle className={`h-4 w-4 ${colorClass}`} />;
-      case "CheckCircle":
-        return <CheckCircle className={`h-4 w-4 ${colorClass}`} />;
-      default:
-        return <HelpCircle className={`h-4 w-4 ${colorClass}`} />;
-    }
-  };
-
-  // Extract date information from data if available
-  const getSourceDate = (item: InteractionSource) => {
-    if (item.timestamp) {
-      return new Date(item.timestamp).toLocaleDateString();
-    }
-    if (item.date) {
-      return item.date;
-    }
-    return "Not specified";
-  };
-
   return (
     <div className="rounded-md border mb-4">
       <div className="p-3 bg-gray-50 border-b flex items-center">
@@ -59,9 +30,9 @@ export function SeverityConfidenceSection({ data, clinicianView = false }: Sever
           {data.map((item, idx) => (
             <TableRow key={idx}>
               <TableCell>
-                <div className="flex items-center gap-1">
-                  {renderSeverityIcon(item.severity)}
-                  <span className="capitalize">{item.severity}</span>
+                <div className={cn("flex items-center gap-1", getSeverityTextClasses(item.severity))}>
+                  {getSeverityIcon(item.severity)}
+                  <span>{severityLabels[item.severity]}</span>
                 </div>
               </TableCell>
               <TableCell>
@@ -72,7 +43,7 @@ export function SeverityConfidenceSection({ data, clinicianView = false }: Sever
                 ) : "N/A"}
               </TableCell>
               <TableCell className="text-xs text-gray-600">
-                {getSourceDate(item)}
+                {new Date(item.retrievedAt).toLocaleDateString()}
               </TableCell>
             </TableRow>
           ))}
