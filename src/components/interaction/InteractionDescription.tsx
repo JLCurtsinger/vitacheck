@@ -7,6 +7,8 @@ import { containsMildLanguage } from "@/lib/utils/text-analysis";
 import { SeverityDisclaimer } from "./severity/SeverityDisclaimer";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 interface InteractionDescriptionProps {
   interaction: InteractionResult;
@@ -39,6 +41,9 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
 
   // For single medications, show a neutral safety information card
   if (isSingleMedication) {
+    const medication = interaction.medications[0];
+    const hasSafetyInfo = interaction.description && interaction.description.trim().length > 0;
+
     return (
       <div className="mb-6 space-y-4">
         <Card>
@@ -46,26 +51,29 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
             <CardTitle className="text-lg font-semibold">General Safety Information</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="prose prose-sm max-w-none">
-              <p>
-                {interaction.medications[0]} is a short-acting benzodiazepine commonly used to treat anxiety and panic disorders. 
-                Common adverse reactions include drowsiness, fatigue, memory impairment, and dizziness. 
-                Risk of respiratory depression is increased when combined with opioids or other CNS depressants. 
-                Patients with liver impairment, sleep apnea, or a history of substance abuse may be at higher risk. 
-                Avoid combining with grapefruit juice, which can increase blood levels of {interaction.medications[0]}. 
-                Consult your healthcare provider before combining {interaction.medications[0]} with any other sedative medications.
-              </p>
-            </div>
+            {hasSafetyInfo ? (
+              <div className="prose prose-sm max-w-none">
+                <p>{interaction.description}</p>
+              </div>
+            ) : (
+              <Alert variant="default" className="bg-muted/50">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  No safety information was found for {medication}. Please consult your healthcare provider.
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
         
-        {/* Sources Attribution Section */}
-        <SourceAttributionSection interaction={interaction} />
+        {/* Sources Attribution Section - only show if we have safety info */}
+        {hasSafetyInfo && <SourceAttributionSection interaction={interaction} />}
         
-        {/* Additional Information Section (Adverse Events, etc.) */}
+        {/* Additional Information Section - only show non-severity related info */}
         <AdditionalInformationSection 
           interaction={interaction} 
-          nutrientDepletions={nutrientDepletions} 
+          nutrientDepletions={nutrientDepletions}
+          hideSeverityBreakdown={true}
         />
       </div>
     );

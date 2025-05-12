@@ -1,43 +1,39 @@
-
 import { InteractionResult } from "@/lib/api-utils";
+import { NutrientDepletion } from "@/lib/api/utils/nutrient-depletion-utils";
 import { SeverityBreakdown } from "./SeverityBreakdown";
 import { AdverseEvents } from "./AdverseEvents";
-import { SafeCombination } from "./SafeCombination";
 import { NutrientDepletions } from "./NutrientDepletions";
-import { NutrientDepletion } from "@/lib/api/utils/nutrient-depletion-utils";
 
 interface AdditionalInformationSectionProps {
   interaction: InteractionResult;
   nutrientDepletions: NutrientDepletion[];
+  hideSeverityBreakdown?: boolean;
 }
 
 export function AdditionalInformationSection({ 
   interaction, 
-  nutrientDepletions 
+  nutrientDepletions,
+  hideSeverityBreakdown = false 
 }: AdditionalInformationSectionProps) {
   // Check if we have adverse event data
   const hasAdverseEvents = interaction.adverseEvents && interaction.adverseEvents.eventCount > 0;
 
   return (
-    <>
-      {/* Severity Breakdown Table */}
-      <SeverityBreakdown 
-        sources={interaction.sources} 
-        confidenceScore={interaction.confidenceScore}
-        adverseEvents={interaction.adverseEvents}
-        medications={interaction.medications} // Pass medications from the interaction
-      />
+    <div className="space-y-6">
+      {/* Severity Breakdown Table - only show for multi-medication interactions */}
+      {!hideSeverityBreakdown && (
+        <SeverityBreakdown 
+          sources={interaction.sources} 
+          confidenceScore={interaction.confidenceScore}
+          adverseEvents={interaction.adverseEvents}
+          medications={interaction.medications}
+        />
+      )}
       
       {/* Adverse Events Section */}
       {hasAdverseEvents && (
         <AdverseEvents adverseEvents={interaction.adverseEvents} />
       )}
-      
-      {/* Safe Combination with No Adverse Events */}
-      <SafeCombination 
-        isSafe={interaction.severity === "safe"} 
-        hasAdverseEvents={hasAdverseEvents} 
-      />
       
       {/* Nutrient Depletions Section */}
       <NutrientDepletions depletions={nutrientDepletions} />
@@ -48,6 +44,6 @@ export function AdditionalInformationSection({
           <p>This result combines data from multiple medical databases to provide comprehensive information.</p>
         </div>
       )}
-    </>
+    </div>
   );
 }
