@@ -1,4 +1,3 @@
-
 import { SeverityLegend } from "./severity/SeverityLegend";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
@@ -41,19 +40,6 @@ export function SeverityBreakdown({
             <h3 className="text-base font-semibold flex items-center gap-2">
               📌 Interaction Severity Breakdown
             </h3>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center text-sm text-blue-600 cursor-help">
-                    <Info className="h-4 w-4 mr-1" />
-                    Confidence: {confidenceScore || 0}%
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <p>Confidence is calculated from weighted source data. OpenFDA Adverse Events is given the highest weight when available due to its direct reporting on adverse outcomes from combining the selected medications or supplements.</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
           </div>
         </div>
         
