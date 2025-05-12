@@ -1,4 +1,3 @@
-
 /**
  * API Types
  * 
@@ -51,16 +50,26 @@ export interface AdverseEventData {
 /**
  * Represents the result of a medication interaction check
  */
+export interface FDALabelData {
+  boxed_warning?: string;
+  adverse_reactions?: string;
+  contraindications?: string;
+  warnings_and_cautions?: string;
+  drug_interactions?: string;
+}
+
 export interface InteractionResult {
   id?: string;
   medications: string[];
-  severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
-  description: string;
-  evidence?: string; // Added for backward compatibility
-  sources: InteractionSource[];
-  adverseEvents?: AdverseEventData;
-  confidenceScore?: number; // Added overall confidence score
-  aiValidated?: boolean; // Indicates if AI was used to validate
+  severity: 'safe' | 'minor' | 'moderate' | 'severe';
+  description?: string;
+  confidenceScore?: number;
+  sources: string[];
+  adverseEvents?: {
+    eventCount: number;
+    events: string[];
+  };
+  fdaLabel?: FDALabelData;
 }
 
 // Export the types and functions

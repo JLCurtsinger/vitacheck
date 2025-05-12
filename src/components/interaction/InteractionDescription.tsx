@@ -6,9 +6,7 @@ import { useNutrientDepletionAnalysis } from "./hooks/useNutrientDepletionAnalys
 import { containsMildLanguage } from "@/lib/utils/text-analysis";
 import { SeverityDisclaimer } from "./severity/SeverityDisclaimer";
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { FDALabelSection } from "./sections/FDALabelSection";
 
 interface InteractionDescriptionProps {
   interaction: InteractionResult;
@@ -39,35 +37,25 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
     }
   }, [interaction]);
 
-  // For single medications, show a neutral safety information card
+  // For single medications, show FDA label information
   if (isSingleMedication) {
     const medication = interaction.medications[0];
-    const hasSafetyInfo = interaction.description && interaction.description.trim().length > 0;
+    
+    // Extract FDA label data from the interaction object
+    const fdaLabelData = interaction.fdaLabel ? {
+      boxed_warning: interaction.fdaLabel.boxed_warning,
+      adverse_reactions: interaction.fdaLabel.adverse_reactions,
+      contraindications: interaction.fdaLabel.contraindications,
+      warnings_and_cautions: interaction.fdaLabel.warnings_and_cautions,
+      drug_interactions: interaction.fdaLabel.drug_interactions
+    } : null;
 
     return (
       <div className="mb-6 space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">General Safety Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {hasSafetyInfo ? (
-              <div className="prose prose-sm max-w-none">
-                <p>{interaction.description}</p>
-              </div>
-            ) : (
-              <Alert variant="default" className="bg-muted/50">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  No safety information was found for {medication}. Please consult your healthcare provider.
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-        
-        {/* Sources Attribution Section - only show if we have safety info */}
-        {hasSafetyInfo && <SourceAttributionSection interaction={interaction} />}
+        <FDALabelSection 
+          data={fdaLabelData}
+          medicationName={medication}
+        />
         
         {/* Additional Information Section - only show non-severity related info */}
         <AdditionalInformationSection 
