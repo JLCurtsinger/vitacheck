@@ -18,6 +18,9 @@ interface InteractionCardProps {
 }
 
 export function InteractionCard({ interaction, id, label, isOpen, onToggle, risk }: InteractionCardProps) {
+  // Check if this is a single medication result
+  const isSingleMedication = interaction.medications.length === 1;
+  
   return (
     <Collapsible 
       key={id}
@@ -27,12 +30,20 @@ export function InteractionCard({ interaction, id, label, isOpen, onToggle, risk
     >
       <CollapsibleTrigger className="flex w-full justify-between items-center p-4 rounded-t-xl hover:bg-gray-50">
         <span className="text-lg font-medium flex items-center gap-2">
-          {getSeverityIcon(interaction.severity)} {severityLabels[interaction.severity]}: {label}
-          
-          {risk && (
-            <Badge variant="outline" className={cn("ml-2 font-medium text-sm", getSeverityBadgeClasses(interaction.severity))}>
-              {getSeverityIcon(interaction.severity)} {severityLabels[interaction.severity]}
-            </Badge>
+          {isSingleMedication ? (
+            // For single medications, just show the name
+            label
+          ) : (
+            // For combinations, show severity and label
+            <>
+              {getSeverityIcon(interaction.severity)} {severityLabels[interaction.severity]}: {label}
+              
+              {risk && (
+                <Badge variant="outline" className={cn("ml-2 font-medium text-sm", getSeverityBadgeClasses(interaction.severity))}>
+                  {getSeverityIcon(interaction.severity)} {severityLabels[interaction.severity]}
+                </Badge>
+              )}
+            </>
           )}
         </span>
         <ChevronDown 

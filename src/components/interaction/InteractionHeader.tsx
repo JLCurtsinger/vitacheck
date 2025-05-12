@@ -14,6 +14,9 @@ export function InteractionHeader({
 }: InteractionHeaderProps) {
   const { medications, severity, confidenceScore } = interaction;
   
+  // Check if this is a single medication result
+  const isSingleMedication = medications.length === 1;
+  
   // Build the medication names string
   const medsString = Array.isArray(medications) && medications.length > 0
     ? medications.join(' + ')
@@ -22,14 +25,22 @@ export function InteractionHeader({
   return (
     <div className="flex justify-between items-start mb-4">
       <div className="flex-1">
-        <SeverityTitle severity={severity} medications={medications} />
+        {isSingleMedication ? (
+          // For single medications, just show the name
+          <h4 className="font-semibold text-lg text-gray-900">
+            {medsString}
+          </h4>
+        ) : (
+          // For combinations, show severity title
+          <SeverityTitle severity={severity} medications={medications} />
+        )}
         
         <div className="flex items-center gap-1 text-sm">
           {isLoading ? (
             <Skeleton className="h-6 w-14 inline-block" />
           ) : null}
 
-          {confidenceScore !== undefined && (
+          {confidenceScore !== undefined && !isSingleMedication && (
             <span className="text-xs text-gray-500 ml-2">
               (Confidence: {confidenceScore}%)
             </span>
