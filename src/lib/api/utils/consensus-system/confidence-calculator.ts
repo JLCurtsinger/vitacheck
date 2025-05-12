@@ -1,4 +1,3 @@
-
 /**
  * Confidence Score Calculator
  * 
@@ -16,6 +15,15 @@
  * - No raw sum of confidence: all weightings and boosts are normalized to this 0–100 range.
  * - If AI literature analysis corroborates a majority, extra points are awarded.
  * - If 'unknown', a penalty is applied instead.
+ * 
+ * New Confidence Logic Rules:
+ * - Use weighted agreement: if multiple sources agree, confidence should be higher.
+ * - Add extra weight to trusted sources like OpenFDA Adverse Events.
+ * - Favor sources with large sample sizes.
+ * - Apply a bonus if 3+ total sources are present.
+ * - Apply a bonus if AI Literature confirms with reliability and direct evidence.
+ * - Cap confidence at 100%.
+ * - Never show a confidence score below 50% if there is strong source agreement and a trustworthy source.
  */
 
 import { InteractionSource } from '../../types';
@@ -52,23 +60,60 @@ export function calculateConfidenceScore(
       calculation: totalWeight > 0 ? `${primaryVote} / ${totalWeight} * 100 = ${confidenceScore}` : 'No weight'
     });
 
-    // Adjust upwards for information richness/agreement
-    if (sourceWeights.length >= 3) {
-      confidenceScore += 5;
-      console.log(`[Confidence Calculator] Added 5% for having 3+ sources: ${confidenceScore}%`);
-    }
+    // Check for source agreement and trustworthy sources
+    const hasTrustedSource = sourceWeights.some(
+      ({ source }) => source.name === "OpenFDA Adverse Events" || source.name === "FDA" || source.name === "RxNorm"
+    );
+    
+    const hasLargeSampleSize = sourceWeights.some(
+      ({ source }) => source.eventData?.totalEvents && source.eventData.totalEvents > 100
+    );
 
-    // Upward adjustment if all sources agree
-    const allAgree = Object.values(severityCounts).filter(count => count > 0).length === 1;
-    if (allAgree && sourceWeights.length > 1) {
+    // Calculate agreement level
+    const totalSources = sourceWeights.length;
+    const agreeingSources = severityCounts[finalSeverity] || 0;
+    const agreementRatio = totalSources > 0 ? agreeingSources / totalSources : 0;
+
+    // Apply weighted agreement bonus
+    if (agreementRatio >= 0.75) {
+      confidenceScore += 15;
+      console.log(`[Confidence Calculator] Added 15% for strong source agreement (${agreementRatio * 100}%): ${confidenceScore}%`);
+    } else if (agreementRatio >= 0.5) {
       confidenceScore += 10;
-      console.log(`[Confidence Calculator] Added 10% for source agreement: ${confidenceScore}%`);
+      console.log(`[Confidence Calculator] Added 10% for moderate source agreement (${agreementRatio * 100}%): ${confidenceScore}%`);
     }
 
-    // AI validation boost
-    if (aiValidated && severityCounts[finalSeverity] > 1) {
+    // Apply source count bonus
+    if (totalSources >= 3) {
+      confidenceScore += 10;
+      console.log(`[Confidence Calculator] Added 10% for having 3+ sources: ${confidenceScore}%`);
+    }
+
+    // Apply trusted source bonus
+    if (hasTrustedSource) {
+      confidenceScore += 10;
+      console.log(`[Confidence Calculator] Added 10% for trusted source presence: ${confidenceScore}%`);
+    }
+
+    // Apply large sample size bonus
+    if (hasLargeSampleSize) {
       confidenceScore += 5;
-      console.log(`[Confidence Calculator] Added 5% for AI validation: ${confidenceScore}%`);
+      console.log(`[Confidence Calculator] Added 5% for large sample size: ${confidenceScore}%`);
+    }
+
+    // Apply AI validation bonus with direct evidence
+    if (aiValidated && severityCounts[finalSeverity] > 1) {
+      const hasDirectEvidence = sourceWeights.some(
+        ({ source }) => source.hasDirectEvidence === true
+      );
+      
+      if (hasDirectEvidence) {
+        confidenceScore += 15;
+        console.log(`[Confidence Calculator] Added 15% for AI validation with direct evidence: ${confidenceScore}%`);
+      } else {
+        confidenceScore += 5;
+        console.log(`[Confidence Calculator] Added 5% for AI validation: ${confidenceScore}%`);
+      }
     }
 
     // 'unknown' severity is penalized
@@ -77,14 +122,10 @@ export function calculateConfidenceScore(
       console.log(`[Confidence Calculator] Reduced confidence for unknown severity: ${confidenceScore}%`);
     }
 
-    // Additional confidence boosts for high-quality sources
-    const hasHighQualitySource = sourceWeights.some(
-      ({ source, weight }) => weight > 0.8 && (source.name === "FDA" || source.name === "RxNorm")
-    );
-
-    if (hasHighQualitySource) {
-      confidenceScore += 5;
-      console.log(`[Confidence Calculator] Added 5% for high-quality source: ${confidenceScore}%`);
+    // Apply minimum confidence threshold for strong agreement cases
+    if (confidenceScore < 50 && agreementRatio >= 0.75 && hasTrustedSource) {
+      confidenceScore = 50;
+      console.log(`[Confidence Calculator] Applied minimum confidence threshold (50%) for strong agreement with trusted source: ${confidenceScore}%`);
     }
 
     // Fallback mechanism for very low confidence
@@ -93,7 +134,7 @@ export function calculateConfidenceScore(
       console.log(`[Confidence Calculator] Applied minimum confidence threshold: ${confidenceScore}%`);
     }
 
-    // --- ENSURE FINAL CONFIDENCE SCORE IS MAX 100 (main fix for this request) ---
+    // Ensure final confidence score is between 0 and 100
     confidenceScore = Math.max(0, Math.min(confidenceScore, 100));
 
     console.log(`[Confidence Calculator] Final confidence score (capped to 0–100): ${confidenceScore}%`);
