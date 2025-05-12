@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { InteractionResult } from "@/lib/api-utils";
 import { CombinationResult } from "@/lib/api/medication-service";
@@ -74,9 +73,14 @@ export function useInteractionDisplay(
     
     if (!eventData || !eventData.totalEvents) return null;
     
+    // For single medications, we don't want to show severity
+    // Instead, we'll just return the safety data
     return {
       totalEvents: eventData.totalEvents,
-      reactions: eventData.commonReactions || []
+      reactions: eventData.commonReactions || [],
+      // Remove any severity-related data
+      severity: undefined,
+      confidence: undefined
     };
   }, [isSingleMedication, validInteractions]);
   

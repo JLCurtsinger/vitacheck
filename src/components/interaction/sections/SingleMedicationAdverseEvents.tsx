@@ -1,6 +1,6 @@
-
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface SingleMedicationAdverseEventsProps {
   totalEvents: number;
@@ -12,23 +12,56 @@ export function SingleMedicationAdverseEvents({
   reactions 
 }: SingleMedicationAdverseEventsProps) {
   if (!totalEvents || totalEvents === 0 || !reactions || reactions.length === 0) {
-    return null;
+    return (
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <Info className="h-5 w-5 text-blue-500" />
+            Safety Considerations
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-600">
+            No major safety considerations were found in the FDA label for this substance. Always consult your provider.
+          </p>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
-    <Alert variant="destructive" className="bg-yellow-50 border-yellow-200 text-yellow-800 mb-4">
-      <AlertTriangle className="h-4 w-4 text-yellow-800" />
-      <AlertTitle className="text-yellow-800 font-medium">
-        ⚠️ This substance has been associated with the following reactions in {totalEvents.toLocaleString()} reports:
-      </AlertTitle>
-      <AlertDescription>
-        <ul className="list-disc list-inside mt-2 mb-2">
-          {reactions.slice(0, 3).map((reaction, index) => (
-            <li key={index}>{reaction}</li>
-          ))}
-        </ul>
-        <p className="text-sm text-yellow-700 mt-1">Source: openFDA</p>
-      </AlertDescription>
-    </Alert>
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5 text-yellow-500" />
+          Safety Considerations
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div>
+            <h4 className="font-medium text-gray-700 mb-1">Adverse Event Reports</h4>
+            <p className="text-gray-600">
+              This substance has been associated with {totalEvents.toLocaleString()} reported adverse events in the FDA database.
+            </p>
+          </div>
+          
+          {reactions.length > 0 && (
+            <div>
+              <h4 className="font-medium text-gray-700 mb-1">Common Reactions</h4>
+              <ul className="list-disc list-inside text-gray-600 space-y-1">
+                {reactions.slice(0, 5).map((reaction, index) => (
+                  <li key={index}>{reaction}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          <p className="text-sm text-gray-500 mt-2">
+            Source: openFDA Adverse Events Database
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
