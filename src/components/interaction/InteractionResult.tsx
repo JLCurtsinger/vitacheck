@@ -3,13 +3,13 @@ import { InteractionResult as InteractionResultType } from "@/lib/api-utils";
 import { InteractionHeader } from "./InteractionHeader";
 import { InteractionDescription } from "./InteractionDescription";
 import { InteractionFooter } from "./InteractionFooter";
-import { cn } from "@/lib/utils";
+import { RiskAssessmentButton } from "./risk/RiskAssessmentButton";
 import { RiskAssessmentModal } from "./RiskAssessmentModal";
 import { analyzeInteractionRisk } from "@/lib/utils/risk-assessment";
-import { HighRiskWarning } from "./severity/HighRiskWarning";
-import { RiskAssessmentButton } from "./risk/RiskAssessmentButton";
 import { RiskAssessmentOutput } from "@/lib/utils/risk-assessment/types";
+import { cn } from "@/lib/utils";
 import { getSeverityClasses } from "@/lib/utils/severity-utils";
+import { HighRiskWarning } from "./severity/HighRiskWarning";
 
 interface InteractionResultProps {
   interaction: InteractionResultType;
@@ -19,6 +19,9 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
   const [riskModalOpen, setRiskModalOpen] = useState(false);
   const [riskAssessment, setRiskAssessment] = useState<RiskAssessmentOutput | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Check if this is a single medication result
+  const isSingleMedication = interaction.medications.length === 1;
   
   // Generate risk assessment data from the interaction object
   useEffect(() => {
@@ -53,7 +56,7 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
   return (
     <div className={cn(
       "p-6 transition-transform hover:scale-[1.01]",
-      getSeverityClasses(interaction.severity)
+      isSingleMedication ? "bg-white" : getSeverityClasses(interaction.severity)
     )}>
       <InteractionHeader 
         interaction={interaction} 
@@ -61,14 +64,14 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
         isLoading={isLoading}
       />
       
-      <HighRiskWarning isHighRisk={!!isHighRisk} />
+      {!isSingleMedication && <HighRiskWarning isHighRisk={!!isHighRisk} />}
       
       <InteractionDescription interaction={interaction} />
       <InteractionFooter interaction={interaction} />
       
-      <RiskAssessmentButton onClick={() => setRiskModalOpen(true)} />
+      {!isSingleMedication && <RiskAssessmentButton onClick={() => setRiskModalOpen(true)} />}
       
-      {riskAssessment && (
+      {riskAssessment && !isSingleMedication && (
         <RiskAssessmentModal
           open={riskModalOpen}
           onOpenChange={setRiskModalOpen}
