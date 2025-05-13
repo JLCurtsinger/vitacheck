@@ -2,6 +2,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 
 interface FDALabelData {
   boxed_warning?: string;
@@ -11,18 +12,67 @@ interface FDALabelData {
   drug_interactions?: string;
 }
 
+interface SafetySummary {
+  substance: string;
+  summary: string;
+  source: string;
+  articleCount: number;
+  pubmedIds: string[];
+}
+
 interface FDALabelSectionProps {
   data: FDALabelData | null;
   medicationName: string;
 }
 
 export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) {
+  const [safetySummary, setSafetySummary] = useState<SafetySummary | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchSafetySummary = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const response = await fetch('/.netlify/functions/summarizeSafetyInfo', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ substance: medicationName }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch safety summary');
+        }
+
+        const summary = await response.json();
+        setSafetySummary(summary);
+      } catch (err) {
+        console.error('Error fetching safety summary:', err);
+        setError('Failed to load safety summary');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSafetySummary();
+  }, [medicationName]);
+
   // If no data is available, show the fallback message
   if (!data || Object.keys(data).length === 0) {
     return (
       <Alert variant="default" className="bg-muted/50">
         <AlertDescription>
-          No safety information was found for {medicationName}. Please consult your healthcare provider.
+          {isLoading ? (
+            "Loading safety information..."
+          ) : safetySummary?.summary ? (
+            safetySummary.summary
+          ) : (
+            "No safety information was found for this substance. Please consult your healthcare provider."
+          )}
         </AlertDescription>
       </Alert>
     );
@@ -62,6 +112,19 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
               {data.boxed_warning}
             </AlertDescription>
           </Alert>
+        )}
+
+        {/* AI-Generated Safety Summary */}
+        {!isLoading && safetySummary?.summary && (
+          <div className="mb-4">
+            <h3 className="text-sm font-semibold mb-2">AI-Generated Safety Summary</h3>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap">
+              {safetySummary.summary}
+            </p>
+            <div className="text-xs text-gray-500 mt-2">
+              Source: {safetySummary.source}
+            </div>
+          </div>
         )}
 
         {/* Other sections */}
