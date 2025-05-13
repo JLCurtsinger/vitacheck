@@ -49,6 +49,7 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
         }
 
         const summary = await response.json();
+        console.log("[DEBUG] Safety Summary Response:", summary);
         setSafetySummary(summary);
       } catch (err) {
         console.error('Error fetching safety summary:', err);
