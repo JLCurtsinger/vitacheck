@@ -122,11 +122,11 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
               <Sparkles className="w-4 h-4" />
               AI-Generated Safety Summary
             </div>
-            
+
             <p className="text-sm text-gray-800 whitespace-pre-wrap">
               {safetySummary.summary}
             </p>
-            
+
             <div className="mt-4 space-y-1">
               <p className="text-xs text-gray-600">
                 Generated using recent PubMed literature on {medicationName}. AI-generated on {new Date().toLocaleDateString()}.
@@ -134,9 +134,7 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
               
               {safetySummary.pubmedIds.length > 0 && (
                 <p className="text-xs text-blue-700 underline">
-                  Sources: {safetySummary.pubmedIds.map(id => 
-                    `https://pubmed.ncbi.nlm.nih.gov/${id}`
-                  ).join(', ')}
+                  Sources: {safetySummary.pubmedIds.map(id => `https://pubmed.ncbi.nlm.nih.gov/${id}`).join(', ')}
                 </p>
               )}
             </div>
