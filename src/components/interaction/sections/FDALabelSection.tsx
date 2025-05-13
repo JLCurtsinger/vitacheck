@@ -1,6 +1,6 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
@@ -116,13 +116,28 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
 
         {/* AI-Generated Safety Summary */}
         {!isLoading && safetySummary?.summary && (
-          <div className="mb-4">
-            <h3 className="text-sm font-semibold mb-2">AI-Generated Safety Summary</h3>
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">
+          <div className="rounded-xl bg-gradient-to-br from-purple-50 to-white border border-purple-200 p-4 shadow-sm mt-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-purple-700 mb-3">
+              <Sparkles className="w-4 h-4" />
+              AI-Generated Safety Summary
+            </div>
+            
+            <p className="text-sm text-gray-800 whitespace-pre-wrap">
               {safetySummary.summary}
             </p>
-            <div className="text-xs text-gray-500 mt-2">
-              Source: {safetySummary.source}
+            
+            <div className="mt-4 space-y-1">
+              <p className="text-xs text-gray-600">
+                Generated using recent PubMed literature on {medicationName}. AI-generated on {new Date().toLocaleDateString()}.
+              </p>
+              
+              {safetySummary.pubmedIds.length > 0 && (
+                <p className="text-xs text-blue-700 underline">
+                  Sources: {safetySummary.pubmedIds.map(id => 
+                    `https://pubmed.ncbi.nlm.nih.gov/${id}`
+                  ).join(', ')}
+                </p>
+              )}
             </div>
           </div>
         )}
