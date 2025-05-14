@@ -31,6 +31,15 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Add debug logging
+  useEffect(() => {
+    console.log("[DEBUG] FDALabelSection received data:", {
+      data,
+      hasDescription: Boolean(data?.description),
+      medicationName
+    });
+  }, [data, medicationName]);
+
   useEffect(() => {
     const fetchSafetySummary = async () => {
       try {
@@ -134,7 +143,10 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
 
   // Render the FDA warnings section
   const renderFDAWarnings = () => {
-    if (!data) return null;
+    if (!data) {
+      console.log("[DEBUG] No FDA data available");
+      return null;
+    }
 
     const hasWarnings = data.description || 
                        data.boxed_warning || 
@@ -142,7 +154,21 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
                        data.contraindications || 
                        data.adverse_reactions;
 
-    if (!hasWarnings) return null;
+    if (!hasWarnings) {
+      console.log("[DEBUG] No FDA warnings found to render:", {
+        description: data.description,
+        boxed_warning: data.boxed_warning,
+        warnings_and_cautions: data.warnings_and_cautions,
+        contraindications: data.contraindications,
+        adverse_reactions: data.adverse_reactions
+      });
+      return null;
+    }
+
+    console.log("[DEBUG] Rendering FDA warnings:", {
+      description: data.description,
+      hasWarnings
+    });
 
     return (
       <div className="rounded-xl bg-gradient-to-br from-gray-50 to-white border border-gray-200 p-4 shadow-sm mb-4">
