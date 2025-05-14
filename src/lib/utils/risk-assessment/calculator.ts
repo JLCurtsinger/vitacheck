@@ -1,4 +1,3 @@
-
 import { RiskAssessmentInput, RiskAssessmentOutput } from './types';
 import { SOURCE_WEIGHTS, SEVERITY_THRESHOLDS } from './constants';
 
@@ -38,8 +37,14 @@ export function calculateRiskScore(input: RiskAssessmentInput): RiskAssessmentOu
       contributingFactors.push('Moderate-severe interaction potential');
     }
   } else if (input.severity === 'moderate') {
-    baseScore += 30;
-    contributingFactors.push('Moderate interaction severity');
+    // Check if moderate severity is due to individual FDA warnings
+    if (input.fdaReports?.individualSevereWarnings) {
+      baseScore += 25;
+      contributingFactors.push('Individual severe warnings exist for these medications');
+    } else {
+      baseScore += 30;
+      contributingFactors.push('Moderate interaction severity');
+    }
   } else {
     baseScore += 10;
     contributingFactors.push('Mild interaction severity');
@@ -47,84 +52,79 @@ export function calculateRiskScore(input: RiskAssessmentInput): RiskAssessmentOu
   
   // Process FDA reports
   if (input.fdaReports?.signal) {
-    baseScore += 15;
-    contributingFactors.push('FDA adverse event reports');
+    if (input.fdaReports.individualSevereWarnings) {
+      baseScore += 10;
+      contributingFactors.push('Individual FDA warnings present');
+    } else {
+      baseScore += 15;
+      contributingFactors.push('FDA adverse event reports');
+    }
   }
   
   // Process OpenFDA data
   if (input.openFDA?.signal) {
-    baseScore += 10;
-    if (input.openFDA.percentage && input.openFDA.percentage > 30) {
-      baseScore += 10;
-      contributingFactors.push('High percentage of serious OpenFDA reports');
+    const eventCount = input.openFDA.count || 0;
+    const seriousPercentage = input.openFDA.percentage || 0;
+    
+    if (seriousPercentage > 25 || eventCount > 1000) {
+      baseScore += 20;
+      contributingFactors.push('Significant adverse event reports');
+    } else if (seriousPercentage > 10 || eventCount > 100) {
+      baseScore += 15;
+      contributingFactors.push('Moderate adverse event reports');
     } else {
-      contributingFactors.push('OpenFDA adverse events reported');
+      baseScore += 10;
+      contributingFactors.push('Minor adverse event reports');
     }
   }
   
   // Process SUPP.AI data
   if (input.suppAI?.signal) {
-    baseScore += 7;
-    contributingFactors.push('SUPP.AI identified interaction');
+    baseScore += 10;
+    contributingFactors.push('SUPP.AI interaction data');
   }
   
   // Process RxNorm data
   if (input.rxnorm?.signal) {
-    baseScore += 12; // Higher weight for RxNorm as it's a reliable source
-    contributingFactors.push('RxNorm database identified interaction');
+    baseScore += 15;
+    contributingFactors.push('RxNorm interaction data');
   }
   
-  // Process mechanism plausibility
+  // Process mechanism data
   if (input.mechanism?.plausible) {
-    baseScore += 8;
-    contributingFactors.push('Biologically plausible mechanism');
+    baseScore += 10;
+    contributingFactors.push('Plausible interaction mechanism');
   }
   
-  // Process AI literature analysis - reduced weight
+  // Process AI literature analysis
   if (input.aiLiterature?.plausible) {
-    // Reduce AI literature weight to prevent it from becoming dominant
-    baseScore += 5; // Reduced from 7
-    contributingFactors.push('AI literature analysis found supporting evidence');
+    baseScore += 5;
+    contributingFactors.push('AI literature analysis');
   }
   
   // Process peer reports
   if (input.peerReports?.signal) {
-    baseScore += 10;
-    contributingFactors.push('Peer-reviewed research indicates risk');
+    baseScore += 15;
+    contributingFactors.push('Peer-reviewed reports');
   }
   
-  // RULE 1: Cap the score at moderate level if AI is the only source suggesting severe
-  if (input.severity === 'severe' && aiOnlySevere && highConfidenceSevereCount === 0) {
-    baseScore = Math.min(baseScore, SEVERITY_THRESHOLDS.MODERATE_RISK + 10); // Cap just above the moderate threshold
-    if (isDebug) {
-      console.log('🔍 Risk Assessment: Capping risk score due to AI-only severe rating');
-    }
-  }
+  // Cap the final score
+  const finalScore = Math.min(100, baseScore);
   
-  // Cap the final score at 100
-  const finalScore = Math.min(Math.round(baseScore), 100);
-  
-  // Determine severity flag and risk level based on score
-  let severityFlag: '🔴' | '🟡' | '🟢';
-  let riskLevel: 'Low' | 'Moderate' | 'High' | 'Lethal';
-  
-  if (finalScore >= SEVERITY_THRESHOLDS.HIGH_RISK) {
-    // Only show severe if we have non-AI severe sources or multiple moderate sources
-    if ((input.severity === 'severe' && !aiOnlySevere) || 
-        (contributingFactors.filter(f => f.includes('moderate') || f.includes('Moderate')).length >= 2)) {
-      severityFlag = '🔴';
-      riskLevel = finalScore >= 85 ? 'Lethal' : 'High';
-    } else {
-      // Downgrade to moderate if AI is the only source
-      severityFlag = '🟡';
-      riskLevel = 'Moderate';
-    }
-  } else if (finalScore >= SEVERITY_THRESHOLDS.MODERATE_RISK) {
-    severityFlag = '🟡';
+  // Determine risk level
+  let riskLevel: 'Low' | 'Moderate' | 'High' | 'Lethal' = 'Low';
+  if (finalScore >= 75) {
+    riskLevel = 'High';
+  } else if (finalScore >= 40) {
     riskLevel = 'Moderate';
-  } else {
-    severityFlag = '🟢';
-    riskLevel = 'Low';
+  }
+  
+  // Determine severity flag
+  let severityFlag: '🟢' | '🟡' | '🔴' = '🟢';
+  if (finalScore >= 75 || (input.severity === 'severe' && !aiOnlySevere)) {
+    severityFlag = '🔴';
+  } else if (finalScore >= 40 || input.severity === 'moderate') {
+    severityFlag = '🟡';
   }
   
   // Generate avoidance strategy based on risk level
@@ -139,8 +139,8 @@ export function calculateRiskScore(input: RiskAssessmentInput): RiskAssessmentOu
   // Construct and return the output
   return {
     riskScore: finalScore,
-    severityFlag,
     riskLevel,
+    severityFlag,
     adjustments,
     avoidanceStrategy,
     inputData: input

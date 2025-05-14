@@ -1,9 +1,9 @@
-
 export interface RiskAssessmentInput {
   severity: "severe" | "moderate" | "mild";
   fdaReports?: { 
     signal: boolean; 
     count?: number;
+    individualSevereWarnings?: boolean;
   };
   openFDA?: { 
     signal: boolean;
@@ -45,6 +45,8 @@ export interface RiskAssessmentOutput {
     riskLevel: string;
     confidence: number;
   };
+  contributingFactors: string[];
+  aiOnlySevere: boolean;
 }
 
 export type RiskModelFeatures = [

@@ -1,4 +1,3 @@
-
 import { InteractionSource } from '../../types';
 
 export function checkFDAInteractions(
@@ -9,7 +8,13 @@ export function checkFDAInteractions(
   description: string;
   severity: "safe" | "minor" | "moderate" | "severe" | "unknown";
 } | null {
-  const relevantWarnings = [...med1Warnings, ...med2Warnings];
+  // Only consider warnings that mention both medications
+  const relevantWarnings = med1Warnings.filter(warning => 
+    med2Warnings.some(w2 => 
+      warning.toLowerCase().includes(w2.toLowerCase()) || 
+      w2.toLowerCase().includes(warning.toLowerCase())
+    )
+  );
   
   if (relevantWarnings.length > 0) {
     // Look for severe warning keywords
@@ -38,6 +43,29 @@ export function checkFDAInteractions(
       sources: [source],
       description: relevantWarnings[0],
       severity: severity
+    };
+  }
+
+  // If no direct interaction warnings, check for individual severe warnings
+  const individualSevereWarnings = [...med1Warnings, ...med2Warnings].filter(warning =>
+    ['fatal', 'death', 'life-threatening', 'contraindicated'].some(keyword => 
+      warning.toLowerCase().includes(keyword)
+    )
+  );
+
+  if (individualSevereWarnings.length > 0) {
+    // Return moderate severity with a note about individual warnings
+    const source: InteractionSource = {
+      name: "FDA",
+      severity: "moderate",
+      description: "Individual severe warnings exist for these medications. While no direct interaction is documented, caution is advised.",
+      confidence: 70
+    };
+
+    return {
+      sources: [source],
+      description: "Individual severe warnings exist for these medications. While no direct interaction is documented, caution is advised.",
+      severity: "moderate"
     };
   }
 

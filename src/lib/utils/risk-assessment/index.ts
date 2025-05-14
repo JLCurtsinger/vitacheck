@@ -1,4 +1,3 @@
-
 import { InteractionResult } from "@/lib/api/types";
 import { RiskAssessmentInput, RiskAssessmentOutput } from "./types";
 import { calculateRiskScore } from "./calculator";
@@ -38,8 +37,12 @@ export async function analyzeInteractionRisk(interaction: InteractionResult): Pr
     severity: interaction.severity === "severe" ? "severe" : 
               interaction.severity === "moderate" ? "moderate" : "mild",
     fdaReports: { 
-      signal: interaction.sources.some(s => s.name === "FDA" && s.severity !== "safe"), 
-      count: interaction.sources.find(s => s.name === "FDA")?.eventData?.totalEvents
+      signal: interaction.sources.some(s => s.name === "FDA" && s.severity !== "safe"),
+      count: interaction.sources.find(s => s.name === "FDA")?.eventData?.totalEvents,
+      individualSevereWarnings: interaction.sources.some(s => 
+        s.name === "FDA" && 
+        s.description?.toLowerCase().includes("individual severe warnings exist")
+      )
     },
     openFDA: { 
       signal: interaction.sources.some(s => s.name === "OpenFDA Adverse Events" && s.severity !== "safe"),

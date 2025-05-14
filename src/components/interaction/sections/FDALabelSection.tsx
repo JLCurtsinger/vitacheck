@@ -131,6 +131,57 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
     );
   };
 
+  // Render the FDA warnings section
+  const renderFDAWarnings = () => {
+    if (!data) return null;
+
+    const hasWarnings = data.boxed_warning || 
+                       data.warnings_and_cautions || 
+                       data.contraindications || 
+                       data.adverse_reactions;
+
+    if (!hasWarnings) return null;
+
+    return (
+      <div className="rounded-xl bg-gradient-to-br from-gray-50 to-white border border-gray-200 p-4 shadow-sm mb-4">
+        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+          <AlertTriangle className="w-4 h-4 text-yellow-500" />
+          FDA Safety Warning
+        </div>
+
+        <div className="space-y-3">
+          {data.boxed_warning && (
+            <div className="text-sm text-gray-800">
+              <span className="font-medium">Boxed Warning:</span> {data.boxed_warning}
+            </div>
+          )}
+          
+          {data.warnings_and_cautions && (
+            <div className="text-sm text-gray-800">
+              <span className="font-medium">Warnings and Cautions:</span> {data.warnings_and_cautions}
+            </div>
+          )}
+          
+          {data.contraindications && (
+            <div className="text-sm text-gray-800">
+              <span className="font-medium">Contraindications:</span> {data.contraindications}
+            </div>
+          )}
+          
+          {data.adverse_reactions && (
+            <div className="text-sm text-gray-800">
+              <span className="font-medium">Adverse Reactions:</span> {data.adverse_reactions}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 text-xs text-gray-500">
+          Source: FDA Drug Label
+        </div>
+      </div>
+    );
+  };
+
   // If no FDA data is available, show the fallback message
   if (!data || Object.keys(data).length === 0) {
     return (
@@ -154,15 +205,8 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
         <CardTitle className="text-lg font-semibold">General Safety Information</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Boxed Warning - if present */}
-        {data.boxed_warning && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription className="font-medium">
-              {data.boxed_warning}
-            </AlertDescription>
-          </Alert>
-        )}
+        {/* FDA Warnings Section */}
+        {renderFDAWarnings()}
 
         {/* AI-Generated Safety Summary */}
         {renderAISummary()}
