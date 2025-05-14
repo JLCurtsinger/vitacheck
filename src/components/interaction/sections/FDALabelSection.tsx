@@ -10,6 +10,7 @@ interface FDALabelData {
   contraindications?: string;
   warnings_and_cautions?: string;
   drug_interactions?: string;
+  description?: string;
 }
 
 interface SafetySummary {
@@ -135,7 +136,8 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
   const renderFDAWarnings = () => {
     if (!data) return null;
 
-    const hasWarnings = data.boxed_warning || 
+    const hasWarnings = data.description || 
+                       data.boxed_warning || 
                        data.warnings_and_cautions || 
                        data.contraindications || 
                        data.adverse_reactions;
@@ -150,6 +152,12 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
         </div>
 
         <div className="space-y-3">
+          {data.description && (
+            <div className="text-sm text-gray-800">
+              {data.description}
+            </div>
+          )}
+          
           {data.boxed_warning && (
             <div className="text-sm text-gray-800">
               <span className="font-medium">Boxed Warning:</span> {data.boxed_warning}
