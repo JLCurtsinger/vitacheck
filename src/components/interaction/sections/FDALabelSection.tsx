@@ -155,20 +155,11 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
                        data.adverse_reactions;
 
     if (!hasWarnings) {
-      console.log("[DEBUG] No FDA warnings found to render:", {
-        description: data.description,
-        boxed_warning: data.boxed_warning,
-        warnings_and_cautions: data.warnings_and_cautions,
-        contraindications: data.contraindications,
-        adverse_reactions: data.adverse_reactions
-      });
+      console.warn("[WARN] No FDA warnings found despite data presence. Data was:", data);
       return null;
     }
 
-    console.log("[DEBUG] Rendering FDA warnings:", {
-      description: data.description,
-      hasWarnings
-    });
+    console.log("[DEBUG] ✅ Rendering FDA Warning section with description:", data.description);
 
     return (
       <div className="rounded-xl bg-gradient-to-br from-gray-50 to-white border border-gray-200 p-4 shadow-sm mb-4">
@@ -179,8 +170,9 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
 
         <div className="space-y-3">
           {data.description && (
-            <div className="text-sm text-gray-800">
-              {data.description}
+            <div className="text-sm text-gray-800 border-l-2 border-yellow-400 pl-3">
+              <p><strong>⚠️ FDA Description:</strong></p>
+              <p>{data.description}</p>
             </div>
           )}
           
@@ -239,10 +231,10 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
         <CardTitle className="text-lg font-semibold">General Safety Information</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* FDA Warnings Section */}
+        {/* FDA Warnings Section - Always first */}
         {renderFDAWarnings()}
 
-        {/* AI-Generated Safety Summary */}
+        {/* AI-Generated Safety Summary - Always second */}
         {renderAISummary()}
 
         {/* Other sections */}
