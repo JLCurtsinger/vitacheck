@@ -15,7 +15,7 @@ export default function MedicationForm() {
   const [medications, setMedications] = useState<string[]>([""]);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const inputRefs = useRef<(HTMLElement | null)[]>([]);
+  const inputRefs = useRef<HTMLInputElement[]>([]);
 
   // Input validation patterns
   const INVALID_CHARS_REGEX = /[<>{}]/;
@@ -58,10 +58,7 @@ export default function MedicationForm() {
     setTimeout(() => {
       const lastIndex = medications.length;
       if (inputRefs.current[lastIndex]) {
-        const inputElement = inputRefs.current[lastIndex];
-        if (inputElement && 'focus' in inputElement && typeof inputElement.focus === 'function') {
-          inputElement.focus();
-        }
+        inputRefs.current[lastIndex].focus();
       }
     }, 50);
   };
@@ -127,10 +124,7 @@ export default function MedicationForm() {
     // Focus first input after clearing
     setTimeout(() => {
       if (inputRefs.current[0]) {
-        const inputElement = inputRefs.current[0];
-        if (inputElement && 'focus' in inputElement && typeof inputElement.focus === 'function') {
-          inputElement.focus();
-        }
+        inputRefs.current[0].focus();
       }
     }, 50);
   };
@@ -156,10 +150,7 @@ export default function MedicationForm() {
       // Otherwise focus the next input
       setTimeout(() => {
         if (inputRefs.current[index + 1]) {
-          const inputElement = inputRefs.current[index + 1];
-          if (inputElement && 'focus' in inputElement && typeof inputElement.focus === 'function') {
-            inputElement.focus();
-          }
+          inputRefs.current[index + 1].focus();
         }
       }, 50);
     }

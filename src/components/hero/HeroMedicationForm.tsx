@@ -11,7 +11,7 @@ export default function HeroMedicationForm() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [medications, setMedications] = useState<string[]>([""]);
-  const inputRefs = useRef<(HTMLElement | null)[]>([]);
+  const inputRefs = useRef<HTMLInputElement[]>([]);
 
   // Effect to update ref array when medications array changes length
   useEffect(() => {
@@ -25,10 +25,7 @@ export default function HeroMedicationForm() {
     setTimeout(() => {
       const lastIndex = medications.length;
       if (inputRefs.current[lastIndex]) {
-        const inputElement = inputRefs.current[lastIndex];
-        if (inputElement && 'focus' in inputElement && typeof inputElement.focus === 'function') {
-          inputElement.focus();
-        }
+        inputRefs.current[lastIndex].focus();
       }
     }, 50);
   };
@@ -124,10 +121,7 @@ export default function HeroMedicationForm() {
       // Otherwise focus the next input
       setTimeout(() => {
         if (inputRefs.current[index + 1]) {
-          const inputElement = inputRefs.current[index + 1];
-          if (inputElement && 'focus' in inputElement && typeof inputElement.focus === 'function') {
-            inputElement.focus();
-          }
+          inputRefs.current[index + 1].focus();
         }
       }, 50);
     }

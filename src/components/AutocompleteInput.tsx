@@ -1,5 +1,5 @@
 
-import React, { useState, KeyboardEvent, useEffect } from "react";
+import React, { useState, KeyboardEvent, useEffect, forwardRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, Loader2, X, ArrowRight } from "lucide-react";
 import { useSuggestions } from "@/hooks/use-suggestions";
@@ -9,10 +9,10 @@ import { useIsMobile } from "@/hooks/use-mobile";
 interface AutocompleteInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   onSelectSuggestion: (value: string) => void;
   showRecent?: boolean;
-  onQuickAdd?: () => void; // New prop for handling quick add functionality
+  onQuickAdd?: () => void; // Prop for handling quick add functionality
 }
 
-export default function AutocompleteInput({
+const AutocompleteInput = forwardRef<HTMLInputElement, AutocompleteInputProps>(({
   value,
   onChange,
   onSelectSuggestion,
@@ -21,8 +21,9 @@ export default function AutocompleteInput({
   showRecent = false,
   onQuickAdd,
   ...props
-}: AutocompleteInputProps) {
+}, ref) => {
   const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [isFocused, setIsFocused] = useState(false);
   const isMobile = useIsMobile();
   const [inputValue, setInputValue] = useState<string | undefined>(value?.toString());
   
@@ -136,16 +137,36 @@ export default function AutocompleteInput({
       inputRef.current.focus();
     }
   };
+  
+  // Track focus state for controlling arrow visibility
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setIsFocused(true);
+    onFocusHandler(e);
+  };
+  
+  const handleBlur = () => {
+    setIsFocused(false);
+  };
+
+  // Determine if arrow should be shown (desktop/tablet with text and focus)
+  const showQuickAddArrow = !isMobile && inputValue && inputValue.trim() !== "" && isFocused && onQuickAdd;
 
   return (
     <div className="relative w-full">
       <div className="relative flex items-center">
         <Search className="absolute left-3 h-4 w-4 text-gray-400" />
         <Input
-          ref={inputRef}
+          ref={(el) => {
+            // Assign the ref from useSuggestions
+            if (inputRef) inputRef.current = el;
+            // Forward the ref to parent component if provided
+            if (typeof ref === 'function') ref(el);
+            else if (ref) ref.current = el;
+          }}
           value={value}
           onChange={handleInputChange}
-          onFocus={onFocusHandler}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           placeholder={placeholder || "Enter medication or supplement name"}
           className={`pl-10 ${inputValue ? 'pr-20' : 'pr-10'} h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white rounded-md ${className || ""}`}
@@ -153,30 +174,28 @@ export default function AutocompleteInput({
         />
         {/* Button controls - positioned absolutely within input */}
         <div className="absolute right-3 flex items-center space-x-1">
+          {/* Show arrow left of X but only on desktop/tablet with text and focus */}
+          {showQuickAddArrow && (
+            <button 
+              type="button" 
+              onClick={handleQuickAdd}
+              className="h-5 w-5 text-blue-500 hover:text-blue-700 transition-colors mr-2"
+              aria-label="Quick add"
+            >
+              <ArrowRight className="h-5 w-5" />
+            </button>
+          )}
+          
+          {/* Clear button - show when there's text */}
           {inputValue && inputValue.length > 0 && (
-            <>
-              {/* Clear button */}
-              <button 
-                type="button" 
-                onClick={handleClearInput}
-                className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label="Clear input"
-              >
-                <X className="h-5 w-5" />
-              </button>
-              
-              {/* Quick add button - desktop/tablet only */}
-              {!isMobile && onQuickAdd && (
-                <button 
-                  type="button" 
-                  onClick={handleQuickAdd}
-                  className="h-5 w-5 text-blue-500 hover:text-blue-700 transition-colors ml-2"
-                  aria-label="Quick add"
-                >
-                  <ArrowRight className="h-5 w-5" />
-                </button>
-              )}
-            </>
+            <button 
+              type="button" 
+              onClick={handleClearInput}
+              className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Clear input"
+            >
+              <X className="h-5 w-5" />
+            </button>
           )}
           
           {loading && (
@@ -199,4 +218,8 @@ export default function AutocompleteInput({
       />
     </div>
   );
-}
+});
+
+AutocompleteInput.displayName = "AutocompleteInput";
+
+export default AutocompleteInput;
