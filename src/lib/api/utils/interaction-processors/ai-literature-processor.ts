@@ -1,3 +1,4 @@
+
 /**
  * AI Literature Analysis Processor
  * 
@@ -360,16 +361,16 @@ function extractDescription(result: StandardizedApiResponse): string | null {
   const rawData = result.rawData;
   if (rawData) {
     // Check common paths in various schemas
-    if (rawData.result?.description) return rawData.result.description;
-    if (rawData.description) return rawData.description;
-    if (rawData.data?.description) return rawData.data.description;
-    if (rawData.text) return rawData.text;
-    if (rawData.content) return rawData.content;
+    if (rawData.result?.description && typeof rawData.result.description === 'string') return rawData.result.description;
+    if (rawData.description && typeof rawData.description === 'string') return rawData.description;
+    if (rawData.data?.description && typeof rawData.data.description === 'string') return rawData.data.description;
+    if (rawData.text && typeof rawData.text === 'string') return rawData.text;
+    if (rawData.content && typeof rawData.content === 'string') return rawData.content;
     
     // For OpenAI-like responses
     if (rawData.choices && Array.isArray(rawData.choices) && rawData.choices.length > 0) {
       const message = rawData.choices[0].message?.content;
-      if (message) return message;
+      if (typeof message === 'string') return message;
     }
   }
   

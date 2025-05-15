@@ -1,3 +1,4 @@
+
 import { RiskAssessmentInput, RiskAssessmentOutput } from './types';
 import { SOURCE_WEIGHTS, SEVERITY_THRESHOLDS } from './constants';
 
@@ -143,7 +144,9 @@ export function calculateRiskScore(input: RiskAssessmentInput): RiskAssessmentOu
     severityFlag,
     adjustments,
     avoidanceStrategy,
-    inputData: input
+    inputData: input,
+    contributingFactors,
+    aiOnlySevere
   };
 }
 
