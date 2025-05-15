@@ -14,15 +14,21 @@ export function getRiskAssessment(interaction: InteractionResult): RiskAssessmen
   const severity = interaction.severity;
   
   // Check if there are high-confidence sources reporting severe
-  const hasHighConfidenceSource = interaction.sources?.some(source => 
-    source.name === "FDA" || source.name === "RxNorm" || source.name === "OpenFDA Adverse Events"
-  );
+  const hasHighConfidenceSource = interaction.sources?.some(source => {
+    const sourceName = typeof source === 'string' ? source : source.name;
+    return sourceName === "FDA" || sourceName === "RxNorm" || sourceName === "OpenFDA Adverse Events";
+  });
   
   // Check if only AI is reporting severe
   const onlyAiReportsSevere = 
     severity === "severe" && 
-    interaction.sources?.filter(s => s.severity === "severe")
-      .every(s => s.name === "AI Literature Analysis");
+    interaction.sources?.filter(s => {
+      if (typeof s === 'string') return false;
+      return s.severity === "severe";
+    }).every(s => {
+      if (typeof s === 'string') return false;
+      return s.name === "AI Literature Analysis";
+    });
   
   // Apply RULE 1: Restrict severe classification if only AI reports it
   const adjustedSeverity = (severity === "severe" && onlyAiReportsSevere && !hasHighConfidenceSource)
@@ -43,7 +49,9 @@ export function getRiskAssessment(interaction: InteractionResult): RiskAssessmen
     inputData: {
       severity: adjustedSeverity === "severe" ? "severe" : 
                 adjustedSeverity === "moderate" ? "moderate" : "mild"
-    }
+    },
+    contributingFactors: [],
+    aiOnlySevere: onlyAiReportsSevere || false
   };
   
   return baseRisk;
@@ -55,7 +63,7 @@ export function getRiskAssessment(interaction: InteractionResult): RiskAssessmen
 export async function getInteractionRisk(interaction: InteractionResult): Promise<RiskAssessmentOutput> {
   try {
     // Analyze the interaction risk using the ML-enhanced system
-    const riskAssessment = await analyzeInteractionRisk(interaction);
+    const riskAssessment = await analyzeInteractionRisk(interaction as any);
     return riskAssessment;
   } catch (error) {
     console.error("Error analyzing interaction risk:", error);
@@ -68,7 +76,9 @@ export async function getInteractionRisk(interaction: InteractionResult): Promis
       avoidanceStrategy: 'Unable to analyze risk. Please consult a healthcare professional.',
       inputData: {
         severity: 'mild'
-      }
+      },
+      contributingFactors: [],
+      aiOnlySevere: false
     };
   }
 }
@@ -102,10 +112,11 @@ export function getCombinedRiskAssessment(
       severeCount++;
       
       // Check if any high-confidence source reports severe
-      const hasHighConfidenceSource = interaction.sources?.some(source => 
-        (source.severity === "severe") && 
-        (source.name === "FDA" || source.name === "RxNorm" || source.name === "OpenFDA Adverse Events")
-      );
+      const hasHighConfidenceSource = interaction.sources?.some(source => {
+        if (typeof source === 'string') return false;
+        return (source.severity === "severe") && 
+          (source.name === "FDA" || source.name === "RxNorm" || source.name === "OpenFDA Adverse Events");
+      });
       
       if (hasHighConfidenceSource) {
         highConfidenceSevereCount++;
@@ -207,6 +218,12 @@ export function getCombinedRiskAssessment(
       severity: highConfidenceSevereCount > 0 ? 'severe' : 
                 aiOnlySevere ? 'moderate' : 
                 moderateCount > 0 ? 'moderate' : 'mild'
-    }
+    },
+    contributingFactors: [
+      ...(severeCount > 0 ? ['Severe interaction warnings'] : []),
+      ...(moderateCount > 0 ? ['Moderate interaction warnings'] : []),
+      ...(minorCount > 0 ? ['Minor interaction notes'] : [])
+    ],
+    aiOnlySevere
   };
 }

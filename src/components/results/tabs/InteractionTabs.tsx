@@ -5,7 +5,7 @@ import { InteractionGroup } from "../InteractionGroup";
 import { CombinedInteractionCard } from "../CombinedInteractionCard";
 import { SingleMedicationView } from "../SingleMedicationView";
 import { InteractionResult } from "@/lib/api-utils";
-import { CombinationResult } from "@/lib/api/medication-service";
+import { CombinationResult } from "@/lib/api/services/combination-types";
 import { RiskAssessmentOutput } from "@/lib/utils/risk-assessment/types";
 
 interface InteractionTabsProps {
@@ -92,7 +92,7 @@ export function InteractionTabs({
       {/* Singles Tab */}
       <TabPanel value="singles" activeTab={activeTab}>
         <InteractionGroup 
-          interactions={groupedInteractions.singles}
+          interactions={groupedInteractions.singles as unknown as InteractionResult[]}
           openSections={openSections}
           toggleSection={toggleSection}
           groupName="single"
@@ -103,7 +103,7 @@ export function InteractionTabs({
       {/* Pairs Tab */}
       <TabPanel value="pairs" activeTab={activeTab}>
         <InteractionGroup 
-          interactions={groupedInteractions.pairs}
+          interactions={groupedInteractions.pairs as unknown as InteractionResult[]}
           openSections={openSections}
           toggleSection={toggleSection}
           groupName="pair"
@@ -114,7 +114,7 @@ export function InteractionTabs({
       {/* Triples Tab */}
       <TabPanel value="triples" activeTab={activeTab}>
         <InteractionGroup 
-          interactions={groupedInteractions.triples}
+          interactions={groupedInteractions.triples as unknown as InteractionResult[]}
           openSections={openSections}
           toggleSection={toggleSection}
           groupName="triple"

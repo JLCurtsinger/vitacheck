@@ -1,3 +1,4 @@
+
 export interface RiskAssessmentInput {
   severity: "severe" | "moderate" | "mild";
   fdaReports?: { 

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { InteractionResult as InteractionResultType } from "@/lib/api-utils";
 import { InteractionHeader } from "./InteractionHeader";
@@ -30,7 +31,7 @@ export function InteractionResult({ interaction }: InteractionResultProps) {
     const loadRiskAssessment = async () => {
       setIsLoading(true);
       try {
-        const assessment = await analyzeInteractionRisk(interaction);
+        const assessment = await analyzeInteractionRisk(interaction as any);
         if (isMounted) {
           setRiskAssessment(assessment);
         }

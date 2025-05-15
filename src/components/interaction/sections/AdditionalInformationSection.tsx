@@ -1,3 +1,4 @@
+
 import { InteractionResult } from "@/lib/api-utils";
 import { NutrientDepletion } from "@/lib/api/utils/nutrient-depletion-utils";
 import { SeverityBreakdown } from "./SeverityBreakdown";
@@ -32,7 +33,7 @@ export function AdditionalInformationSection({
       
       {/* Adverse Events Section */}
       {hasAdverseEvents && (
-        <AdverseEvents adverseEvents={interaction.adverseEvents} />
+        <AdverseEvents adverseEvents={interaction.adverseEvents!} />
       )}
       
       {/* Nutrient Depletions Section */}

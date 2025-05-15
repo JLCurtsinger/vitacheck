@@ -8,7 +8,11 @@ interface SourceAttributionSectionProps {
 
 export function SourceAttributionSection({ interaction }: SourceAttributionSectionProps) {
   // Get unique source names to display
-  const sourceNames = Array.from(new Set(interaction.sources.map(s => s.name))).filter(name => 
+  const sourceNames = Array.from(
+    new Set(
+      interaction.sources.map(s => typeof s === 'string' ? s : s.name)
+    )
+  ).filter(name => 
     name !== "No Data Available" && name !== "Unknown"
   );
   
@@ -21,5 +25,5 @@ export function SourceAttributionSection({ interaction }: SourceAttributionSecti
   
   if (sourceNames.length === 0) return null;
   
-  return <SourceAttribution sources={sourceNames} interaction={interaction} />;
+  return <SourceAttribution sources={sourceNames} interaction={interaction as any} />;
 }

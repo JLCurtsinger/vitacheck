@@ -1,6 +1,7 @@
+
 import { useState, useEffect, useMemo } from "react";
 import { InteractionResult } from "@/lib/api-utils";
-import { CombinationResult } from "@/lib/api/medication-service";
+import { CombinationResult } from "@/lib/api/services/combination-types";
 import { getCombinedRiskAssessment } from "../utils/risk-utils";
 
 export function useInteractionDisplay(
@@ -16,11 +17,11 @@ export function useInteractionDisplay(
   // Group interactions by type
   const groupedInteractions = useMemo(() => {
     // Check if interactions have the "type" property
-    const hasTypes = validInteractions.length > 0 && 'type' in validInteractions[0];
+    const hasTypes = validInteractions.length > 0 && validInteractions[0] && 'type' in validInteractions[0];
     
     if (hasTypes) {
       // If the interactions already have types, we can cast them directly
-      const typed = validInteractions as CombinationResult[];
+      const typed = validInteractions as unknown as CombinationResult[];
       return {
         singles: typed.filter(i => i.type === 'single'),
         pairs: typed.filter(i => i.type === 'pair'),
@@ -36,7 +37,7 @@ export function useInteractionDisplay(
         ...interaction,
         type: 'pair' as const,
         label: interaction.medications.join(' + ')
-      })) as CombinationResult[],
+      })) as unknown as CombinationResult[],
       triples: [] as CombinationResult[]
     };
   }, [validInteractions]);
@@ -50,7 +51,10 @@ export function useInteractionDisplay(
   // Create stable interaction keys
   const interactionKeys = useMemo(() => {
     return validInteractions.map((interaction, index) => {
-      const label = 'label' in interaction ? (interaction as CombinationResult).label : interaction.medications.join('+');
+      const label = 'label' in interaction 
+        ? (interaction as unknown as CombinationResult).label 
+        : interaction.medications.join('+');
+      
       return {
         id: `${interaction.medications.sort().join('-')}-${index}`,
         interaction,
@@ -67,17 +71,20 @@ export function useInteractionDisplay(
     if (!isSingleMedication || validInteractions.length === 0) return null;
     
     // Find any source with eventData
-    const eventData = validInteractions[0]?.sources?.find(source => 
-      source.eventData && source.eventData.totalEvents > 0
-    )?.eventData;
+    const eventSource = validInteractions[0]?.sources?.find(source => {
+      if (typeof source === 'string') return false;
+      return source.eventData && source.eventData.totalEvents > 0;
+    });
     
-    if (!eventData || !eventData.totalEvents) return null;
+    if (!eventSource || typeof eventSource === 'string' || !eventSource.eventData || !eventSource.eventData.totalEvents) {
+      return null;
+    }
     
     // For single medications, we don't want to show severity
     // Instead, we'll just return the safety data
     return {
-      totalEvents: eventData.totalEvents,
-      reactions: eventData.commonReactions || [],
+      totalEvents: eventSource.eventData.totalEvents,
+      reactions: eventSource.eventData.commonReactions || [],
       // Remove any severity-related data
       severity: undefined,
       confidence: undefined
@@ -89,7 +96,7 @@ export function useInteractionDisplay(
   
   // Combined risk assessment
   const combinedRiskAssessment = useMemo(() => 
-    getCombinedRiskAssessment(medications, validInteractions), 
+    getCombinedRiskAssessment(medications, validInteractions as any), 
     [medications, validInteractions]
   );
   

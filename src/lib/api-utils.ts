@@ -1,3 +1,4 @@
+
 /**
  * API Types
  * 
@@ -61,15 +62,14 @@ export interface FDALabelData {
 export interface InteractionResult {
   id?: string;
   medications: string[];
-  severity: 'safe' | 'minor' | 'moderate' | 'severe';
-  description?: string;
+  severity: 'safe' | 'minor' | 'moderate' | 'severe' | 'unknown';
+  description: string;
   confidenceScore?: number;
-  sources: string[];
-  adverseEvents?: {
-    eventCount: number;
-    events: string[];
-  };
+  sources: InteractionSource[];
+  evidence?: string;
+  adverseEvents?: AdverseEventData;
   fdaLabel?: FDALabelData;
+  aiValidated?: boolean;
 }
 
 // Export the types and functions

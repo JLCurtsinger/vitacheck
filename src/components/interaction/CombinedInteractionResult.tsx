@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { InteractionResult } from '@/lib/api-utils';
 import { RiskAssessmentOutput } from '@/lib/utils/risk-assessment/types';
@@ -25,7 +26,7 @@ export function CombinedInteractionResult({ interaction }: CombinedInteractionRe
       try {
         setIsRiskLoading(true);
         // Get risk assessment for this interaction
-        const risk = await getInteractionRisk(interaction);
+        const risk = await getInteractionRisk(interaction as any);
         
         // Only update state if the component is still mounted
         if (isMounted) {

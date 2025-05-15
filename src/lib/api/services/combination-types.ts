@@ -1,5 +1,5 @@
 
-import { InteractionResult } from '../types';
+import { InteractionResult, InteractionSource } from '@/lib/api/types';
 
 /**
  * Result type for combination processing that extends the base InteractionResult
