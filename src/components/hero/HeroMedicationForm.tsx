@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -11,9 +11,26 @@ export default function HeroMedicationForm() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [medications, setMedications] = useState<string[]>([""]);
+  const inputRefs = useRef<(HTMLElement | null)[]>([]);
+
+  // Effect to update ref array when medications array changes length
+  useEffect(() => {
+    inputRefs.current = inputRefs.current.slice(0, medications.length);
+  }, [medications.length]);
 
   const addMedication = () => {
     setMedications([...medications, ""]);
+    
+    // Focus the new input after render
+    setTimeout(() => {
+      const lastIndex = medications.length;
+      if (inputRefs.current[lastIndex]) {
+        const inputElement = inputRefs.current[lastIndex];
+        if (inputElement && 'focus' in inputElement && typeof inputElement.focus === 'function') {
+          inputElement.focus();
+        }
+      }
+    }, 50);
   };
 
   const removeMedication = (index: number) => {
@@ -90,15 +107,48 @@ export default function HeroMedicationForm() {
   const handleSelectSuggestion = (index: number, value: string) => {
     updateMedication(index, value);
   };
+  
+  // Handle quick add functionality
+  const handleQuickAdd = (index: number) => {
+    // First validate the current input
+    const currentValue = medications[index].trim();
+    if (currentValue === "") return;
+    
+    const { isValid } = validateMedication(currentValue);
+    if (!isValid) return;
+    
+    // If it's already the last input, add a new one
+    if (index === medications.length - 1) {
+      addMedication();
+    } else {
+      // Otherwise focus the next input
+      setTimeout(() => {
+        if (inputRefs.current[index + 1]) {
+          const inputElement = inputRefs.current[index + 1];
+          if (inputElement && 'focus' in inputElement && typeof inputElement.focus === 'function') {
+            inputElement.focus();
+          }
+        }
+      }, 50);
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="mt-10 space-y-4 max-w-xl mx-auto">
       {medications.map((medication, index) => (
-        <div key={index} className="flex gap-2">
+        <div 
+          key={index} 
+          className="flex gap-2 transition-opacity duration-300 opacity-100 animate-fadeIn"
+        >
           <AutocompleteInput
+            ref={el => {
+              // Store reference to input element
+              inputRefs.current[index] = el;
+            }}
             value={medication}
             onChange={(e) => updateMedication(index, e.target.value)}
             onSelectSuggestion={(value) => handleSelectSuggestion(index, value)}
+            onQuickAdd={() => handleQuickAdd(index)}
             placeholder="Enter medication or supplement name"
           />
           {medications.length > 1 && (
