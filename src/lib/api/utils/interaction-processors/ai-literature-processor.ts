@@ -1,4 +1,3 @@
-
 /**
  * AI Literature Analysis Processor
  * 
@@ -361,16 +360,36 @@ function extractDescription(result: StandardizedApiResponse): string | null {
   const rawData = result.rawData;
   if (rawData) {
     // Check common paths in various schemas
-    if (rawData.result?.description && typeof rawData.result.description === 'string') return rawData.result.description;
-    if (rawData.description && typeof rawData.description === 'string') return rawData.description;
-    if (rawData.data?.description && typeof rawData.data.description === 'string') return rawData.data.description;
-    if (rawData.text && typeof rawData.text === 'string') return rawData.text;
-    if (rawData.content && typeof rawData.content === 'string') return rawData.content;
+    if (typeof rawData.result === 'object' && rawData.result !== null && 
+        typeof rawData.result.description === 'string') {
+      return rawData.result.description;
+    }
+    
+    if (typeof rawData.description === 'string') {
+      return rawData.description;
+    }
+    
+    if (typeof rawData.data === 'object' && rawData.data !== null && 
+        typeof rawData.data.description === 'string') {
+      return rawData.data.description;
+    }
+    
+    if (typeof rawData.text === 'string') {
+      return rawData.text;
+    }
+    
+    if (typeof rawData.content === 'string') {
+      return rawData.content;
+    }
     
     // For OpenAI-like responses
-    if (rawData.choices && Array.isArray(rawData.choices) && rawData.choices.length > 0) {
-      const message = rawData.choices[0].message?.content;
-      if (typeof message === 'string') return message;
+    if (Array.isArray(rawData.choices) && rawData.choices.length > 0) {
+      const firstChoice = rawData.choices[0];
+      if (typeof firstChoice === 'object' && firstChoice !== null && 
+          typeof firstChoice.message === 'object' && firstChoice.message !== null &&
+          typeof firstChoice.message.content === 'string') {
+        return firstChoice.message.content;
+      }
     }
   }
   
