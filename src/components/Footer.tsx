@@ -1,4 +1,3 @@
-
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useRef } from "react";
 
@@ -21,27 +20,28 @@ export default function Footer() {
   useScrollToTopOnNav();
 
   return (
-    <footer className="bg-gradient-to-r from-gray-900 to-gray-800 text-white mt-auto">
-      <div className="mx-auto max-w-7xl px-6 py-12 md:flex md:items-center md:justify-between lg:px-8">
-        <div className="mt-4 md:order-1 md:mt-0">
-          <p className="text-center text-sm leading-5 text-gray-300 mb-2">
+    <footer className="bg-gradient-to-r from-gray-900 to-gray-800 text-white mt-auto relative z-10">
+      <div className="mx-auto max-w-7xl px-6 py-12">
+        <div className="flex flex-col items-center justify-center space-y-4">
+          <p className="text-center text-sm leading-5 text-gray-300 max-w-3xl">
             This tool is for informational purposes only and is not a substitute for professional medical advice.
             Always consult with a healthcare provider before making any changes to your medication regimen.
           </p>
-          <div className="text-center space-x-4">
+          
+          <nav className="flex items-center justify-center space-x-6">
             <Link 
               to="/privacy-policy"
-              className="text-sm text-gray-300 hover:text-white transition-colors duration-200 inline-block cursor-pointer"
+              className="text-sm text-gray-300 hover:text-white transition-colors duration-200 relative z-20"
             >
               Privacy Policy
             </Link>
             <Link 
               to="/terms"
-              className="text-sm text-gray-300 hover:text-white transition-colors duration-200 inline-block cursor-pointer"
+              className="text-sm text-gray-300 hover:text-white transition-colors duration-200 relative z-20"
             >
               Terms and Conditions
             </Link>
-          </div>
+          </nav>
         </div>
       </div>
     </footer>
