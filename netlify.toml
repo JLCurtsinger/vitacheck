@@ -15,3 +15,8 @@
 
 [build.environment]
   MISE_AUTO_INSTALL = "false"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
