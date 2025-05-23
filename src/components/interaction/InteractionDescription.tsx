@@ -43,7 +43,7 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
     
     // Extract FDA label data from the interaction object
     const fdaLabelData = interaction.fdaLabel ? {
-      description: interaction.description,
+      description: interaction.fdaLabel.description || interaction.description,
       boxed_warning: interaction.fdaLabel.boxed_warning,
       adverse_reactions: interaction.fdaLabel.adverse_reactions,
       contraindications: interaction.fdaLabel.contraindications,

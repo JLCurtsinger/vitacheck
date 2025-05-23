@@ -117,3 +117,12 @@ export interface InteractionResult {
   confidenceScore?: number; // Added overall confidence score
   aiValidated?: boolean; // Indicates if AI was used to validate
 }
+
+export interface FDALabelData {
+  description?: string;
+  boxed_warning?: string;
+  adverse_reactions?: string;
+  contraindications?: string;
+  warnings_and_cautions?: string;
+  drug_interactions?: string;
+}
