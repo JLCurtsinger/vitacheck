@@ -18,6 +18,7 @@ interface FDALabelData {
 interface SafetySummary {
   summary: string;
   confidence: number;
+  pubmedIds?: string[];
 }
 
 interface FDALabelSectionProps {
@@ -133,7 +134,7 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
             Generated using recent PubMed literature on {medicationName}. AI-generated on {new Date().toLocaleDateString()}.
           </p>
           
-          {safetySummary.pubmedIds.length > 0 && (
+          {safetySummary.pubmedIds?.length > 0 && (
             <p className="text-xs text-blue-700 underline">
               Sources: {safetySummary.pubmedIds.map(id => `https://pubmed.ncbi.nlm.nih.gov/${id}`).join(', ')}
             </p>
@@ -221,8 +222,17 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
     );
   };
 
-  // If no FDA data is available, show the fallback message
-  if (!data || Object.keys(data).length === 0) {
+  // Check if we have any valid content to display
+  const hasValidContent = Boolean(
+    data?.description ||
+    data?.boxed_warning ||
+    data?.warnings_and_cautions ||
+    data?.contraindications ||
+    data?.adverse_reactions
+  );
+
+  // If no FDA data or no valid content is available, show the fallback message
+  if (!data || !hasValidContent) {
     return (
       <Alert variant="default" className="bg-muted/50">
         <AlertDescription>
@@ -231,7 +241,7 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
           ) : safetySummary?.summary ? (
             safetySummary.summary
           ) : (
-            "No safety information was found for this substance. Please consult your healthcare provider."
+            "No detailed warnings were found. Monitor for potential side effects and consult your healthcare provider."
           )}
         </AlertDescription>
       </Alert>
