@@ -5,11 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 interface SingleMedicationAdverseEventsProps {
   totalEvents: number;
   reactions: string[];
+  source?: string;
+  sourceUrl?: string;
 }
 
 export function SingleMedicationAdverseEvents({ 
   totalEvents, 
-  reactions 
+  reactions,
+  source,
+  sourceUrl
 }: SingleMedicationAdverseEventsProps) {
   if (!totalEvents || totalEvents === 0 || !reactions || reactions.length === 0) {
     return (
@@ -57,9 +61,23 @@ export function SingleMedicationAdverseEvents({
             </div>
           )}
           
-          <p className="text-sm text-gray-500 mt-2">
-            Source: openFDA Adverse Events Database
-          </p>
+          {/* Source Citation */}
+          {(source || sourceUrl) && (
+            <div className="mt-4 text-xs text-gray-500">
+              Source: {sourceUrl ? (
+                <a 
+                  href={sourceUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  {source || 'OpenFDA Adverse Events Database'}
+                </a>
+              ) : (
+                source || 'OpenFDA Adverse Events Database'
+              )}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

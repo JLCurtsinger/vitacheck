@@ -11,14 +11,13 @@ interface FDALabelData {
   warnings_and_cautions?: string;
   drug_interactions?: string;
   description?: string;
+  source?: string;
+  sourceUrl?: string;
 }
 
 interface SafetySummary {
-  substance: string;
   summary: string;
-  source: string;
-  articleCount: number;
-  pubmedIds: string[];
+  confidence: number;
 }
 
 interface FDALabelSectionProps {
@@ -42,35 +41,38 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
 
   useEffect(() => {
     const fetchSafetySummary = async () => {
+      if (!data || Object.keys(data).length === 0) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        setIsLoading(true);
-        setError(null);
-        
-        const response = await fetch('/.netlify/functions/summarizeSafetyInfo', {
+        const response = await fetch('/.netlify/functions/summarizeSafety', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ substance: medicationName }),
+          body: JSON.stringify({
+            medicationName,
+            fdaData: data
+          })
         });
 
         if (!response.ok) {
           throw new Error('Failed to fetch safety summary');
         }
 
-        const summary = await response.json();
-        console.log("[DEBUG] Safety Summary Response:", summary);
-        setSafetySummary(summary);
-      } catch (err) {
-        console.error('Error fetching safety summary:', err);
-        setError('Failed to load safety summary');
+        const result = await response.json();
+        setSafetySummary(result);
+      } catch (error) {
+        console.error('Error fetching safety summary:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchSafetySummary();
-  }, [medicationName]);
+  }, [data, medicationName]);
 
   // Helper function to truncate text
   const truncateText = (text: string, maxLength: number = 500) => {
@@ -164,12 +166,7 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
     console.log("[DEBUG ✅] Rendering FDA warnings with:", data);
 
     return (
-      <div className="rounded-xl bg-gradient-to-br from-gray-50 to-white border border-gray-200 p-4 shadow-sm mb-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-          <AlertTriangle className="w-4 h-4 text-yellow-500" />
-          FDA Safety Warning
-        </div>
-
+      <div className="space-y-4">
         <div className="space-y-3">
           {data.description && (
             <div className="text-sm text-gray-800 border-l-2 border-yellow-400 pl-3">
@@ -203,7 +200,23 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
           )}
         </div>
 
-        <div className="mt-4 text-xs text-gray-500">Source: FDA Drug Label</div>
+        {/* Source Citation */}
+        {(data.source || data.sourceUrl) && (
+          <div className="mt-4 text-xs text-gray-500">
+            Source: {data.sourceUrl ? (
+              <a 
+                href={data.sourceUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                {data.source || 'FDA Drug Label'}
+              </a>
+            ) : (
+              data.source || 'FDA Drug Label'
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -226,25 +239,15 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
   }
 
   return (
-    <Card>
+    <Card className="mb-6">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">General Safety Information</CardTitle>
+        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-blue-500" />
+          FDA Label Information
+        </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* ✅ Place this BEFORE AI summary */}
+      <CardContent>
         {renderFDAWarnings()}
-        {renderAISummary()}
-
-        {/* Other sections */}
-        {renderSection("Common Adverse Reactions", data.adverse_reactions)}
-        {renderSection("Contraindications", data.contraindications)}
-        {renderSection("Warnings and Cautions", data.warnings_and_cautions)}
-        {renderSection("Drug Interactions", data.drug_interactions)}
-
-        {/* Source attribution */}
-        <div className="text-xs text-gray-500 mt-4">
-          Source: FDA Drug Label
-        </div>
       </CardContent>
     </Card>
   );

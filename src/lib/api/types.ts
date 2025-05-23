@@ -64,6 +64,7 @@ export interface InteractionSource {
   description: string;
   confidence?: number; // Added confidence rating for each source
   isReliable?: boolean; // Added to indicate if the source data is reliable
+  sourceUrl?: string; // URL to the source material
   eventData?: {
     totalEvents: number;
     seriousEvents: number;

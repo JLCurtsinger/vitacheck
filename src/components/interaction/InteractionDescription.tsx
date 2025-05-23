@@ -1,4 +1,3 @@
-
 import { InteractionResult } from "@/lib/api-utils";
 import { SourceAttributionSection } from "./sections/SourceAttributionSection";
 import { ClinicalInformationSection } from "./sections/ClinicalInformationSection";
@@ -49,7 +48,9 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
       adverse_reactions: interaction.fdaLabel.adverse_reactions,
       contraindications: interaction.fdaLabel.contraindications,
       warnings_and_cautions: interaction.fdaLabel.warnings_and_cautions,
-      drug_interactions: interaction.fdaLabel.drug_interactions
+      drug_interactions: interaction.fdaLabel.drug_interactions,
+      source: interaction.sources[0]?.name,
+      sourceUrl: interaction.sources[0]?.sourceUrl
     } : null;
 
     return (
