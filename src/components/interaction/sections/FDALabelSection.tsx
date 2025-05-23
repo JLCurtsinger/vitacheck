@@ -4,7 +4,7 @@ import { AlertTriangle, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
-interface FDALabelData {
+export interface FDALabelData {
   boxed_warning?: string;
   adverse_reactions?: string;
   contraindications?: string;

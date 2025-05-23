@@ -1,4 +1,3 @@
-
 /**
  * API Types
  * 
@@ -48,17 +47,11 @@ export interface AdverseEventData {
   };
 }
 
+import type { FDALabelData } from "@/components/interaction/sections/FDALabelSection";
+
 /**
  * Represents the result of a medication interaction check
  */
-export interface FDALabelData {
-  boxed_warning?: string;
-  adverse_reactions?: string;
-  contraindications?: string;
-  warnings_and_cautions?: string;
-  drug_interactions?: string;
-}
-
 export interface InteractionResult {
   id?: string;
   medications: string[];

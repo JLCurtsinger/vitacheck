@@ -7,6 +7,7 @@ import { containsMildLanguage } from "@/lib/utils/text-analysis";
 import { SeverityDisclaimer } from "./severity/SeverityDisclaimer";
 import { useState, useEffect } from "react";
 import { FDALabelSection } from "./sections/FDALabelSection";
+import type { FDALabelData } from "./sections/FDALabelSection";
 
 interface InteractionDescriptionProps {
   interaction: InteractionResult;
@@ -42,16 +43,21 @@ export function InteractionDescription({ interaction }: InteractionDescriptionPr
     const medication = interaction.medications[0];
     
     // Extract FDA label data from the interaction object
-    const fdaLabelData = interaction.fdaLabel ? {
-      description: interaction.fdaLabel.description || interaction.description,
-      boxed_warning: interaction.fdaLabel.boxed_warning,
-      adverse_reactions: interaction.fdaLabel.adverse_reactions,
-      contraindications: interaction.fdaLabel.contraindications,
-      warnings_and_cautions: interaction.fdaLabel.warnings_and_cautions,
-      drug_interactions: interaction.fdaLabel.drug_interactions,
+    const hasLabel = interaction.fdaLabel !== undefined;
+
+    const fdaLabelData: FDALabelData = {
+      description: hasLabel ? interaction.fdaLabel?.description ?? interaction.description : interaction.description,
+      boxed_warning: interaction.fdaLabel?.boxed_warning,
+      adverse_reactions: interaction.fdaLabel?.adverse_reactions,
+      contraindications: interaction.fdaLabel?.contraindications,
+      warnings_and_cautions: interaction.fdaLabel?.warnings_and_cautions,
+      drug_interactions: interaction.fdaLabel?.drug_interactions,
       source: interaction.sources[0]?.name,
       sourceUrl: interaction.sources[0]?.sourceUrl
-    } : null;
+    };
+
+    // Debug log to verify the assembled data
+    console.log("[DEBUG] Assembled fdaLabelData", fdaLabelData);
 
     return (
       <div className="mb-6 space-y-4">
