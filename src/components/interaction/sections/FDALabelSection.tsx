@@ -48,7 +48,7 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
       }
 
       try {
-        const response = await fetch('/.netlify/functions/summarizeSafety', {
+        const response = await fetch('/.netlify/functions/summarizeSafetyInfo', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
