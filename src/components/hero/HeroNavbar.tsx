@@ -30,40 +30,13 @@ export default function HeroNavbar({ scrollToTop }: HeroNavbarProps) {
           Vitacheck
         </Link>
         
-        <div className="hidden md:flex items-center space-x-4">
-          <Link to="/experiences" onClick={scrollToTop}>
-            <Button variant="ghost">Experiences</Button>
-          </Link>
-          {isAuthenticated ? (
-            <>
-              <Link to="/dashboard">
-                <Button variant="ghost">Account</Button>
-              </Link>
-              <Button variant="ghost" onClick={handleSignOut}>
-                Sign Out
-              </Button>
-            </>
-          ) : (
-            <>
-              <Link to="/signin">
-                <Button variant="ghost">Sign In</Button>
-              </Link>
-              <Link to="/signup">
-                <Button variant="ghost">Sign Up</Button>
-              </Link>
-            </>
-          )}
-        </div>
-
-        <div className="md:hidden">
-          <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
-        </div>
+        <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+          {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
       </div>
 
       {isMenuOpen && (
-        <div className="md:hidden absolute top-16 right-4 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
+        <div className="absolute top-16 right-4 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
           <Link 
             to="/experiences" 
             onClick={() => {
