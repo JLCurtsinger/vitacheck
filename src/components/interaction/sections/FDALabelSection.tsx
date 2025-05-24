@@ -258,6 +258,7 @@ export function FDALabelSection({ data, medicationName }: FDALabelSectionProps) 
       </CardHeader>
       <CardContent>
         {renderFDAWarnings()}
+        {renderAISummary()}
       </CardContent>
     </Card>
   );
