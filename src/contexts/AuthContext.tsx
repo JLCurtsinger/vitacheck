@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
 }
@@ -13,6 +14,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Get initial user state
@@ -23,6 +25,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } catch (error) {
         console.error('Error getting initial user:', error);
         setUser(null);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -32,6 +36,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setUser(session?.user ?? null);
+        setIsLoading(false);
       }
     );
 
@@ -43,6 +48,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
+      setIsLoading(true);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -57,29 +63,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) {
       console.error('Login error:', error);
       return false;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const logout = async (): Promise<void> => {
     try {
+      setIsLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('Logout error:', error.message);
       }
     } catch (error) {
       console.error('Logout error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  // Provide a default value that won't crash the app
+  const value: AuthContextType = {
+    user,
+    isAuthenticated: !!user,
+    isLoading,
+    login,
+    logout
+  };
+
   return (
-    <AuthContext.Provider 
-      value={{ 
-        user, 
-        isAuthenticated: !!user,
-        login,
-        logout
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
@@ -88,7 +101,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    // Return a safe default value instead of throwing
+    return {
+      user: null,
+      isAuthenticated: false,
+      isLoading: true,
+      login: async () => false,
+      logout: async () => {}
+    };
   }
   return context;
 };
