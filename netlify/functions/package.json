@@ -1,0 +1,11 @@
+{
+  "name": "vitacheck-functions",
+  "version": "1.0.0",
+  "description": "Netlify Functions for VitaCheck",
+  "dependencies": {
+    "@netlify/functions": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24"
+  }
+} 
