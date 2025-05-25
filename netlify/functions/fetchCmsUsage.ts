@@ -57,65 +57,36 @@ const isMatch = (input: string, target: string): boolean => {
 
 // Helper function to fetch CMS data
 const fetchCmsData = async (searchTerm: string): Promise<CmsApiResponse> => {
-  // Try exact match on generic name first
-  const genericUrl = `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data?filters[GNRC_NAME]=${encodeURIComponent(searchTerm)}&size=100`;
-  console.log('🔍 [GENERIC] URL:', genericUrl);
-  
-  const genericResponse = await fetch(genericUrl);
-  
-  if (!genericResponse.ok) {
-    throw new Error(`CMS API responded with status: ${genericResponse.status}`);
+  // Single keyword pull (up to 5000 rows)
+  const url = 
+    `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data` +
+    `?keyword=${encodeURIComponent(searchTerm)}` +
+    `&size=5000`;
+  console.log('🔍 [KEYWORD] URL:', url);
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`CMS API responded with status: ${response.status}`);
   }
 
-  const genericJson = await genericResponse.json();
-  const genericRecords: CmsDrugRecord[] = Array.isArray(genericJson)
-    ? genericJson
-    : Array.isArray((genericJson as any).data)
-      ? (genericJson as any).data
+  const json = await response.json();
+  // Normalize to array
+  const records: CmsDrugRecord[] = Array.isArray(json)
+    ? json
+    : Array.isArray((json as any).data)
+      ? (json as any).data
       : [];
-  console.log('   ↓ genericRecords.length =', genericRecords.length);
-  console.log('   ✏️ genericRecords sample:', genericRecords[0]);
-  if (genericRecords.length > 0) return { data: genericRecords };
+  console.log('   ↓ records.length =', records.length);
 
-  // Try exact match on brand name next
-  const brandUrl = `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data?filters[BRND_NAME]=${encodeURIComponent(searchTerm)}&size=100`;
-  console.log('🔍 [BRAND]   URL:', brandUrl);
-  
-  const brandResponse = await fetch(brandUrl);
-  
-  if (!brandResponse.ok) {
-    throw new Error(`CMS API responded with status: ${brandResponse.status}`);
-  }
+  // Now do our fuzzy match
+  const matched = records.filter(record =>
+    isMatch(searchTerm, record.Gnrc_Name) ||
+    isMatch(searchTerm, record.Brnd_Name)
+  );
+  console.log('   ✓ matched.length =', matched.length);
 
-  const brandJson = await brandResponse.json();
-  const brandRecords: CmsDrugRecord[] = Array.isArray(brandJson)
-    ? brandJson
-    : Array.isArray((brandJson as any).data)
-      ? (brandJson as any).data
-      : [];
-  console.log('   ↓ brandRecords.length =', brandRecords.length);
-  console.log('   ✏️ brandRecords sample:', brandRecords[0]);
-  if (brandRecords.length > 0) return { data: brandRecords };
-
-  // Fall back to keyword search if no exact matches found
-  const keywordUrl = `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data?keyword=${encodeURIComponent(searchTerm)}&size=1000`;
-  console.log('🔍 [FALLBACK] URL:', keywordUrl);
-  
-  const keywordResponse = await fetch(keywordUrl);
-  
-  if (!keywordResponse.ok) {
-    throw new Error(`CMS API responded with status: ${keywordResponse.status}`);
-  }
-
-  const fallbackJson = await keywordResponse.json();
-  const fallbackRecords: CmsDrugRecord[] = Array.isArray(fallbackJson)
-    ? fallbackJson
-    : Array.isArray((fallbackJson as any).data)
-      ? (fallbackJson as any).data
-      : [];
-  console.log('   ↓ fallbackRecords.length =', fallbackRecords.length);
-  console.log('   ✏️ fallbackRecords sample:', fallbackRecords[0]);
-  return { data: fallbackRecords };
+  // Return in { data: [] } shape
+  return { data: matched };
 };
 
 const handler: Handler = async (event) => {
@@ -149,26 +120,8 @@ const handler: Handler = async (event) => {
       };
     }
 
-    // Find matches using normalized comparison
-    const matches = data.data.filter(record => 
-      isMatch(searchTerm, record.Gnrc_Name) || 
-      isMatch(searchTerm, record.Brnd_Name)
-    );
-
-    // If no matches found
-    if (matches.length === 0) {
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
-          success: false,
-          medication: searchTerm,
-          message: 'No CMS data found for this medication name.'
-        } as ErrorResponse)
-      };
-    }
-
     // Calculate totals from matched records
-    const totals = matches.reduce((acc, record) => {
+    const totals = data.data.reduce((acc, record) => {
       // Only add values if they exist and are numbers
       if (typeof record.Tot_Benes_2022 === 'number') {
         acc.total_beneficiaries += record.Tot_Benes_2022;
@@ -209,9 +162,9 @@ const handler: Handler = async (event) => {
     const successResponse: SuccessResponse = {
       success: true,
       medication: searchTerm,
-      matched_rows: matches.length,
+      matched_rows: data.data.length,
       totals: finalTotals,
-      rows: matches // Include matched records for diagnostics
+      rows: data.data // Include matched records for diagnostics
     };
 
     return {
