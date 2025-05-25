@@ -13,7 +13,11 @@ const inputPath = path.join(__dirname, '../data/cms_part_d_full.csv');
 const outputPath = path.join(__dirname, '../data/cms_usage_data.json');
 
 fs.createReadStream(inputPath)
-  .pipe(csv({ mapHeaders: ({ header }) => header.trim() }))
+  .pipe(
+    csv({
+      mapHeaders: ({ header }) => header.trim().replace(/^\uFEFF/, '') // Strip BOM
+    })
+  )
   .on('data', (row) => {
     if (results.length < 5) {
       console.log("\n🔍 Sample row:");
