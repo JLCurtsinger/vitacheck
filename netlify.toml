@@ -25,3 +25,9 @@
   from = "/terms-and-conditions"
   to = "/terms"
   status = 301
+
+  [dev]
+  framework = "vite"
+  targetPort = 5173
+  port = 8888
+  autoLaunch = false
