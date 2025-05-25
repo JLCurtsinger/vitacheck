@@ -67,12 +67,14 @@ const fetchCmsData = async (searchTerm: string): Promise<CmsApiResponse> => {
     throw new Error(`CMS API responded with status: ${genericResponse.status}`);
   }
 
-  const genericData = await genericResponse.json() as CmsApiResponse;
-  console.log('   ↓ genericData.data.length =', genericData.data?.length);
-  
-  if (genericData.data && genericData.data.length > 0) {
-    return genericData;
-  }
+  const genericJson = await genericResponse.json();
+  const genericRecords: CmsDrugRecord[] = Array.isArray(genericJson)
+    ? genericJson
+    : Array.isArray((genericJson as any).data)
+      ? (genericJson as any).data
+      : [];
+  console.log('   ↓ genericRecords.length =', genericRecords.length);
+  if (genericRecords.length > 0) return { data: genericRecords };
 
   // Try exact match on brand name next
   const brandUrl = `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data?filters[Brnd_Name]=${encodeURIComponent(searchTerm)}&size=100`;
@@ -84,12 +86,14 @@ const fetchCmsData = async (searchTerm: string): Promise<CmsApiResponse> => {
     throw new Error(`CMS API responded with status: ${brandResponse.status}`);
   }
 
-  const brandData = await brandResponse.json() as CmsApiResponse;
-  console.log('   ↓ brandData.data.length   =', brandData.data?.length);
-  
-  if (brandData.data && brandData.data.length > 0) {
-    return brandData;
-  }
+  const brandJson = await brandResponse.json();
+  const brandRecords: CmsDrugRecord[] = Array.isArray(brandJson)
+    ? brandJson
+    : Array.isArray((brandJson as any).data)
+      ? (brandJson as any).data
+      : [];
+  console.log('   ↓ brandRecords.length =', brandRecords.length);
+  if (brandRecords.length > 0) return { data: brandRecords };
 
   // Fall back to keyword search if no exact matches found
   const keywordUrl = `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data?keyword=${encodeURIComponent(searchTerm)}&size=1000`;
@@ -101,10 +105,14 @@ const fetchCmsData = async (searchTerm: string): Promise<CmsApiResponse> => {
     throw new Error(`CMS API responded with status: ${keywordResponse.status}`);
   }
 
-  const keywordData = await keywordResponse.json() as Promise<CmsApiResponse>;
-  console.log('   ↓ keywordData.data.length =', (await keywordData).data?.length);
-  
-  return keywordData;
+  const fallbackJson = await keywordResponse.json();
+  const fallbackRecords: CmsDrugRecord[] = Array.isArray(fallbackJson)
+    ? fallbackJson
+    : Array.isArray((fallbackJson as any).data)
+      ? (fallbackJson as any).data
+      : [];
+  console.log('   ↓ fallbackRecords.length =', fallbackRecords.length);
+  return { data: fallbackRecords };
 };
 
 const handler: Handler = async (event) => {
