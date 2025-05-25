@@ -15,9 +15,15 @@ const outputPath = path.join(__dirname, '../data/cms_usage_data.json');
 fs.createReadStream(inputPath)
   .pipe(csv({ mapHeaders: ({ header }) => header.trim() }))
   .on('data', (row) => {
+    if (results.length < 5) {
+      console.log("\n🔍 Sample row:");
+      console.log(row);
+      console.log("🔑 Keys:", Object.keys(row));
+    }
+  
     const beneficiaries = parseInt(row.Tot_Benes_2022 || '0', 10);
     if (!row.Gnrc_Name || beneficiaries === 0) return;
-
+  
     results.push({
       brand_name: row.Brnd_Name,
       generic_name: row.Gnrc_Name,
