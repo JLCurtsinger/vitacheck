@@ -18,7 +18,6 @@ interface SuccessResponse {
   success: true;
   medication: string;
   matched_rows: number;
-  matched_on: 'Gnrc_Name' | 'Brnd_Name';
   totals: {
     total_beneficiaries: number;
     total_claims: number;
@@ -43,9 +42,30 @@ const normalizeSearchTerm = (term: string): string => {
     .replace(/[^a-z0-9]/g, ''); // Remove non-alphanumeric characters
 };
 
+// Helper function to calculate string similarity
+const calculateSimilarity = (str1: string, str2: string): number => {
+  const s1 = normalizeSearchTerm(str1);
+  const s2 = normalizeSearchTerm(str2);
+  
+  // If either string is empty after normalization, return 0
+  if (!s1 || !s2) return 0;
+  
+  // If one string contains the other, return high similarity
+  if (s1.includes(s2) || s2.includes(s1)) return 0.9;
+  
+  // Calculate word overlap
+  const words1 = s1.split(/\s+/);
+  const words2 = s2.split(/\s+/);
+  
+  const commonWords = words1.filter(word => words2.includes(word));
+  const totalWords = new Set([...words1, ...words2]).size;
+  
+  return commonWords.length / totalWords;
+};
+
 // Helper function to fetch CMS data
-const fetchCmsData = async (searchTerm: string, field: 'Gnrc_Name' | 'Brnd_Name'): Promise<CmsApiResponse> => {
-  const apiUrl = `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data?filters[${field}]=${encodeURIComponent(searchTerm)}`;
+const fetchCmsData = async (searchTerm: string): Promise<CmsApiResponse> => {
+  const apiUrl = `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data?keyword=${encodeURIComponent(searchTerm)}&size=1000`;
   const response = await fetch(apiUrl);
   
   if (!response.ok) {
@@ -57,7 +77,7 @@ const fetchCmsData = async (searchTerm: string, field: 'Gnrc_Name' | 'Brnd_Name'
 
 const handler: Handler = async (event) => {
   try {
-    // Get and validate the generic name parameter
+    // Get and validate the search term
     const searchTerm = event.queryStringParameters?.gnrc_name?.trim();
     
     if (!searchTerm) {
@@ -66,34 +86,15 @@ const handler: Handler = async (event) => {
         body: JSON.stringify({
           success: false,
           medication: '',
-          message: 'Generic name parameter is required'
+          message: 'Medication name parameter is required'
         } as ErrorResponse)
       };
     }
 
-    // Try generic name first
-    let data: CmsApiResponse;
-    let matchedOn: 'Gnrc_Name' | 'Brnd_Name' = 'Gnrc_Name';
+    // Fetch data from CMS API
+    const data = await fetchCmsData(searchTerm);
 
-    try {
-      data = await fetchCmsData(searchTerm, 'Gnrc_Name');
-    } catch (error) {
-      console.error('Error fetching generic name data:', error);
-      data = { data: [] };
-    }
-
-    // If no matches found with generic name, try brand name
-    if (!data.data || data.data.length === 0) {
-      try {
-        data = await fetchCmsData(searchTerm, 'Brnd_Name');
-        matchedOn = 'Brnd_Name';
-      } catch (error) {
-        console.error('Error fetching brand name data:', error);
-        data = { data: [] };
-      }
-    }
-
-    // If still no matches found
+    // If no data returned
     if (!data.data || data.data.length === 0) {
       return {
         statusCode: 200,
@@ -105,8 +106,28 @@ const handler: Handler = async (event) => {
       };
     }
 
-    // Calculate totals
-    const totals = data.data.reduce((acc, record) => {
+    // Find best matches using fuzzy matching
+    const normalizedSearch = normalizeSearchTerm(searchTerm);
+    const matches = data.data.filter(record => {
+      const genericMatch = calculateSimilarity(record.Gnrc_Name, normalizedSearch);
+      const brandMatch = calculateSimilarity(record.Brnd_Name, normalizedSearch);
+      return genericMatch > 0.5 || brandMatch > 0.5; // Threshold for considering a match
+    });
+
+    // If no good matches found
+    if (matches.length === 0) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          success: false,
+          medication: searchTerm,
+          message: 'No CMS data found for this medication name.'
+        } as ErrorResponse)
+      };
+    }
+
+    // Calculate totals from matched records
+    const totals = matches.reduce((acc, record) => {
       acc.total_beneficiaries += record.Tot_Benes_2022 || 0;
       acc.total_claims += record.Tot_Clms_2022 || 0;
       acc.average_dosage_spend += record.Avg_Spnd_Per_Dsg_Unt_Wghtd_2022 || 0;
@@ -117,22 +138,23 @@ const handler: Handler = async (event) => {
       average_dosage_spend: 0
     });
 
-    // Calculate average spend per unit
-    const validSpendValues = data.data.filter(record => record.Avg_Spnd_Per_Dsg_Unt_Wghtd_2022 > 0);
+    // Calculate weighted average for dosage spend
+    const validSpendValues = matches.filter(record => record.Avg_Spnd_Per_Dsg_Unt_Wghtd_2022 > 0);
     totals.average_dosage_spend = validSpendValues.length > 0
       ? totals.average_dosage_spend / validSpendValues.length
       : 0;
 
-    // Round to 2 decimal places
+    // Round all numbers to 2 decimal places
     totals.average_dosage_spend = Math.round(totals.average_dosage_spend * 100) / 100;
+    totals.total_beneficiaries = Math.round(totals.total_beneficiaries);
+    totals.total_claims = Math.round(totals.total_claims);
 
     const successResponse: SuccessResponse = {
       success: true,
       medication: searchTerm,
-      matched_rows: data.data.length,
-      matched_on: matchedOn,
+      matched_rows: matches.length,
       totals,
-      rows: data.data // Include raw data for diagnostics
+      rows: matches // Include matched records for diagnostics
     };
 
     return {
