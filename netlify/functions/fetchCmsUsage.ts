@@ -3,6 +3,7 @@ import { Handler } from '@netlify/functions';
 // Type definitions for CMS API response
 interface CmsDrugRecord {
   Gnrc_Name: string;
+  Brnd_Name: string;
   Tot_Benes_2022: number;
   Tot_Clms_2022: number;
   Avg_Spnd_Per_Dsg_Unt_Wghtd_2022: number;
@@ -17,6 +18,7 @@ interface SuccessResponse {
   success: true;
   medication: string;
   matched_rows: number;
+  matched_on: 'Gnrc_Name' | 'Brnd_Name';
   totals: {
     total_beneficiaries: number;
     total_claims: number;
@@ -33,12 +35,32 @@ interface ErrorResponse {
 
 type FunctionResponse = SuccessResponse | ErrorResponse;
 
+// Helper function to normalize search terms
+const normalizeSearchTerm = (term: string): string => {
+  return term
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, ''); // Remove non-alphanumeric characters
+};
+
+// Helper function to fetch CMS data
+const fetchCmsData = async (searchTerm: string, field: 'Gnrc_Name' | 'Brnd_Name'): Promise<CmsApiResponse> => {
+  const apiUrl = `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data?filters[${field}]=${encodeURIComponent(searchTerm)}`;
+  const response = await fetch(apiUrl);
+  
+  if (!response.ok) {
+    throw new Error(`CMS API responded with status: ${response.status}`);
+  }
+
+  return response.json() as Promise<CmsApiResponse>;
+};
+
 const handler: Handler = async (event) => {
   try {
     // Get and validate the generic name parameter
-    const gnrc_name = event.queryStringParameters?.gnrc_name?.trim();
+    const searchTerm = event.queryStringParameters?.gnrc_name?.trim();
     
-    if (!gnrc_name) {
+    if (!searchTerm) {
       return {
         statusCode: 400,
         body: JSON.stringify({
@@ -49,26 +71,36 @@ const handler: Handler = async (event) => {
       };
     }
 
-    // Construct the CMS API URL with proper encoding
-    const apiUrl = `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data?filters[Gnrc_Name]=${encodeURIComponent(gnrc_name)}`;
+    // Try generic name first
+    let data: CmsApiResponse;
+    let matchedOn: 'Gnrc_Name' | 'Brnd_Name' = 'Gnrc_Name';
 
-    // Fetch data from CMS API
-    const response = await fetch(apiUrl);
-    
-    if (!response.ok) {
-      throw new Error(`CMS API responded with status: ${response.status}`);
+    try {
+      data = await fetchCmsData(searchTerm, 'Gnrc_Name');
+    } catch (error) {
+      console.error('Error fetching generic name data:', error);
+      data = { data: [] };
     }
 
-    const data = await response.json() as CmsApiResponse;
+    // If no matches found with generic name, try brand name
+    if (!data.data || data.data.length === 0) {
+      try {
+        data = await fetchCmsData(searchTerm, 'Brnd_Name');
+        matchedOn = 'Brnd_Name';
+      } catch (error) {
+        console.error('Error fetching brand name data:', error);
+        data = { data: [] };
+      }
+    }
 
-    // If no matches found
+    // If still no matches found
     if (!data.data || data.data.length === 0) {
       return {
         statusCode: 200,
         body: JSON.stringify({
           success: false,
-          medication: gnrc_name,
-          message: 'No CMS data found for this generic name.'
+          medication: searchTerm,
+          message: 'No CMS data found for this medication name.'
         } as ErrorResponse)
       };
     }
@@ -96,8 +128,9 @@ const handler: Handler = async (event) => {
 
     const successResponse: SuccessResponse = {
       success: true,
-      medication: gnrc_name,
+      medication: searchTerm,
       matched_rows: data.data.length,
+      matched_on: matchedOn,
       totals,
       rows: data.data // Include raw data for diagnostics
     };
