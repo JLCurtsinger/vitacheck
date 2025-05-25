@@ -74,6 +74,7 @@ const fetchCmsData = async (searchTerm: string): Promise<CmsApiResponse> => {
       ? (genericJson as any).data
       : [];
   console.log('   ↓ genericRecords.length =', genericRecords.length);
+  console.log('   ✏️ genericRecords sample:', genericRecords[0]);
   if (genericRecords.length > 0) return { data: genericRecords };
 
   // Try exact match on brand name next
@@ -93,6 +94,7 @@ const fetchCmsData = async (searchTerm: string): Promise<CmsApiResponse> => {
       ? (brandJson as any).data
       : [];
   console.log('   ↓ brandRecords.length =', brandRecords.length);
+  console.log('   ✏️ brandRecords sample:', brandRecords[0]);
   if (brandRecords.length > 0) return { data: brandRecords };
 
   // Fall back to keyword search if no exact matches found
@@ -112,6 +114,7 @@ const fetchCmsData = async (searchTerm: string): Promise<CmsApiResponse> => {
       ? (fallbackJson as any).data
       : [];
   console.log('   ↓ fallbackRecords.length =', fallbackRecords.length);
+  console.log('   ✏️ fallbackRecords sample:', fallbackRecords[0]);
   return { data: fallbackRecords };
 };
 
