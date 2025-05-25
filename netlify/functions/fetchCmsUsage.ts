@@ -122,16 +122,19 @@ const handler: Handler = async (event) => {
 
     // Calculate totals from matched records
     const totals = data.data.reduce((acc, record) => {
-      // Only add values if they exist and are numbers
-      if (typeof record.Tot_Benes_2022 === 'number') {
-        acc.total_beneficiaries += record.Tot_Benes_2022;
+      const benes = Number(record.Tot_Benes_2022);
+      if (!isNaN(benes)) {
+        acc.total_beneficiaries += benes;
       }
-      if (typeof record.Tot_Clms_2022 === 'number') {
-        acc.total_claims += record.Tot_Clms_2022;
+
+      const clms = Number(record.Tot_Clms_2022);
+      if (!isNaN(clms)) {
+        acc.total_claims += clms;
       }
-      if (typeof record.Avg_Spnd_Per_Dsg_Unt_Wghtd_2022 === 'number' && 
-          record.Avg_Spnd_Per_Dsg_Unt_Wghtd_2022 > 0) {
-        acc.average_dosage_spend += record.Avg_Spnd_Per_Dsg_Unt_Wghtd_2022;
+
+      const spend = Number(record.Avg_Spnd_Per_Dsg_Unt_Wghtd_2022);
+      if (!isNaN(spend)) {
+        acc.average_dosage_spend += spend;
         acc.validSpendCount++;
       }
       return acc;
