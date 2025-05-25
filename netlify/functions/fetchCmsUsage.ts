@@ -59,6 +59,8 @@ const isMatch = (input: string, target: string): boolean => {
 const fetchCmsData = async (searchTerm: string): Promise<CmsApiResponse> => {
   // Try exact match on generic name first
   const genericUrl = `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data?filters[Gnrc_Name]=${encodeURIComponent(searchTerm)}&size=100`;
+  console.log('🔍 [GENERIC] URL:', genericUrl);
+  
   const genericResponse = await fetch(genericUrl);
   
   if (!genericResponse.ok) {
@@ -66,12 +68,16 @@ const fetchCmsData = async (searchTerm: string): Promise<CmsApiResponse> => {
   }
 
   const genericData = await genericResponse.json() as CmsApiResponse;
+  console.log('   ↓ genericData.data.length =', genericData.data?.length);
+  
   if (genericData.data && genericData.data.length > 0) {
     return genericData;
   }
 
   // Try exact match on brand name next
   const brandUrl = `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data?filters[Brnd_Name]=${encodeURIComponent(searchTerm)}&size=100`;
+  console.log('🔍 [BRAND]   URL:', brandUrl);
+  
   const brandResponse = await fetch(brandUrl);
   
   if (!brandResponse.ok) {
@@ -79,19 +85,26 @@ const fetchCmsData = async (searchTerm: string): Promise<CmsApiResponse> => {
   }
 
   const brandData = await brandResponse.json() as CmsApiResponse;
+  console.log('   ↓ brandData.data.length   =', brandData.data?.length);
+  
   if (brandData.data && brandData.data.length > 0) {
     return brandData;
   }
 
   // Fall back to keyword search if no exact matches found
   const keywordUrl = `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data?keyword=${encodeURIComponent(searchTerm)}&size=1000`;
+  console.log('🔍 [FALLBACK] URL:', keywordUrl);
+  
   const keywordResponse = await fetch(keywordUrl);
   
   if (!keywordResponse.ok) {
     throw new Error(`CMS API responded with status: ${keywordResponse.status}`);
   }
 
-  return keywordResponse.json() as Promise<CmsApiResponse>;
+  const keywordData = await keywordResponse.json() as Promise<CmsApiResponse>;
+  console.log('   ↓ keywordData.data.length =', (await keywordData).data?.length);
+  
+  return keywordData;
 };
 
 const handler: Handler = async (event) => {
