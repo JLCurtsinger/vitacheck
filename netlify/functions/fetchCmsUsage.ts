@@ -42,25 +42,17 @@ const normalizeSearchTerm = (term: string): string => {
     .replace(/[^a-z0-9]/g, ''); // Remove non-alphanumeric characters
 };
 
-// Helper function to calculate string similarity
-const calculateSimilarity = (str1: string, str2: string): number => {
-  const s1 = normalizeSearchTerm(str1);
-  const s2 = normalizeSearchTerm(str2);
+// Helper function to check if strings match
+const isMatch = (input: string, target: string): boolean => {
+  const normalizedInput = normalizeSearchTerm(input);
+  const normalizedTarget = normalizeSearchTerm(target);
   
-  // If either string is empty after normalization, return 0
-  if (!s1 || !s2) return 0;
+  // If either string is empty after normalization, return false
+  if (!normalizedInput || !normalizedTarget) return false;
   
-  // If one string contains the other, return high similarity
-  if (s1.includes(s2) || s2.includes(s1)) return 0.9;
-  
-  // Calculate word overlap
-  const words1 = s1.split(/\s+/);
-  const words2 = s2.split(/\s+/);
-  
-  const commonWords = words1.filter(word => words2.includes(word));
-  const totalWords = new Set([...words1, ...words2]).size;
-  
-  return commonWords.length / totalWords;
+  // Check if one string contains the other
+  return normalizedInput.includes(normalizedTarget) || 
+         normalizedTarget.includes(normalizedInput);
 };
 
 // Helper function to fetch CMS data
@@ -106,15 +98,13 @@ const handler: Handler = async (event) => {
       };
     }
 
-    // Find best matches using fuzzy matching
-    const normalizedSearch = normalizeSearchTerm(searchTerm);
-    const matches = data.data.filter(record => {
-      const genericMatch = calculateSimilarity(record.Gnrc_Name, normalizedSearch);
-      const brandMatch = calculateSimilarity(record.Brnd_Name, normalizedSearch);
-      return genericMatch > 0.5 || brandMatch > 0.5; // Threshold for considering a match
-    });
+    // Find matches using normalized comparison
+    const matches = data.data.filter(record => 
+      isMatch(searchTerm, record.Gnrc_Name) || 
+      isMatch(searchTerm, record.Brnd_Name)
+    );
 
-    // If no good matches found
+    // If no matches found
     if (matches.length === 0) {
       return {
         statusCode: 200,
@@ -128,32 +118,48 @@ const handler: Handler = async (event) => {
 
     // Calculate totals from matched records
     const totals = matches.reduce((acc, record) => {
-      acc.total_beneficiaries += record.Tot_Benes_2022 || 0;
-      acc.total_claims += record.Tot_Clms_2022 || 0;
-      acc.average_dosage_spend += record.Avg_Spnd_Per_Dsg_Unt_Wghtd_2022 || 0;
+      // Only add values if they exist and are numbers
+      if (typeof record.Tot_Benes_2022 === 'number') {
+        acc.total_beneficiaries += record.Tot_Benes_2022;
+      }
+      if (typeof record.Tot_Clms_2022 === 'number') {
+        acc.total_claims += record.Tot_Clms_2022;
+      }
+      if (typeof record.Avg_Spnd_Per_Dsg_Unt_Wghtd_2022 === 'number' && 
+          record.Avg_Spnd_Per_Dsg_Unt_Wghtd_2022 > 0) {
+        acc.average_dosage_spend += record.Avg_Spnd_Per_Dsg_Unt_Wghtd_2022;
+        acc.validSpendCount++;
+      }
       return acc;
     }, {
       total_beneficiaries: 0,
       total_claims: 0,
-      average_dosage_spend: 0
+      average_dosage_spend: 0,
+      validSpendCount: 0
+    } as {
+      total_beneficiaries: number;
+      total_claims: number;
+      average_dosage_spend: number;
+      validSpendCount: number;
     });
 
-    // Calculate weighted average for dosage spend
-    const validSpendValues = matches.filter(record => record.Avg_Spnd_Per_Dsg_Unt_Wghtd_2022 > 0);
-    totals.average_dosage_spend = validSpendValues.length > 0
-      ? totals.average_dosage_spend / validSpendValues.length
+    // Calculate average spend per unit
+    const averageSpend = totals.validSpendCount > 0
+      ? totals.average_dosage_spend / totals.validSpendCount
       : 0;
 
     // Round all numbers to 2 decimal places
-    totals.average_dosage_spend = Math.round(totals.average_dosage_spend * 100) / 100;
-    totals.total_beneficiaries = Math.round(totals.total_beneficiaries);
-    totals.total_claims = Math.round(totals.total_claims);
+    const finalTotals = {
+      total_beneficiaries: Math.round(totals.total_beneficiaries),
+      total_claims: Math.round(totals.total_claims),
+      average_dosage_spend: Math.round(averageSpend * 100) / 100
+    };
 
     const successResponse: SuccessResponse = {
       success: true,
       medication: searchTerm,
       matched_rows: matches.length,
-      totals,
+      totals: finalTotals,
       rows: matches // Include matched records for diagnostics
     };
 
