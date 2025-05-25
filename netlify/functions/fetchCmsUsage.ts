@@ -58,7 +58,7 @@ const isMatch = (input: string, target: string): boolean => {
 // Helper function to fetch CMS data
 const fetchCmsData = async (searchTerm: string): Promise<CmsApiResponse> => {
   // Try exact match on generic name first
-  const genericUrl = `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data?filters[Gnrc_Name]=${encodeURIComponent(searchTerm)}&size=100`;
+  const genericUrl = `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data?filters[GNRC_NAME]=${encodeURIComponent(searchTerm)}&size=100`;
   console.log('🔍 [GENERIC] URL:', genericUrl);
   
   const genericResponse = await fetch(genericUrl);
@@ -78,7 +78,7 @@ const fetchCmsData = async (searchTerm: string): Promise<CmsApiResponse> => {
   if (genericRecords.length > 0) return { data: genericRecords };
 
   // Try exact match on brand name next
-  const brandUrl = `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data?filters[Brnd_Name]=${encodeURIComponent(searchTerm)}&size=100`;
+  const brandUrl = `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data?filters[BRND_NAME]=${encodeURIComponent(searchTerm)}&size=100`;
   console.log('🔍 [BRAND]   URL:', brandUrl);
   
   const brandResponse = await fetch(brandUrl);
