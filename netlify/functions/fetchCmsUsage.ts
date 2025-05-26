@@ -57,12 +57,18 @@ const isMatch = (input: string, target: string): boolean => {
 
 // Helper function to fetch CMS data
 const fetchCmsData = async (searchTerm: string): Promise<CmsApiResponse> => {
-  // Single keyword pull (up to 5000 rows)
-  const url = 
+  // Normalize the search term
+  const norm = normalizeSearchTerm(searchTerm);
+  
+  // Build SoQL query for partial matches
+  const url =
     `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data` +
-    `?keyword=${encodeURIComponent(searchTerm)}` +
-    `&size=5000`;
-  console.log('🔍 [KEYWORD] URL:', url);
+    `?size=1000` +
+    `&$where=` +
+    encodeURIComponent(
+      `lower(Gnrc_Name) like '${norm}%' or lower(Brnd_Name) like '${norm}%'`
+    );
+  console.log('🔍 [SOQL] URL:', url);
 
   const response = await fetch(url);
   if (!response.ok) {
