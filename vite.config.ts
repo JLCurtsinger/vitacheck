@@ -8,6 +8,9 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      '/.netlify/functions': 'http://localhost:8888'
+    }
   },
   plugins: [
     react(),

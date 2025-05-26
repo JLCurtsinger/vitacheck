@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import { InteractionSource } from "@/lib/api/types";
 import { SeverityConfidenceSection } from "./SeverityConfidenceSection";
 import { DetailsSection } from "./DetailsSection";
@@ -22,34 +22,24 @@ export function FDASourceContent({
   sourceName,
   clinicianView = false 
 }: FDASourceContentProps) {
-  // Add CMS usage data fetching
+  const [cmsUsage, setCmsUsage] = useState<{
+    total_beneficiaries: number;
+    total_claims: number;
+    average_dosage_spend: number;
+  } | null>(null);
+
   useEffect(() => {
-    const fetchCmsData = async () => {
-      if (!medications.length || !data.length) return;
-
-      try {
-        const stats = await getCmsUsageStats(medications[0]);
-        console.log(`[FDA Modal] Retrieved CMS usage stats for ${medications[0]}:`, stats);
-        
-        if (!data[0].rawData) {
-          data[0].rawData = {};
-        }
-
-        data[0].rawData.cms_usage = {
-          success: true,
-          totals: {
-            total_beneficiaries: stats.users,
-            total_claims: stats.claims,
-            average_dosage_spend: stats.avgSpend,
-          },
-        };
-      } catch (err) {
-        console.error(`[FDA Modal] Error fetching CMS usage stats for ${medications[0]}:`, err);
-      }
-    };
-
-    fetchCmsData();
-  }, [medications, data]);
+    if (!medications.length) return;
+    getCmsUsageStats(medications[0])
+      .then(stats => {
+        setCmsUsage({
+          total_beneficiaries: stats.users,
+          total_claims: stats.claims,
+          average_dosage_spend: stats.avgSpend
+        });
+      })
+      .catch(err => console.error("CMS usage fetch error:", err));
+  }, [medications]);
 
   if (data.length === 0) {
     return (
@@ -124,6 +114,23 @@ export function FDASourceContent({
         points={formattedContent.categories.generalInfo}
         type="info" 
       />
+
+      {/* CMS Usage Data Panel */}
+      {cmsUsage && (
+        <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-md">
+          <h4 className="font-medium mb-2">Real-world Usage</h4>
+          <p>
+            <strong>{cmsUsage.total_beneficiaries.toLocaleString()}</strong> people
+            claimed this medication in CMS Part D.
+          </p>
+          <p>
+            <strong>{cmsUsage.total_claims.toLocaleString()}</strong> total claims filed.
+          </p>
+          <p>
+            Avg. spend per dosage: <strong>${cmsUsage.average_dosage_spend}</strong>
+          </p>
+        </div>
+      )}
       
       {/* Raw FDA Warnings if in clinician view */}
       {clinicianView && rawWarnings.length > 0 && (
