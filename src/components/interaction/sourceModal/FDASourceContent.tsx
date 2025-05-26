@@ -1,5 +1,4 @@
-
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { InteractionSource } from "@/lib/api/types";
 import { SeverityConfidenceSection } from "./SeverityConfidenceSection";
 import { DetailsSection } from "./DetailsSection";
@@ -8,6 +7,7 @@ import { formatDescriptionText, categorizeBulletPoints } from "../utils/formatDe
 import { SourceMetadataSection } from "./SourceMetadataSection";
 import { getSourceDisclaimer, getSourceContribution } from "./utils";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { getCmsUsageStats } from "@/services/getCmsUsageOnly";
 
 interface FDASourceContentProps {
   data: InteractionSource[];
@@ -22,6 +22,23 @@ export function FDASourceContent({
   sourceName,
   clinicianView = false 
 }: FDASourceContentProps) {
+  // Add CMS usage data fetching
+  useEffect(() => {
+    const fetchCmsData = async () => {
+      if (medications.length === 0) return;
+      
+      try {
+        console.log(`[FDA Modal] Attempting to fetch CMS usage data for: ${medications[0]}`);
+        const usageData = await getCmsUsageStats(medications[0]);
+        console.log(`[FDA Modal] CMS usage data for ${medications[0]}:`, usageData);
+      } catch (err) {
+        console.error(`[FDA Modal] Error fetching CMS data for ${medications[0]}:`, err);
+      }
+    };
+
+    fetchCmsData();
+  }, [medications]);
+
   if (data.length === 0) {
     return (
       <div className="p-6 text-center">
