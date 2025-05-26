@@ -1,90 +1,95 @@
-
-import React from "react";
-import { InteractionSource, AdverseEventData } from "@/lib/api/types";
+import React, { useEffect, useMemo, useState } from "react";
+import { InteractionSource } from "@/lib/api/types";
 import { SeverityConfidenceSection } from "./SeverityConfidenceSection";
-import { AdverseEventsSection } from "./AdverseEventsSection";
 import { DetailsSection } from "./DetailsSection";
+import { FormattedContentSection } from "./FormattedContentSection";
 import { SourceMetadataSection } from "./SourceMetadataSection";
 import { getSourceDisclaimer, getSourceContribution } from "./utils";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle } from "lucide-react";
+import { getCmsUsageStats } from "@/services/getCmsUsageOnly";
 
-interface SourceData extends InteractionSource {
-  adverseEvents?: AdverseEventData;
-}
-
-interface AdverseEventsSourceContentProps {
-  data: SourceData[];
-  sourceName: string;
+interface Props {
+  data: InteractionSource[];
+  medications: string[];
   clinicianView?: boolean;
-  medications?: string[];
 }
 
-export function AdverseEventsSourceContent({ 
-  data, 
-  sourceName,
-  clinicianView = false,
-  medications = []
-}: AdverseEventsSourceContentProps) {
+// Local state to hold CMS Part D usage
+const useRealWorldUsage = (medName: string) => {
+  const [usage, setUsage] = useState<{ total_beneficiaries: number } | null>(null);
+  useEffect(() => {
+    if (!medName) return;
+    getCmsUsageStats(medName)
+      .then(stats => setUsage({ total_beneficiaries: stats.users }))
+      .catch(console.error);
+  }, [medName]);
+  return usage;
+};
+
+export function AdverseEventsSourceContent({ data, medications, clinicianView }: Props) {
+  // Pull in CMS usage for first med
+  const cmsUsage = useRealWorldUsage(medications[0]);
+
   if (data.length === 0) {
     return (
       <div className="p-6 text-center">
-        <p className="text-gray-600">No detailed information available from this source.</p>
+        <p className="text-gray-600">No adverse event data available.</p>
       </div>
     );
   }
-  
-  // Get adverse event data from the first item if available
-  const adverseEvents = data[0]?.adverseEvents;
-  const hasFallbackMode = data[0]?.fallbackMode;
-  
+
+  // Extract adverse events data
+  const { eventCount, seriousCount, commonReactions } = data[0].rawData.adverseEvents;
+
+  // Build your details string, weaving in CMS usage when available
+  const detailsText = useMemo(() => {
+    const base = `${eventCount.toLocaleString()} adverse events reported, with ${seriousCount} serious cases (${((seriousCount/eventCount)*100).toFixed(2)}%).`;
+    if (cmsUsage) {
+      const pctOfUsers = ((eventCount / cmsUsage.total_beneficiaries) * 100).toFixed(2);
+      return `${base} Out of ${cmsUsage.total_beneficiaries.toLocaleString()} people who claimed this medication in CMS Part D, that's ${pctOfUsers}% of users. Common reactions include: ${commonReactions.join(", ")}.`;
+    }
+    return `${base} Common reactions include: ${commonReactions.join(", ")}.`;
+  }, [eventCount, seriousCount, commonReactions, cmsUsage]);
+
+  // Update the data object with the details text
+  const updatedData = useMemo(() => {
+    if (!data[0]) return data;
+    return [{
+      ...data[0],
+      description: detailsText
+    }];
+  }, [data, detailsText]);
+
   return (
     <div className="pb-6">
-      {/* Source Metadata - now with clinicianView prop */}
+      {/* Source Metadata */}
       <SourceMetadataSection 
-        data={data} 
-        sourceName={sourceName} 
+        data={updatedData} 
+        sourceName="OpenFDA Adverse Events"
         isClinicianView={clinicianView}
       />
       
-      {/* Display fallback mode message in clinician view */}
-      {clinicianView && hasFallbackMode && (
-        <Alert className="bg-amber-50 border-amber-200 mb-4">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-800">Fallback Processing Applied</AlertTitle>
-          <AlertDescription className="text-amber-700 text-sm">
-            {data[0]?.fallbackReason || 'This data was processed using fallback logic due to schema inconsistencies.'}
-          </AlertDescription>
-        </Alert>
-      )}
-      
-      {/* Severity and confidence section */}
-      <SeverityConfidenceSection data={data} clinicianView={clinicianView} />
+      {/* Severity and confidence at the top */}
+      <SeverityConfidenceSection data={updatedData} clinicianView={clinicianView} />
       
       {/* Adverse Events Summary */}
-      {adverseEvents && (
-        <AdverseEventsSection 
-          adverseEvents={adverseEvents} 
-          clinicianView={clinicianView} 
-          showFallbackNotice={hasFallbackMode}
-        />
-      )}
+      <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-md">
+        <h4 className="font-medium mb-2">Adverse Events Summary</h4>
+        <p className="text-gray-700">
+          {detailsText}
+        </p>
+      </div>
       
-      {/* Raw Details - Shown based on clinician view toggle */}
-      <DetailsSection data={data} showRaw={clinicianView} />
+      {/* Raw details section */}
+      <DetailsSection data={updatedData} showRaw={clinicianView} />
       
       {/* Source disclaimer */}
       <div className="mt-6 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-600 italic">
-        {getSourceDisclaimer(sourceName)}
+        {getSourceDisclaimer("OpenFDA Adverse Events")}
       </div>
       
       {/* Contribution to severity score */}
       <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-700">
-        {getSourceContribution(
-          data[0], 
-          adverseEvents?.eventCount, 
-          adverseEvents?.seriousCount
-        )}
+        {getSourceContribution(updatedData[0])}
       </div>
     </div>
   );
