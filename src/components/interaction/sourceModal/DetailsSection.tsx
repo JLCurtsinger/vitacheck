@@ -1,37 +1,18 @@
-import React, { useState, useEffect } from "react";
+
+import React, { useState } from "react";
 import { InteractionSource } from "@/lib/api/types";
 import { Code, Info, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { getUsageStats, UsageStats } from '@/services/usage';
-import { computeRisk } from '@/lib/risk';
-import config from '@/config/risk.json';
 
 interface DetailsSectionProps {
   data: InteractionSource[];
   showRaw?: boolean;
-  drugName: string;
-  totalInteractions: number;
-  totalSevereEvents: number;
 }
 
-export function DetailsSection({ data, showRaw = false, drugName, totalInteractions, totalSevereEvents }: DetailsSectionProps) {
+export function DetailsSection({ data, showRaw = false }: DetailsSectionProps) {
   const [showRawData, setShowRawData] = useState(showRaw);
-  const [usage, setUsage] = useState<UsageStats>({ users: 0, claims: 0, avgSpend: 0 });
-  const [adjustedRisk, setAdjustedRisk] = useState<number | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      console.log('🔄 fetching usage for', drugName);
-      const stats = await getUsageStats(drugName);
-      console.log('✅ usage stats:', stats);
-      setUsage(stats);
-      const risk = computeRisk(totalInteractions, totalSevereEvents, stats.users);
-      console.log('✅ adjustedRisk:', risk);
-      setAdjustedRisk(risk);
-    })();
-  }, [drugName, totalInteractions, totalSevereEvents]);
 
   if (!data || data.length === 0) return null;
 
@@ -99,10 +80,6 @@ export function DetailsSection({ data, showRaw = false, drugName, totalInteracti
               {item.description || "No detailed description available"}
             </p>
           ))}
-          <p>Users in 2022: {usage.users.toLocaleString()}</p>
-          {adjustedRisk !== null && (
-            <p>Adjusted risk (α={config.alpha}): {(adjustedRisk * 100).toFixed(2)}%</p>
-          )}
         </div>
       ) : (
         <div>
