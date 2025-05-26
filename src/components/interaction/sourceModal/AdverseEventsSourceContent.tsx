@@ -37,8 +37,12 @@ export function AdverseEventsSourceContent({ data, medications, clinicianView }:
     );
   }
 
-  // Extract adverse events data
-  const { eventCount, seriousCount, commonReactions } = data[0].rawData.adverseEvents;
+  // Extract adverse events data with proper fallbacks
+  const {
+    totalEvents: eventCount = 0,
+    seriousEvents: seriousCount = 0,
+    commonReactions = []
+  } = data[0].rawData.adverseEvents || {};
 
   // Build your details string, weaving in CMS usage when available
   const detailsText = useMemo(() => {
