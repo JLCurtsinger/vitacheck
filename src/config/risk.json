@@ -1,0 +1,8 @@
+{
+  "alpha": 0.5,
+  "thresholds": {
+    "low": 0.001,
+    "med": 0.01,
+    "high": 1
+  }
+} 
