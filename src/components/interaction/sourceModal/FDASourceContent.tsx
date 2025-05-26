@@ -7,7 +7,7 @@ import { formatDescriptionText, categorizeBulletPoints } from "../utils/formatDe
 import { SourceMetadataSection } from "./SourceMetadataSection";
 import { getSourceDisclaimer, getSourceContribution } from "./utils";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { getCmsUsageStats } from "@/services/getCmsUsageOnly";
+import { getUsageStats } from "@/services/usage";
 
 interface FDASourceContentProps {
   data: InteractionSource[];
@@ -25,19 +25,31 @@ export function FDASourceContent({
   // Add CMS usage data fetching
   useEffect(() => {
     const fetchCmsData = async () => {
-      if (medications.length === 0) return;
-      
+      if (!medications.length || !data.length) return;
+
       try {
-        console.log(`[FDA Modal] Attempting to fetch CMS usage data for: ${medications[0]}`);
-        const usageData = await getCmsUsageStats(medications[0]);
-        console.log(`[FDA Modal] CMS usage data for ${medications[0]}:`, usageData);
+        const stats = await getUsageStats(medications[0]);
+        console.log(`[FDA Modal] Retrieved CMS usage stats for ${medications[0]}:`, stats);
+        
+        if (!data[0].rawData) {
+          data[0].rawData = {};
+        }
+
+        data[0].rawData.cms_usage = {
+          success: true,
+          totals: {
+            total_beneficiaries: stats.users,
+            total_claims: stats.claims,
+            average_dosage_spend: stats.avgSpend,
+          },
+        };
       } catch (err) {
-        console.error(`[FDA Modal] Error fetching CMS data for ${medications[0]}:`, err);
+        console.error(`[FDA Modal] Error fetching CMS usage stats for ${medications[0]}:`, err);
       }
     };
 
     fetchCmsData();
-  }, [medications]);
+  }, [medications, data]);
 
   if (data.length === 0) {
     return (
