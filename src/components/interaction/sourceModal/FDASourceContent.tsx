@@ -7,7 +7,7 @@ import { formatDescriptionText, categorizeBulletPoints } from "../utils/formatDe
 import { SourceMetadataSection } from "./SourceMetadataSection";
 import { getSourceDisclaimer, getSourceContribution } from "./utils";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { getUsageStats } from "@/services/usage";
+import { getCmsUsageStats } from "@/services/getCmsUsageOnly";
 
 interface FDASourceContentProps {
   data: InteractionSource[];
@@ -28,7 +28,7 @@ export function FDASourceContent({
       if (!medications.length || !data.length) return;
 
       try {
-        const stats = await getUsageStats(medications[0]);
+        const stats = await getCmsUsageStats(medications[0]);
         console.log(`[FDA Modal] Retrieved CMS usage stats for ${medications[0]}:`, stats);
         
         if (!data[0].rawData) {
