@@ -4,6 +4,8 @@
  * This file contains type definitions for all API-related data structures
  */
 
+import { UsageStats } from '@/services/usage';
+
 /**
  * Represents the status and ID information for a medication lookup
  */
@@ -16,6 +18,7 @@ export interface MedicationLookupResult {
   warnings?: string[];
   fallback?: boolean; // Indicates if a fallback mechanism was used
   fallbackType?: 'local_cache' | 'alternative_format' | 'fda' | 'suppai'; // Type of fallback used
+  usageData?: UsageStats; // CMS usage statistics
 }
 
 /**

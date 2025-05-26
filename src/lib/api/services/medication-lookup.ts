@@ -1,9 +1,9 @@
-
 import { getRxCUI } from '../rxnorm';
 import { getSupplementInteractions } from '../suppai';
 import { getFDAWarnings } from '../fda';
 import { MedicationLookupResult } from '../types';
 import { prepareMedicationNameForApi } from '@/utils/medication-formatter';
+import { getUsageStats } from '@/services/usage';
 
 export async function lookupMedication(medication: string): Promise<MedicationLookupResult> {
   console.log(`🔍 [Medication Lookup] Starting lookup for: ${medication}`);
@@ -86,6 +86,20 @@ export async function lookupMedication(medication: string): Promise<MedicationLo
     }
   } catch (error) {
     console.error('❌ [Medication Lookup] FDA lookup failed:', error);
+  }
+
+  // Check CMS Usage Data - run regardless of previous results
+  try {
+    console.log(`⚙️ [Medication Lookup] Checking CMS Usage Data for: ${formattedMedication}`);
+    const usageData = await getUsageStats(formattedMedication);
+    if (usageData) {
+      console.log(`✅ [Medication Lookup] Found CMS Usage Data for ${medication}:`, usageData);
+      result.usageData = usageData;
+    } else {
+      console.log(`⚠️ [Medication Lookup] No CMS Usage Data found for: ${medication}`);
+    }
+  } catch (error) {
+    console.error('❌ [Medication Lookup] CMS Usage Data lookup failed:', error);
   }
 
   // Set found property for backward compatibility
