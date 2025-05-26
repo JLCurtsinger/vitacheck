@@ -35,12 +35,14 @@ export function DetailsSection({ data, showRaw = false, drugName, totalInteracti
 
   if (!data || data.length === 0) return null;
 
+  // Try to extract structured data from the rawData if available
   const extractStructuredData = () => {
     if (!data[0]?.rawData) return null;
     
     const rawData = data[0].rawData;
     const structured = [];
     
+    // Add any warnings or alerts if present
     if (rawData.warnings && Array.isArray(rawData.warnings) && rawData.warnings.length > 0) {
       structured.push({
         title: "Warnings",
@@ -49,6 +51,7 @@ export function DetailsSection({ data, showRaw = false, drugName, totalInteracti
       });
     }
     
+    // Add any drug interactions specific data
     if (rawData.drug_interactions && Array.isArray(rawData.drug_interactions) && rawData.drug_interactions.length > 0) {
       structured.push({
         title: "Drug Interactions",
@@ -57,6 +60,7 @@ export function DetailsSection({ data, showRaw = false, drugName, totalInteracti
       });
     }
     
+    // Add any contraindications if present
     if (rawData.contraindications && Array.isArray(rawData.contraindications) && rawData.contraindications.length > 0) {
       structured.push({
         title: "Contraindications",
@@ -97,13 +101,12 @@ export function DetailsSection({ data, showRaw = false, drugName, totalInteracti
           ))}
           <p>Users in 2022: {usage.users.toLocaleString()}</p>
           {adjustedRisk !== null && (
-            <p>
-              Adjusted risk (α={config.alpha}): {(adjustedRisk * 100).toFixed(2)}%
-            </p>
+            <p>Adjusted risk (α={config.alpha}): {(adjustedRisk * 100).toFixed(2)}%</p>
           )}
         </div>
       ) : (
         <div>
+          {/* Structured extracted data (if available) */}
           {structuredData && (
             <Accordion type="single" collapsible className="mb-3">
               {structuredData.map((section, index) => (
@@ -125,6 +128,7 @@ export function DetailsSection({ data, showRaw = false, drugName, totalInteracti
             </Accordion>
           )}
           
+          {/* Full Raw JSON Data */}
           <Collapsible className="w-full" defaultOpen={true}>
             <CollapsibleTrigger asChild>
               <Button variant="ghost" className="w-full justify-between p-2 text-xs">
