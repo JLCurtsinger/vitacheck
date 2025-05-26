@@ -36,71 +36,89 @@ type FunctionResponse = SuccessResponse | ErrorResponse;
 
 // Helper function to normalize search terms
 const normalizeSearchTerm = (term: string): string => {
-  return term
+  console.log(`[normalizeSearchTerm] Input: ${term}`);
+  const normalized = term
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]/g, ''); // Remove non-alphanumeric characters
+  console.log(`[normalizeSearchTerm] Output: ${normalized}`);
+  return normalized;
 };
 
 // Helper function to check if strings match
 const isMatch = (input: string, target: string): boolean => {
+  console.log(`[isMatch] Comparing: "${input}" with "${target}"`);
   const normalizedInput = normalizeSearchTerm(input);
   const normalizedTarget = normalizeSearchTerm(target);
   
   // If either string is empty after normalization, return false
-  if (!normalizedInput || !normalizedTarget) return false;
+  if (!normalizedInput || !normalizedTarget) {
+    console.log(`[isMatch] Empty after normalization, returning false`);
+    return false;
+  }
   
   // Check if one string contains the other
-  return normalizedInput.includes(normalizedTarget) || 
-         normalizedTarget.includes(normalizedInput);
+  const matches = normalizedInput.includes(normalizedTarget) || 
+                 normalizedTarget.includes(normalizedInput);
+  console.log(`[isMatch] Result: ${matches}`);
+  return matches;
 };
 
 // Helper function to fetch CMS data
 const fetchCmsData = async (searchTerm: string): Promise<CmsApiResponse> => {
-  // Normalize the search term
-  const norm = normalizeSearchTerm(searchTerm);
+  console.log(`[fetchCmsData] Starting fetch for: ${searchTerm}`);
   
-  // Build SoQL query for partial matches
-  const url =
+  // Single keyword pull (up to 5000 rows)
+  const url = 
     `https://data.cms.gov/data-api/v1/dataset/7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b/data` +
-    `?size=1000` +
-    `&$where=` +
-    encodeURIComponent(
-      `lower(Gnrc_Name) like '${norm}%' or lower(Brnd_Name) like '${norm}%'`
-    );
-  console.log('🔍 [SOQL] URL:', url);
+    `?keyword=${encodeURIComponent(searchTerm)}` +
+    `&size=5000`;
+  console.log('🔍 [fetchCmsData] URL:', url);
 
   const response = await fetch(url);
+  console.log(`[fetchCmsData] Response status: ${response.status}`);
+  
   if (!response.ok) {
+    console.error(`[fetchCmsData] Error response: ${response.status}`);
     throw new Error(`CMS API responded with status: ${response.status}`);
   }
 
   const json = await response.json();
+  console.log(`[fetchCmsData] Raw response:`, json);
+  
   // Normalize to array
   const records: CmsDrugRecord[] = Array.isArray(json)
     ? json
     : Array.isArray((json as any).data)
       ? (json as any).data
       : [];
-  console.log('   ↓ records.length =', records.length);
+  console.log(`[fetchCmsData] Normalized records length: ${records.length}`);
 
   // Now do our fuzzy match
-  const matched = records.filter(record =>
-    isMatch(searchTerm, record.Gnrc_Name) ||
-    isMatch(searchTerm, record.Brnd_Name)
-  );
-  console.log('   ✓ matched.length =', matched.length);
+  const matched = records.filter(record => {
+    const matches = isMatch(searchTerm, record.Gnrc_Name) ||
+                   isMatch(searchTerm, record.Brnd_Name);
+    if (matches) {
+      console.log(`[fetchCmsData] Matched record:`, record);
+    }
+    return matches;
+  });
+  console.log(`[fetchCmsData] Matched records length: ${matched.length}`);
 
   // Return in { data: [] } shape
   return { data: matched };
 };
 
 const handler: Handler = async (event) => {
+  console.log(`[handler] Request received:`, event);
+  
   try {
     // Get and validate the search term
     const searchTerm = event.queryStringParameters?.gnrc_name?.trim();
+    console.log(`[handler] Search term: ${searchTerm}`);
     
     if (!searchTerm) {
+      console.log(`[handler] No search term provided`);
       return {
         statusCode: 400,
         body: JSON.stringify({
@@ -112,10 +130,12 @@ const handler: Handler = async (event) => {
     }
 
     // Fetch data from CMS API
+    console.log(`[handler] Fetching CMS data for: ${searchTerm}`);
     const data = await fetchCmsData(searchTerm);
 
     // If no data returned
     if (!data.data || data.data.length === 0) {
+      console.log(`[handler] No data found for: ${searchTerm}`);
       return {
         statusCode: 200,
         body: JSON.stringify({
@@ -127,6 +147,7 @@ const handler: Handler = async (event) => {
     }
 
     // Calculate totals from matched records
+    console.log(`[handler] Calculating totals from ${data.data.length} records`);
     const totals = data.data.reduce((acc, record) => {
       const benes = Number(record.Tot_Benes_2022);
       if (!isNaN(benes)) {
@@ -155,11 +176,13 @@ const handler: Handler = async (event) => {
       average_dosage_spend: number;
       validSpendCount: number;
     });
+    console.log(`[handler] Calculated totals:`, totals);
 
     // Calculate average spend per unit
     const averageSpend = totals.validSpendCount > 0
       ? totals.average_dosage_spend / totals.validSpendCount
       : 0;
+    console.log(`[handler] Average spend: ${averageSpend}`);
 
     // Round all numbers to 2 decimal places
     const finalTotals = {
@@ -167,6 +190,7 @@ const handler: Handler = async (event) => {
       total_claims: Math.round(totals.total_claims),
       average_dosage_spend: Math.round(averageSpend * 100) / 100
     };
+    console.log(`[handler] Final totals:`, finalTotals);
 
     const successResponse: SuccessResponse = {
       success: true,
@@ -175,6 +199,7 @@ const handler: Handler = async (event) => {
       totals: finalTotals,
       rows: data.data // Include matched records for diagnostics
     };
+    console.log(`[handler] Success response:`, successResponse);
 
     return {
       statusCode: 200,
@@ -182,7 +207,7 @@ const handler: Handler = async (event) => {
     };
 
   } catch (error) {
-    console.error('Error fetching CMS data:', error);
+    console.error(`[handler] Error:`, error);
 
     return {
       statusCode: 500,
