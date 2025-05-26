@@ -1,11 +1,11 @@
-
+import React from "react";
 import { InteractionSource } from "@/lib/api/types";
 import { FDASourceContent } from "./FDASourceContent";
 import { RxNormSourceContent } from "./RxNormSourceContent";
 import { SuppAISourceContent } from "./SuppAISourceContent";
-import { AdverseEventsSourceContent } from "./AdverseEventsSourceContent";
 import { AILiteratureSourceContent } from "./AILiteratureSourceContent";
 import { DefaultSourceContent } from "./DefaultSourceContent";
+import { AdverseEventsSourceContent } from "./AdverseEventsSourceContent";
 
 interface SourceContentRouterProps {
   sourceName: string;
@@ -32,7 +32,7 @@ export function SourceContentRouter({
       return <SuppAISourceContent data={data} medications={medications} clinicianView={clinicianView} />;
     
     case "OpenFDA Adverse Events":
-      return <AdverseEventsSourceContent data={data} sourceName={sourceName} clinicianView={clinicianView} />;
+      return <AdverseEventsSourceContent data={data} medications={medications} clinicianView={clinicianView} />;
       
     case "AI Literature Analysis":
       return <AILiteratureSourceContent data={data} medications={medications} clinicianView={clinicianView} />;
