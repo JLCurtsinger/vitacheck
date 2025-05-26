@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { InteractionSource } from "@/lib/api/types";
 import { Code, Info, ChevronDown, ChevronUp } from "lucide-react";
@@ -55,6 +54,21 @@ export function DetailsSection({ data, showRaw = false }: DetailsSectionProps) {
   
   const structuredData = extractStructuredData();
 
+  // Helper to format CMS usage data if available
+  const formatCmsUsage = (rawData: any) => {
+    if (!rawData?.cms_usage?.success || !rawData.cms_usage?.totals?.total_beneficiaries) {
+      return '';
+    }
+
+    const { total_beneficiaries } = rawData.cms_usage.totals;
+    const adverseEvents = rawData.total || 0;
+    const seriousCases = rawData.serious || 0;
+
+    if (total_beneficiaries <= 0) return '';
+
+    return ` According to CMS data, an estimated ${total_beneficiaries.toLocaleString()} beneficiaries were prescribed this medication in 2022, resulting in ${(adverseEvents / total_beneficiaries * 100).toFixed(2)}% adverse events and ${(seriousCases / total_beneficiaries * 100).toFixed(4)}% serious cases.`;
+  };
+
   return (
     <div className="rounded-md border mb-4 p-4">
       <div className="flex justify-between items-center mb-3">
@@ -78,6 +92,7 @@ export function DetailsSection({ data, showRaw = false }: DetailsSectionProps) {
           {data.map((item, idx) => (
             <p key={idx} className="mb-2">
               {item.description || "No detailed description available"}
+              {item.rawData && formatCmsUsage(item.rawData)}
             </p>
           ))}
         </div>
