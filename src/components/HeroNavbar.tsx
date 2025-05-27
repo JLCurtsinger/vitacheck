@@ -21,8 +21,10 @@ export function HeroNavbar() {
   };
 
   const handleSignIn = () => {
+    console.log('[handleSignIn] clicked');
     setIsMenuOpen(false);
     setIsSignInModalOpen(true);
+    console.log('[handleSignIn] setIsSignInModalOpen(true)');
   };
 
   const handleDashboard = () => {
@@ -43,15 +45,15 @@ export function HeroNavbar() {
 
             {/* Desktop menu */}
             <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
-              <Button variant="ghost" onClick={() => router.push("/experiences")}>
+              <Button type="button" variant="ghost" onClick={() => router.push("/experiences")}>
                 Experiences
               </Button>
               {isAuthenticated ? (
                 <>
-                  <Button variant="ghost" onClick={handleDashboard}>
+                  <Button type="button" variant="ghost" onClick={handleDashboard}>
                     Dashboard
                   </Button>
-                  <Button variant="ghost" onClick={handleLogout}>
+                  <Button type="button" variant="ghost" onClick={handleLogout}>
                     Sign Out
                   </Button>
                   {user?.email && (
@@ -61,7 +63,7 @@ export function HeroNavbar() {
                   )}
                 </>
               ) : (
-                <Button variant="ghost" onClick={handleSignIn}>
+                <Button type="button" variant="ghost" onClick={handleSignIn}>
                   Sign In
                 </Button>
               )}
@@ -70,6 +72,7 @@ export function HeroNavbar() {
             {/* Mobile menu button */}
             <div className="flex items-center sm:hidden">
               <Button
+                type="button"
                 variant="ghost"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
@@ -90,6 +93,7 @@ export function HeroNavbar() {
           <div className="sm:hidden">
             <div className="pt-2 pb-3 space-y-1">
               <Button
+                type="button"
                 variant="ghost"
                 className="w-full justify-start"
                 onClick={() => {
@@ -102,6 +106,7 @@ export function HeroNavbar() {
               {isAuthenticated ? (
                 <>
                   <Button
+                    type="button"
                     variant="ghost"
                     className="w-full justify-start"
                     onClick={handleDashboard}
@@ -109,6 +114,7 @@ export function HeroNavbar() {
                     Dashboard
                   </Button>
                   <Button
+                    type="button"
                     variant="ghost"
                     className="w-full justify-start"
                     onClick={handleLogout}
@@ -123,6 +129,7 @@ export function HeroNavbar() {
                 </>
               ) : (
                 <Button
+                  type="button"
                   variant="ghost"
                   className="w-full justify-start"
                   onClick={handleSignIn}
