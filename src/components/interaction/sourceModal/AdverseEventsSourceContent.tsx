@@ -37,22 +37,25 @@ export function AdverseEventsSourceContent({ data, medications, clinicianView }:
     );
   }
 
-  // Find the OpenFDA Adverse Events source and extract data
+  // Find the OpenFDA Adverse Events source
   const pairSource = data.find(d => d.name === "OpenFDA Adverse Events");
-  const raw = pairSource?.rawData || {};
 
-  const eventCount = raw.totalEvents ?? raw.adverseEvents?.totalEvents ?? raw.total ?? 0;
-  const seriousCount = raw.seriousEvents ?? raw.adverseEvents?.seriousEvents ?? raw.serious ?? 0;
-  const totalUsers = raw.total_beneficiaries ?? raw.users ?? 0;
-  const commonReactions = raw.commonReactions ?? raw.adverseEvents?.commonReactions ?? [];
+  // Extract adverse events data with proper fallbacks
+  const {
+    totalEvents: eventCount = 0,
+    seriousEvents: seriousCount = 0,
+    commonReactions = []
+  } = pairSource?.rawData || {};
 
-  const percent = totalUsers ? ((eventCount / totalUsers) * 100).toFixed(2) : "0.00";
-  const seriousPercent = totalUsers ? ((seriousCount / totalUsers) * 100).toFixed(4) : "0.0000";
-
-  // Build your details string
+  // Build your details string, weaving in CMS usage when available
   const detailsText = useMemo(() => {
-    return `${eventCount.toLocaleString()} adverse events reported, with ${seriousCount} serious cases (${seriousPercent}%). Out of ${totalUsers.toLocaleString()} people who claimed this medication in CMS Part D, that's ${percent}% of users. Common reactions include: ${commonReactions.join(", ") || "None listed"}.`;
-  }, [eventCount, seriousCount, seriousPercent, totalUsers, percent, commonReactions]);
+    const base = `${eventCount.toLocaleString()} adverse events reported, with ${seriousCount} serious cases (${((seriousCount/eventCount)*100).toFixed(2)}%).`;
+    if (cmsUsage) {
+      const pctOfUsers = ((eventCount / cmsUsage.total_beneficiaries) * 100).toFixed(2);
+      return `${base} Out of ${cmsUsage.total_beneficiaries.toLocaleString()} people who claimed this medication in CMS Part D, that's ${pctOfUsers}% of users. Common reactions include: ${commonReactions.join(", ")}.`;
+    }
+    return `${base} Common reactions include: ${commonReactions.join(", ")}.`;
+  }, [eventCount, seriousCount, commonReactions, cmsUsage]);
 
   // Update the data object with the details text
   const updatedData = useMemo(() => {
@@ -79,11 +82,7 @@ export function AdverseEventsSourceContent({ data, medications, clinicianView }:
       <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-md">
         <h4 className="font-medium mb-2">Adverse Events Summary</h4>
         <p className="text-gray-700">
-          {eventCount.toLocaleString()} adverse events reported, with {seriousCount} serious cases ({seriousPercent}%).
-          Out of {totalUsers.toLocaleString()} people who claimed this medication in CMS Part D, 
-          that's {percent}% of users.
-          <br />
-          Common reactions include: {commonReactions.join(", ") || "None listed"}.
+          {detailsText}
         </p>
       </div>
       
