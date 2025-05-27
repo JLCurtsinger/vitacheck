@@ -41,11 +41,11 @@ export function AdverseEventsSourceContent({ data, medications, clinicianView }:
   const pairSource = data.find(d => d.name === "OpenFDA Adverse Events");
 
   // Extract adverse events data with proper fallbacks
-  const {
-    totalEvents: eventCount = 0,
-    seriousEvents: seriousCount = 0,
-    commonReactions = []
-  } = pairSource?.rawData || {};
+  const ae = pairSource?.rawData?.adverseEvents ?? pairSource?.rawData ?? {};
+  
+  const eventCount = ae.totalEvents ?? ae.total ?? 0;
+  const seriousCount = ae.seriousEvents ?? ae.serious ?? 0;
+  const commonReactions = ae.commonReactions ?? [];
 
   // Build your details string, weaving in CMS usage when available
   const detailsText = useMemo(() => {
