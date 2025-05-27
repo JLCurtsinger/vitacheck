@@ -71,7 +71,7 @@ export function DetailsSection({ data, showRaw = false }: DetailsSectionProps) {
         <div key={index} className="p-4 bg-gray-50 rounded-md">
           <p className="text-gray-700">
             {item.description || "No detailed description available"}
-            {!item.description?.includes("CMS") && item.rawData && formatCmsUsage(item.rawData)}
+            {item.name !== "OpenFDA Adverse Events" && !item.description?.includes("CMS") && item.rawData && formatCmsUsage(item.rawData)}
           </p>
           
           {showRaw && item.rawData && (
