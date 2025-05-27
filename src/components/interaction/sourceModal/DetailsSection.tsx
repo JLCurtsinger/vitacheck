@@ -54,24 +54,12 @@ export function DetailsSection({ data, showRaw = false }: DetailsSectionProps) {
   
   const structuredData = extractStructuredData();
 
-  const formatCmsUsage = (rawData: any) => {
-    if (!rawData?.total_beneficiaries) return null;
-
-    const total_beneficiaries = rawData.total_beneficiaries;
-    const adverseEvents = rawData.totalEvents ?? rawData.adverseEvents?.totalEvents ?? rawData.total ?? 0;
-    const seriousCases = rawData.seriousEvents ?? rawData.adverseEvents?.seriousEvents ?? rawData.serious ?? 0;
-    const commonReactions = rawData.commonReactions ?? rawData.adverseEvents?.commonReactions ?? [];
-
-    return ` According to CMS data, an estimated ${total_beneficiaries.toLocaleString()} beneficiaries were prescribed this medication in 2022, resulting in ${(adverseEvents / total_beneficiaries * 100).toFixed(2)}% adverse events and ${(seriousCases / total_beneficiaries * 100).toFixed(4)}% serious cases. Common reactions include: ${commonReactions.join(", ") || "None listed"}.`;
-  };
-
   return (
     <div className="space-y-4">
       {data.map((item, index) => (
         <div key={index} className="p-4 bg-gray-50 rounded-md">
           <p className="text-gray-700">
             {item.description || "No detailed description available"}
-            {!item.description?.includes("CMS") && item.rawData && formatCmsUsage(item.rawData)}
           </p>
           
           {showRaw && item.rawData && (
