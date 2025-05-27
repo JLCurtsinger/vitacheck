@@ -37,12 +37,15 @@ export function AdverseEventsSourceContent({ data, medications, clinicianView }:
     );
   }
 
-  // Extract adverse events data with proper fallbacks and optional chaining
+  // Find the OpenFDA Adverse Events source
+  const pairSource = data.find(d => d.name === "OpenFDA Adverse Events");
+
+  // Extract adverse events data with proper fallbacks
   const {
     totalEvents: eventCount = 0,
     seriousEvents: seriousCount = 0,
     commonReactions = []
-  } = data[0].rawData?.adverseEvents || {};
+  } = pairSource?.rawData || {};
 
   // Build your details string, weaving in CMS usage when available
   const detailsText = useMemo(() => {
@@ -56,12 +59,12 @@ export function AdverseEventsSourceContent({ data, medications, clinicianView }:
 
   // Update the data object with the details text
   const updatedData = useMemo(() => {
-    if (!data[0]) return data;
+    if (!pairSource) return data;
     return [{
-      ...data[0],
+      ...pairSource,
       description: detailsText
     }];
-  }, [data, detailsText]);
+  }, [data, pairSource, detailsText]);
 
   return (
     <div className="pb-6">
