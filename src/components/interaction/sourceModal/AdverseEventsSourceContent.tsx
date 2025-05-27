@@ -39,18 +39,22 @@ export function AdverseEventsSourceContent({ data, medications, clinicianView }:
 
   // Find the OpenFDA Adverse Events source
   const pairSource = data.find(d => d.name === "OpenFDA Adverse Events");
+  console.log("🔍 [AdverseEventsDebug] pairSource object:", pairSource);
 
   // Extract adverse events data with proper fallbacks
   const ae = pairSource?.rawData?.adverseEvents ?? pairSource?.rawData ?? {};
+  console.log("🔍 [AdverseEventsDebug] pairSource.rawData:", pairSource?.rawData);
+  console.log("🔍 [AdverseEventsDebug] Extracted adverseEvents object:", ae);
   
   const eventCount = ae.totalEvents ?? ae.total ?? 0;
   const seriousCount = ae.seriousEvents ?? ae.serious ?? 0;
   const commonReactions = ae.commonReactions ?? [];
+  console.log("🔍 [AdverseEventsDebug] Parsed values — eventCount:", eventCount, "seriousCount:", seriousCount, "commonReactions:", commonReactions);
 
   // Build your details string, weaving in CMS usage when available
   const detailsText = useMemo(() => {
-  const seriousPct = eventCount > 0 ? ((seriousCount / eventCount) * 100).toFixed(2) : "0.00";
-  const base = `${eventCount.toLocaleString()} adverse events reported, with ${seriousCount} serious cases (${seriousPct}%).`;
+    const seriousPct = eventCount > 0 ? ((seriousCount / eventCount) * 100).toFixed(2) : "0.00";
+    const base = `${eventCount.toLocaleString()} adverse events reported, with ${seriousCount} serious cases (${seriousPct}%).`;
     if (cmsUsage) {
       const pctOfUsers = ((eventCount / cmsUsage.total_beneficiaries) * 100).toFixed(2);
       return `${base} Out of ${cmsUsage.total_beneficiaries.toLocaleString()} people who claimed this medication in CMS Part D, that's ${pctOfUsers}% of users. Common reactions include: ${commonReactions.join(", ")}.`;
@@ -66,6 +70,7 @@ export function AdverseEventsSourceContent({ data, medications, clinicianView }:
       description: detailsText
     }];
   }, [data, pairSource, detailsText]);
+  console.log("🔍 [AdverseEventsDebug] Final data passed to modal:", updatedData);
 
   return (
     <div className="pb-6">
