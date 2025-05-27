@@ -12,8 +12,6 @@ interface SignInModalProps {
 }
 
 export function SignInModal({ isOpen, onClose }: SignInModalProps) {
-  console.log('[SignInModal] rendered', { isOpen });
-  
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,12 +19,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
 
-  if (!isOpen) {
-    console.log('[SignInModal] not open, returning null');
-    return null;
-  }
-
-  console.log('[SignInModal] visible — should render now');
+  if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,15 +52,6 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
     }
   };
 
-  // Debug test element
-  return (
-    <div className="fixed inset-0 bg-red-500 z-[9999] text-white p-4">
-      Debug Modal Open
-    </div>
-  );
-
-  // Original return statement (commented out for testing)
-  /*
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
@@ -166,5 +150,4 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
       </Card>
     </div>
   );
-  */
 } 
