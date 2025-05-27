@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { SignInModal } from "../SignInModal";
@@ -9,7 +9,7 @@ export function HeroNavbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const { isAuthenticated, user, logout } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleLogout = async () => {
     try {
@@ -29,7 +29,7 @@ export function HeroNavbar() {
 
   const handleDashboard = () => {
     setIsMenuOpen(false);
-    navigate("/dashboard");
+    router.push("/dashboard");
   };
 
   return (
@@ -45,7 +45,7 @@ export function HeroNavbar() {
 
             {/* Desktop menu */}
             <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
-              <Button type="button" variant="ghost" onClick={() => navigate("/experiences")}>
+              <Button type="button" variant="ghost" onClick={() => router.push("/experiences")}>
                 Experiences
               </Button>
               {isAuthenticated ? (
@@ -98,7 +98,7 @@ export function HeroNavbar() {
                 className="w-full justify-start"
                 onClick={() => {
                   setIsMenuOpen(false);
-                  navigate("/experiences");
+                  router.push("/experiences");
                 }}
               >
                 Experiences

@@ -1,6 +1,6 @@
 
 import { useEffect } from "react";
-import { HeroNavbar } from "./hero/HeroNavbar";
+import HeroNavbar from "./hero/HeroNavbar";
 import HeroContent from "./hero/HeroContent";
 import HeroBackground from "./hero/HeroBackground";
 
