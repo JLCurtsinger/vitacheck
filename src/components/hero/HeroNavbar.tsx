@@ -1,91 +1,151 @@
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { X, Menu } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { useRouter } from "next/router";
+import { Button } from "@/components/ui/button";
+import { Menu, X } from "lucide-react";
+import { SignInModal } from "../SignInModal";
 
-interface HeroNavbarProps {
-  scrollToTop: () => void;
-}
-
-export default function HeroNavbar({ scrollToTop }: HeroNavbarProps) {
+export function HeroNavbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { isAuthenticated } = useAuth();
-  const navigate = useNavigate();
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+  const { isAuthenticated, user, logout } = useAuth();
+  const router = useRouter();
 
-  const handleSignOut = async () => {
+  const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
-      navigate('/');
+      await logout();
+      setIsMenuOpen(false);
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error("Error logging out:", error);
     }
   };
 
-  return (
-    <div className="absolute top-0 left-0 w-full p-4">
-      <div className="flex justify-between items-center">
-        <Link to="/" onClick={scrollToTop} className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 text-transparent bg-clip-text hover:opacity-80 transition-opacity duration-300">
-          Vitacheck
-        </Link>
-        
-        <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-          {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
-      </div>
+  const handleSignIn = () => {
+    console.log('[handleSignIn] clicked');
+    setIsMenuOpen(false);
+    setIsSignInModalOpen(true);
+    console.log('[handleSignIn] setIsSignInModalOpen(true)');
+  };
 
-      {isMenuOpen && (
-        <div className="absolute top-16 right-4 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
-          <Link 
-            to="/experiences" 
-            onClick={() => {
-              setIsMenuOpen(false);
-              scrollToTop();
-            }} 
-            className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-          >
-            Experiences
-          </Link>
-          {isAuthenticated ? (
-            <>
-              <Link 
-                to="/dashboard" 
-                onClick={() => setIsMenuOpen(false)} 
-                className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+  const handleDashboard = () => {
+    setIsMenuOpen(false);
+    router.push("/dashboard");
+  };
+
+  return (
+    <>
+      <nav className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex">
+              <div className="flex-shrink-0 flex items-center">
+                <span className="text-xl font-bold text-gray-900">Vitacheck</span>
+              </div>
+            </div>
+
+            {/* Desktop menu */}
+            <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
+              <Button type="button" variant="ghost" onClick={() => router.push("/experiences")}>
+                Experiences
+              </Button>
+              {isAuthenticated ? (
+                <>
+                  <Button type="button" variant="ghost" onClick={handleDashboard}>
+                    Dashboard
+                  </Button>
+                  <Button type="button" variant="ghost" onClick={handleLogout}>
+                    Sign Out
+                  </Button>
+                  {user?.email && (
+                    <span className="text-sm text-gray-500">
+                      {user.email}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <Button type="button" variant="ghost" onClick={handleSignIn}>
+                  Sign In
+                </Button>
+              )}
+            </div>
+
+            {/* Mobile menu button */}
+            <div className="flex items-center sm:hidden">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
               >
-                Account
-              </Link>
-              <button 
+                <span className="sr-only">Open main menu</span>
+                {isMenuOpen ? (
+                  <X className="block h-6 w-6" aria-hidden="true" />
+                ) : (
+                  <Menu className="block h-6 w-6" aria-hidden="true" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile menu */}
+        {isMenuOpen && (
+          <div className="sm:hidden">
+            <div className="pt-2 pb-3 space-y-1">
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full justify-start"
                 onClick={() => {
                   setIsMenuOpen(false);
-                  handleSignOut();
-                }} 
-                className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  router.push("/experiences");
+                }}
               >
-                Sign Out
-              </button>
-            </>
-          ) : (
-            <>
-              <Link 
-                to="/signin" 
-                onClick={() => setIsMenuOpen(false)} 
-                className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-              >
-                Sign In
-              </Link>
-              <Link 
-                to="/signup" 
-                onClick={() => setIsMenuOpen(false)} 
-                className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-              >
-                Sign Up
-              </Link>
-            </>
-          )}
-        </div>
-      )}
-    </div>
+                Experiences
+              </Button>
+              {isAuthenticated ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={handleDashboard}
+                  >
+                    Dashboard
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={handleLogout}
+                  >
+                    Sign Out
+                  </Button>
+                  {user?.email && (
+                    <div className="px-4 py-2 text-sm text-gray-500">
+                      {user.email}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={handleSignIn}
+                >
+                  Sign In
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </nav>
+
+      <SignInModal
+        isOpen={isSignInModalOpen}
+        onClose={() => setIsSignInModalOpen(false)}
+      />
+    </>
   );
 }
