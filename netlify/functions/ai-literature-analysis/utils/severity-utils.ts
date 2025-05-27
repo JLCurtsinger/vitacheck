@@ -146,8 +146,8 @@ export function extractEvidence(responseText: string): string {
 export function selectModelForQuery(med1: string, med2: string): string {
   // Use GPT-3.5 for simpler queries to improve response time
   if ((med1.length + med2.length) <= 15) {
-    return "gpt-3.5-turbo";
+    return "gpt-4o-mini-search-preview";
   }
   // Use GPT-4o-mini for more complex queries
-  return "gpt-4o-mini";
+  return "gpt-4o-mini-search-preview";
 }
