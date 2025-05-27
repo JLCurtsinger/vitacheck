@@ -42,7 +42,7 @@ export function AdverseEventsSourceContent({ data, medications, clinicianView }:
   console.log("🔍 [AdverseEventsDebug] pairSource object:", pairSource);
 
   // Extract adverse events data with proper fallbacks
-  const ae = pairSource?.rawData?.adverseEvents ?? pairSource?.rawData ?? {};
+  const ae = pairSource?.eventData ?? {};
   console.log("🔍 [AdverseEventsDebug] pairSource.rawData:", pairSource?.rawData);
   console.log("🔍 [AdverseEventsDebug] Extracted adverseEvents object:", ae);
   
