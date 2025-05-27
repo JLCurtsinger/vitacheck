@@ -85,8 +85,7 @@ The application includes:
 ## Deployment
 
 The application can be deployed using:
-1. Lovable's built-in deployment feature
-2. Manual deployment to any static hosting service
+Manual deployment to any static hosting service
 
 ## Contributing
 
