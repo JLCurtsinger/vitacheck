@@ -175,7 +175,7 @@ Focus on:
 Avoid animal-only data. Do not speculate. If no interactions are mentioned, state that clearly.`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-nano",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
     });
