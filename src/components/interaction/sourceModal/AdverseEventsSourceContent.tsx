@@ -49,7 +49,8 @@ export function AdverseEventsSourceContent({ data, medications, clinicianView }:
 
   // Build your details string, weaving in CMS usage when available
   const detailsText = useMemo(() => {
-    const base = `${eventCount.toLocaleString()} adverse events reported, with ${seriousCount} serious cases (${((seriousCount/eventCount)*100).toFixed(2)}%).`;
+  const seriousPct = eventCount > 0 ? ((seriousCount / eventCount) * 100).toFixed(2) : "0.00";
+  const base = `${eventCount.toLocaleString()} adverse events reported, with ${seriousCount} serious cases (${seriousPct}%).`;
     if (cmsUsage) {
       const pctOfUsers = ((eventCount / cmsUsage.total_beneficiaries) * 100).toFixed(2);
       return `${base} Out of ${cmsUsage.total_beneficiaries.toLocaleString()} people who claimed this medication in CMS Part D, that's ${pctOfUsers}% of users. Common reactions include: ${commonReactions.join(", ")}.`;
@@ -77,14 +78,6 @@ export function AdverseEventsSourceContent({ data, medications, clinicianView }:
       
       {/* Severity and confidence at the top */}
       <SeverityConfidenceSection data={updatedData} clinicianView={clinicianView} />
-      
-      {/* Adverse Events Summary */}
-      <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-md">
-        <h4 className="font-medium mb-2">Adverse Events Summary</h4>
-        <p className="text-gray-700">
-          {detailsText}
-        </p>
-      </div>
       
       {/* Raw details section */}
       <DetailsSection data={updatedData} showRaw={clinicianView} />
