@@ -40,7 +40,7 @@ export function processAdverseEventsSources(
         severity: adverseEventSource.severity,
         description: adverseEventSource.description,
         confidence: adverseEventSource.confidence,
-        rawData: {},
+        rawData: {...eventData},
         processed: false,
         eventData
       });
