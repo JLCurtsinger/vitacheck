@@ -54,88 +54,33 @@ export function DetailsSection({ data, showRaw = false }: DetailsSectionProps) {
   
   const structuredData = extractStructuredData();
 
-  // Helper to format CMS usage data if available
   const formatCmsUsage = (rawData: any) => {
-    if (!rawData?.cms_usage?.success || !rawData.cms_usage?.totals?.total_beneficiaries) {
-      return '';
-    }
+    if (!rawData?.total_beneficiaries) return null;
 
-    const { total_beneficiaries } = rawData.cms_usage.totals;
-    const adverseEvents = rawData.total || 0;
-    const seriousCases = rawData.serious || 0;
+    const total_beneficiaries = rawData.total_beneficiaries;
+    const adverseEvents = rawData.adverseEvents?.totalEvents ?? rawData.total ?? 0;
+    const seriousCases = rawData.adverseEvents?.seriousEvents ?? rawData.serious ?? 0;
+    const commonReactions = rawData.adverseEvents?.commonReactions ?? [];
 
-    if (total_beneficiaries <= 0) return '';
-
-    return ` According to CMS data, an estimated ${total_beneficiaries.toLocaleString()} beneficiaries were prescribed this medication in 2022, resulting in ${(adverseEvents / total_beneficiaries * 100).toFixed(2)}% adverse events and ${(seriousCases / total_beneficiaries * 100).toFixed(4)}% serious cases.`;
+    return ` According to CMS data, an estimated ${total_beneficiaries.toLocaleString()} beneficiaries were prescribed this medication in 2022, resulting in ${(adverseEvents / total_beneficiaries * 100).toFixed(2)}% adverse events and ${(seriousCases / total_beneficiaries * 100).toFixed(4)}% serious cases. Common reactions include: ${commonReactions.join(", ") || "None listed"}.`;
   };
 
   return (
-    <div className="rounded-md border mb-4 p-4">
-      <div className="flex justify-between items-center mb-3">
-        <h3 className="font-medium flex items-center">
-          <Info className="h-4 w-4 mr-2 text-gray-500" />
-          Details
-        </h3>
-        <Button 
-          variant="outline" 
-          size="sm"
-          className="text-xs"
-          onClick={() => setShowRawData(!showRawData)}
-        >
-          <Code className="h-3 w-3 mr-1" />
-          {showRawData ? "Hide Raw Data" : "Show Raw Data"}
-        </Button>
-      </div>
-      
-      {!showRawData ? (
-        <div className="text-sm text-gray-700 max-h-60 overflow-y-auto">
-          {data.map((item, idx) => (
-            <p key={idx} className="mb-2">
-              {item.description || "No detailed description available"}
-              {item.rawData && formatCmsUsage(item.rawData)}
-            </p>
-          ))}
-        </div>
-      ) : (
-        <div>
-          {/* Structured extracted data (if available) */}
-          {structuredData && (
-            <Accordion type="single" collapsible className="mb-3">
-              {structuredData.map((section, index) => (
-                <AccordionItem key={index} value={`section-${index}`}>
-                  <AccordionTrigger className="text-sm font-medium">{section.title}</AccordionTrigger>
-                  <AccordionContent>
-                    {section.type === "list" ? (
-                      <ul className="list-disc list-inside text-sm space-y-1">
-                        {section.content.map((item: string, i: number) => (
-                          <li key={i}>{item}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-sm">{section.content}</p>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          )}
+    <div className="space-y-4">
+      {data.map((item, index) => (
+        <div key={index} className="p-4 bg-gray-50 rounded-md">
+          <p className="text-gray-700">
+            {item.description || "No detailed description available"}
+            {!item.description?.includes("CMS") && item.rawData && formatCmsUsage(item.rawData)}
+          </p>
           
-          {/* Full Raw JSON Data */}
-          <Collapsible className="w-full" defaultOpen={true}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between p-2 text-xs">
-                Raw Source Data
-                {true ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <pre className="text-xs bg-gray-50 p-3 rounded overflow-auto max-h-60">
-                {JSON.stringify(data, null, 2)}
-              </pre>
-            </CollapsibleContent>
-          </Collapsible>
+          {showRaw && item.rawData && (
+            <div className="mt-4 p-3 bg-gray-100 rounded text-sm font-mono overflow-auto">
+              <pre>{JSON.stringify(item.rawData, null, 2)}</pre>
+            </div>
+          )}
         </div>
-      )}
+      ))}
     </div>
   );
 }
