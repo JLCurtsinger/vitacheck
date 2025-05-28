@@ -64,11 +64,11 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                 id="email"
                 name="email"
                 type="email"
-                autoComplete="username"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full"
+                className="mt-1"
                 placeholder="you@example.com"
               />
             </div>
@@ -82,7 +82,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full"
+                className="mt-1"
                 placeholder="••••••••"
               />
             </div>
