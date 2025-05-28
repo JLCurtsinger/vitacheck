@@ -12,6 +12,7 @@ interface SignInModalProps {
 }
 
 export function SignInModal({ isOpen, onClose }: SignInModalProps) {
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -24,16 +25,23 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
     setError(null);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
-      if (data.user) {
-        await login(email, password);
-        onClose();
+      if (isSignUp) {
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (signUpError) throw signUpError;
+        setError("Check your email for the confirmation link!");
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        if (data.user) {
+          await login(email, password);
+          onClose();
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -46,7 +54,9 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px] p-0 bg-transparent border-none">
         <div className="bg-white rounded-lg shadow-xl p-6">
-          <h2 className="text-2xl font-bold mb-6 text-center">Sign In</h2>
+          <h2 className="text-2xl font-bold mb-6 text-center">
+            {isSignUp ? "Create an Account" : "Sign In"}
+          </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -78,8 +88,22 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
               disabled={isLoading}
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-90"
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading 
+                ? (isSignUp ? "Creating account..." : "Signing in...") 
+                : (isSignUp ? "Create Account" : "Sign In")}
             </Button>
+
+            <div className="text-center text-sm">
+              <button
+                type="button"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="text-blue-600 hover:text-purple-700"
+              >
+                {isSignUp 
+                  ? "Already have an account? Sign in" 
+                  : "Don't have an account? Sign up"}
+              </button>
+            </div>
           </form>
         </div>
       </DialogContent>

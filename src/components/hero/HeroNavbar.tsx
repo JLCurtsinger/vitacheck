@@ -76,22 +76,13 @@ export default function HeroNavbar({ scrollToTop }: HeroNavbarProps) {
               </button>
             </>
           ) : (
-            <>
-              <button 
-                type="button"
-                onClick={handleSignIn}
-                className="block px-4 py-2 text-gray-700 hover:bg-gray-100 w-full text-left"
-              >
-                Sign In
-              </button>
-              <button 
-                type="button"
-                onClick={handleSignIn}
-                className="block px-4 py-2 text-gray-700 hover:bg-gray-100 w-full text-left"
-              >
-                Sign Up
-              </button>
-            </>
+            <button 
+              type="button"
+              onClick={handleSignIn}
+              className="block px-4 py-2 text-gray-700 hover:bg-gray-100 w-full text-left"
+            >
+              Sign In
+            </button>
           )}
         </div>
       )}
