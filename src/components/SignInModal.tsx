@@ -57,27 +57,33 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
           <h2 className="text-2xl font-bold mb-6 text-center">
             {isSignUp ? "Create an Account" : "Sign In"}
           </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} autoComplete="on" className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
+                autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full"
+                placeholder="you@example.com"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
+                name="password"
                 type="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className="w-full"
+                placeholder="••••••••"
               />
             </div>
             {error && (
