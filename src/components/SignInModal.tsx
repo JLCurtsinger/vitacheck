@@ -52,7 +52,11 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] p-0 bg-transparent border-none">
+      <DialogContent 
+        className={`sm:max-w-[425px] p-0 bg-transparent border-none transition-opacity duration-200 ${
+          !isOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        }`}
+      >
         <div className="bg-white rounded-lg shadow-xl p-6">
           <h2 className="text-2xl font-bold mb-6 text-center">
             {isSignUp ? "Create an Account" : "Sign In"}
