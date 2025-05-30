@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,25 +13,19 @@ interface SignInModalProps {
 
 export function SignInModal({ isOpen, onClose }: SignInModalProps) {
   const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { login } = useAuth();
+  const formRef = useRef<HTMLFormElement>(null);
 
-  // Reset form when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setEmail("");
-      setPassword("");
-      setError(null);
-    }
-  }, [isOpen]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
 
     try {
       if (isSignUp) {
@@ -59,6 +53,14 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
     }
   };
 
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen && formRef.current) {
+      formRef.current.reset();
+      setError(null);
+    }
+  }, [isOpen]);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
@@ -71,6 +73,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
             {isSignUp ? "Create an Account" : "Sign In"}
           </h2>
           <form 
+            ref={formRef}
             onSubmit={handleSubmit} 
             autoComplete="on" 
             className="space-y-4"
@@ -83,8 +86,6 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                 name="email"
                 type="email"
                 autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 required
                 className="mt-1"
                 placeholder="you@example.com"
@@ -98,8 +99,6 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                 name="password"
                 type="password"
                 autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
                 required
                 className="mt-1"
                 placeholder="••••••••"
