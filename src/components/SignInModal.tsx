@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,15 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { login } = useAuth();
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setEmail("");
+      setPassword("");
+      setError(null);
+    }
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +70,12 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
           <h2 className="text-2xl font-bold mb-6 text-center">
             {isSignUp ? "Create an Account" : "Sign In"}
           </h2>
-          <form onSubmit={handleSubmit} autoComplete="on" className="space-y-4">
+          <form 
+            onSubmit={handleSubmit} 
+            autoComplete="on" 
+            className="space-y-4"
+            method="post"
+          >
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -74,6 +88,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                 required
                 className="mt-1"
                 placeholder="you@example.com"
+                aria-label="Email address"
               />
             </div>
             <div className="space-y-2">
@@ -88,6 +103,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                 required
                 className="mt-1"
                 placeholder="••••••••"
+                aria-label="Password"
               />
             </div>
             {error && (
