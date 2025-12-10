@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_KEY!
-);
+import { supabase } from '@/lib/supabase';
 
 // In-memory cache
 const cache: Record<string, { data: UsageStats; expires: number }> = {};
