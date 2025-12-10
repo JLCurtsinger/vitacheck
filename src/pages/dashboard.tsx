@@ -54,27 +54,16 @@ export default function Dashboard() {
   const [savedMedications, setSavedMedications] = useState<SavedMedication[]>([]);
   const [recentChecks, setRecentChecks] = useState<InteractionCheck[]>([]);
   const [dailyStats, setDailyStats] = useState<InteractionCheckDailyStat[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedMedication, setSelectedMedication] = useState<SavedMedication | null>(null);
 
   useEffect(() => {
+    // Only run data loading after auth has resolved and user is authenticated
+    if (authLoading || !isAuthenticated || !user) {
+      return;
+    }
+
     let isMounted = true;
 
-    // Wait for auth to finish loading
-    if (authLoading) {
-      return;
-    }
-
-    // If not authenticated after auth has loaded, redirect
-    if (!isAuthenticated) {
-      if (isMounted) {
-        setLoading(false);
-        navigate('/', { replace: true });
-      }
-      return;
-    }
-
-    // Load dashboard data
     const loadData = async () => {
       try {
         const [meds, checks, stats] = await Promise.all([
@@ -90,10 +79,6 @@ export default function Dashboard() {
         }
       } catch (error) {
         console.error('Failed to load dashboard data', error);
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
       }
     };
 
@@ -102,7 +87,7 @@ export default function Dashboard() {
     return () => {
       isMounted = false;
     };
-  }, [isAuthenticated, authLoading, navigate]);
+  }, [authLoading, isAuthenticated, user, supabase]);
 
   // Sample trend data for empty state
   const sampleTrend = [
@@ -170,8 +155,7 @@ export default function Dashboard() {
     navigate('/check', { state: { medications: check.medications } });
   };
 
-  // Show loading while auth is loading or dashboard data is loading
-  if (authLoading || loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -182,8 +166,10 @@ export default function Dashboard() {
     );
   }
 
-  // If not authenticated, don't render (should redirect)
   if (!isAuthenticated) {
+    // Optional: if ProtectedRoute already handles redirect, you can just return null.
+    // If not, you can navigate:
+    // navigate("/", { replace: true });
     return null;
   }
 
