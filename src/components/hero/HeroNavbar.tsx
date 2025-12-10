@@ -4,6 +4,7 @@ import { X, Menu } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { SignInModal } from "../SignInModal";
 
 interface HeroNavbarProps {
   scrollToTop: () => void;
@@ -11,6 +12,7 @@ interface HeroNavbarProps {
 
 export default function HeroNavbar({ scrollToTop }: HeroNavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -21,6 +23,13 @@ export default function HeroNavbar({ scrollToTop }: HeroNavbarProps) {
     } catch (error) {
       console.error('Error signing out:', error);
     }
+  };
+
+  const handleSignIn = () => {
+    console.log('[handleSignIn] clicked');
+    setIsMenuOpen(false);
+    setIsSignInModalOpen(true);
+    console.log('[handleSignIn] setIsSignInModalOpen(true)');
   };
 
   return (
@@ -67,25 +76,21 @@ export default function HeroNavbar({ scrollToTop }: HeroNavbarProps) {
               </button>
             </>
           ) : (
-            <>
-              <Link 
-                to="/signin" 
-                onClick={() => setIsMenuOpen(false)} 
-                className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-              >
-                Sign In
-              </Link>
-              <Link 
-                to="/signup" 
-                onClick={() => setIsMenuOpen(false)} 
-                className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-              >
-                Sign Up
-              </Link>
-            </>
+            <button 
+              type="button"
+              onClick={handleSignIn}
+              className="block px-4 py-2 text-gray-700 hover:bg-gray-100 w-full text-left"
+            >
+              Sign In
+            </button>
           )}
         </div>
       )}
+
+      <SignInModal
+        isOpen={isSignInModalOpen}
+        onClose={() => setIsSignInModalOpen(false)}
+      />
     </div>
   );
 }
