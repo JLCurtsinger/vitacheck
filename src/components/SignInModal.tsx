@@ -3,7 +3,6 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface SignInModalProps {
@@ -13,14 +12,12 @@ interface SignInModalProps {
 
 export function SignInModal({ isOpen, onClose }: SignInModalProps) {
   const [isSignUp, setIsSignUp] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const { signIn, signUp, isLoading, error: authError } = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const { login } = useAuth();
   const formRef = useRef<HTMLFormElement>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsLoading(true);
     setError(null);
 
     const formData = new FormData(e.currentTarget);
@@ -29,27 +26,14 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
 
     try {
       if (isSignUp) {
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (signUpError) throw signUpError;
+        await signUp(email, password);
         setError("Check your email for the confirmation link!");
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        if (data.user) {
-          await login(email, password);
-          onClose();
-        }
+        await signIn(email, password);
+        onClose();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -105,8 +89,8 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                 aria-label="Password"
               />
             </div>
-            {error && (
-              <div className="text-red-500 text-sm">{error}</div>
+            {(error || authError) && (
+              <div className="text-red-500 text-sm">{error || authError}</div>
             )}
             <Button
               type="submit"
