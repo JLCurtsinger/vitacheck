@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, X, ArrowLeft } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import AutocompleteInput from "./AutocompleteInput";
 import { saveToRecentSearches } from "@/services/medication-suggestions";
 import { prepareMedicationNameForApi } from "@/utils/medication-formatter";
+import HeroNavbar from "../hero/HeroNavbar";
 
 /**
  * MedicationForm Component
@@ -157,15 +158,10 @@ export default function MedicationForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
-      <div className="max-w-2xl mx-auto p-6">
-        <button
-          onClick={() => navigate("/")}
-          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors mb-8 group"
-        >
-          <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-          Back to Home
-        </button>
+    <div className="min-h-screen flex flex-col">
+      <HeroNavbar scrollToTop={() => window.scrollTo({ top: 0, behavior: 'smooth' })} />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+        <div className="max-w-2xl mx-auto p-6">
         
         <div className="bg-white rounded-xl shadow-lg p-8 backdrop-blur-sm bg-opacity-90">
           <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 text-transparent bg-clip-text">
@@ -233,6 +229,7 @@ export default function MedicationForm() {
             </Button>
           </form>
         </div>
+      </div>
       </div>
     </div>
   );
