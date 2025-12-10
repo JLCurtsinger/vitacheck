@@ -11,7 +11,7 @@ import Index from "./pages/Index";
 import Check from "./pages/Check";
 import Results from "./pages/Results";
 import Experiences from "./pages/Experiences";
-import Dashboard from "./pages/Dashboard";
+import Dashboard from "./pages/dashboard";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsAndConditions from "./pages/TermsAndConditions";
 import PasswordResetPage from "./pages/PasswordResetPage";
