@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -28,7 +28,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<{ full_name: string | null; role: string } | null>(null);
   const navigate = useNavigate();
-  const initialLoadComplete = useRef(false);
 
   console.log("AuthProvider render", {
     isLoading,
@@ -36,71 +35,87 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
+    let isMounted = true;
 
-    // Check for existing session
-    console.log("AuthContext: starting getSession");
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    async function initAuth() {
+      console.log("AuthContext: initAuth start");
+      setIsLoading(true);
+
       try {
+        console.log("AuthContext: starting getSession");
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error("AuthContext: getSession error", error);
+        }
+
+        const session = data?.session ?? null;
+
         console.log("AuthContext: getSession resolved", {
           hasSession: !!session,
           hasUser: !!session?.user,
+          data,
+          error,
         });
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          const userProfile = await fetchUserProfile(supabase, session.user.id);
-          setProfile(userProfile);
-        }
-      } catch (error) {
-        console.error('Error loading session or profile', error);
-      } finally {
-        if (!initialLoadComplete.current) {
-          console.log("AuthContext: setIsLoading(false) from getSession");
-          setIsLoading(false);
-          initialLoadComplete.current = true;
-        }
-      }
-    }).catch((error) => {
-      console.error('Error getting session', error);
-      if (!initialLoadComplete.current) {
-        console.log("AuthContext: setIsLoading(false) from getSession error");
-        setIsLoading(false);
-        initialLoadComplete.current = true;
-      }
-    });
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      try {
-        // Skip INITIAL_SESSION event - we handle initial load via getSession()
-        if (event === 'INITIAL_SESSION') {
-          return;
+        if (isMounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            try {
+              const userProfile = await fetchUserProfile(supabase, session.user.id);
+              setProfile(userProfile);
+            } catch (profileError) {
+              console.error('Error loading profile', profileError);
+            }
+          }
         }
+      } catch (err) {
+        console.error("AuthContext: getSession threw", err);
+      } finally {
+        if (isMounted) {
+          console.log("AuthContext: setIsLoading(false) from initAuth");
+          setIsLoading(false);
+        }
+      }
+    }
+
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log("AuthContext: onAuthStateChange", {
+          event,
+          hasSession: !!session,
+          hasUser: !!session?.user,
+        });
+
+        if (!isMounted) return;
         
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          const userProfile = await fetchUserProfile(supabase, session.user.id);
-          setProfile(userProfile);
+          try {
+            const userProfile = await fetchUserProfile(supabase, session.user.id);
+            setProfile(userProfile);
+          } catch (profileError) {
+            console.error('Error loading profile in onAuthStateChange', profileError);
+          }
         } else {
           setProfile(null);
         }
-      } catch (error) {
-        console.error('Error handling auth state change', error);
-      } finally {
-        // Only set loading to false if initial load hasn't completed yet
-        if (!initialLoadComplete.current) {
-          console.log("AuthContext: setIsLoading(false) from onAuthStateChange");
-          setIsLoading(false);
-          initialLoadComplete.current = true;
-        }
       }
-    });
+    );
 
     return () => {
-      subscription.unsubscribe();
+      isMounted = false;
+      try {
+        subscription?.unsubscribe();
+      } catch (err) {
+        console.error("AuthContext: unsubscribe error", err);
+      }
     };
   }, []);
 
