@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import AutocompleteInput from "./AutocompleteInput";
 import { saveToRecentSearches } from "@/services/medication-suggestions";
 import { prepareMedicationNameForApi } from "@/utils/medication-formatter";
-import HeroNavbar from "../hero/HeroNavbar";
+import HeroNavbar from "./hero/HeroNavbar";
 
 /**
  * MedicationForm Component
