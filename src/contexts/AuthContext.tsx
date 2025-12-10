@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -28,11 +28,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<{ full_name: string | null; role: string } | null>(null);
   const navigate = useNavigate();
+  const initialLoadComplete = useRef(false);
+
+  console.log("AuthProvider render", {
+    isLoading,
+    hasUser: !!user,
+  });
 
   useEffect(() => {
+
     // Check for existing session
+    console.log("AuthContext: starting getSession");
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       try {
+        console.log("AuthContext: getSession resolved", {
+          hasSession: !!session,
+          hasUser: !!session?.user,
+        });
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -43,16 +55,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error('Error loading session or profile', error);
       } finally {
-        setIsLoading(false);
+        if (!initialLoadComplete.current) {
+          console.log("AuthContext: setIsLoading(false) from getSession");
+          setIsLoading(false);
+          initialLoadComplete.current = true;
+        }
       }
     }).catch((error) => {
       console.error('Error getting session', error);
-      setIsLoading(false);
+      if (!initialLoadComplete.current) {
+        console.log("AuthContext: setIsLoading(false) from getSession error");
+        setIsLoading(false);
+        initialLoadComplete.current = true;
+      }
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       try {
+        // Skip INITIAL_SESSION event - we handle initial load via getSession()
+        if (event === 'INITIAL_SESSION') {
+          return;
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -65,7 +90,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error('Error handling auth state change', error);
       } finally {
-        setIsLoading(false);
+        // Only set loading to false if initial load hasn't completed yet
+        if (!initialLoadComplete.current) {
+          console.log("AuthContext: setIsLoading(false) from onAuthStateChange");
+          setIsLoading(false);
+          initialLoadComplete.current = true;
+        }
       }
     });
 

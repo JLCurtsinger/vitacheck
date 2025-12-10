@@ -50,6 +50,13 @@ import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
   const { user, displayName, isAuthenticated, isLoading: authLoading } = useAuth();
+  
+  console.log("Dashboard render", {
+    authLoading,
+    isAuthenticated,
+    hasUser: !!user,
+  });
+  
   const navigate = useNavigate();
   const [savedMedications, setSavedMedications] = useState<SavedMedication[]>([]);
   const [recentChecks, setRecentChecks] = useState<InteractionCheck[]>([]);
