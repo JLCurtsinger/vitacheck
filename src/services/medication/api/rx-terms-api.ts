@@ -18,23 +18,41 @@ export async function fetchRxTermsSuggestions(query: string): Promise<Medication
     }
 
     console.log('🔍 Fetching RxTerms suggestions for:', query);
-    const response = await fetch('/.netlify/functions/rxnorm', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        operation: 'suggest',
-        term: query.trim()
-      })
+    const url = '/.netlify/functions/rxnorm';
+    const body = JSON.stringify({ 
+      operation: 'suggest',
+      term: query.trim()
     });
+    console.log('📡 RxTerms: about to fetch', { url, body });
+    
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body
+      });
+      console.log('✅ RxTerms: fetch completed', { status: response.status, ok: response.ok });
+    } catch (err) {
+      console.error('❌ RxTerms: fetch error', err);
+      throw err;
+    }
 
     if (!response.ok) {
       console.error('❌ RxTerms API error:', response.status);
       return [];
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+      console.log('📦 RxTerms: parsed response', { hasResults: !!data?.results, resultCount: data?.results?.length });
+    } catch (err) {
+      console.error('❌ RxTerms: JSON parse error', err);
+      return [];
+    }
     const suggestions = (data?.results || [])
       .slice(0, 8)
       .map((result: any) => ({

@@ -42,10 +42,25 @@ export async function getMedicationSuggestions(query: string): Promise<Medicatio
     }
     
     // Fetch suggestions concurrently from multiple sources
-    const [rxTermsResults, suppAiResults] = await Promise.all([
+    // Use Promise.allSettled to ensure one failure doesn't block the other
+    const [rxTermsSettlement, suppAiSettlement] = await Promise.allSettled([
       fetchRxTermsSuggestions(queryToUse),
       fetchSuppAiSuggestions(queryToUse)
     ]);
+    
+    const rxTermsResults = rxTermsSettlement.status === 'fulfilled' 
+      ? rxTermsSettlement.value 
+      : [];
+    const suppAiResults = suppAiSettlement.status === 'fulfilled' 
+      ? suppAiSettlement.value 
+      : [];
+    
+    if (rxTermsSettlement.status === 'rejected') {
+      console.error('❌ RxTerms suggestions failed:', rxTermsSettlement.reason);
+    }
+    if (suppAiSettlement.status === 'rejected') {
+      console.error('❌ SUPP.AI suggestions failed:', suppAiSettlement.reason);
+    }
     
     // Combine results
     let combinedResults = [...rxTermsResults];
