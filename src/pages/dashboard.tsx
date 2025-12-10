@@ -49,7 +49,7 @@ import { getSeverityBadgeClasses } from '@/lib/utils/severity-utils';
 import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
-  const { user, displayName, isAuthenticated } = useAuth();
+  const { user, displayName, isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [savedMedications, setSavedMedications] = useState<SavedMedication[]>([]);
   const [recentChecks, setRecentChecks] = useState<InteractionCheck[]>([]);
@@ -58,11 +58,23 @@ export default function Dashboard() {
   const [selectedMedication, setSelectedMedication] = useState<SavedMedication | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/');
+    let isMounted = true;
+
+    // Wait for auth to finish loading
+    if (authLoading) {
       return;
     }
 
+    // If not authenticated after auth has loaded, redirect
+    if (!isAuthenticated) {
+      if (isMounted) {
+        setLoading(false);
+        navigate('/', { replace: true });
+      }
+      return;
+    }
+
+    // Load dashboard data
     const loadData = async () => {
       try {
         const [meds, checks, stats] = await Promise.all([
@@ -71,18 +83,26 @@ export default function Dashboard() {
           fetchInteractionCheckDailyStats(supabase),
         ]);
         
-        setSavedMedications(meds);
-        setRecentChecks(checks);
-        setDailyStats(stats);
+        if (isMounted) {
+          setSavedMedications(meds);
+          setRecentChecks(checks);
+          setDailyStats(stats);
+        }
       } catch (error) {
         console.error('Failed to load dashboard data', error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadData();
-  }, [isAuthenticated, navigate]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, authLoading, navigate]);
 
   // Sample trend data for empty state
   const sampleTrend = [
@@ -150,7 +170,8 @@ export default function Dashboard() {
     navigate('/check', { state: { medications: check.medications } });
   };
 
-  if (loading) {
+  // Show loading while auth is loading or dashboard data is loading
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -159,6 +180,11 @@ export default function Dashboard() {
         </div>
       </div>
     );
+  }
+
+  // If not authenticated, don't render (should redirect)
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (

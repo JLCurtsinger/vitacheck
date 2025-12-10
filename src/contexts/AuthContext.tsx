@@ -32,30 +32,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Check for existing session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        const userProfile = await fetchUserProfile(supabase, session.user.id);
-        setProfile(userProfile);
+      try {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          const userProfile = await fetchUserProfile(supabase, session.user.id);
+          setProfile(userProfile);
+        }
+      } catch (error) {
+        console.error('Error loading session or profile', error);
+      } finally {
+        setIsLoading(false);
       }
-      
+    }).catch((error) => {
+      console.error('Error getting session', error);
       setIsLoading(false);
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        const userProfile = await fetchUserProfile(supabase, session.user.id);
-        setProfile(userProfile);
-      } else {
-        setProfile(null);
+      try {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          const userProfile = await fetchUserProfile(supabase, session.user.id);
+          setProfile(userProfile);
+        } else {
+          setProfile(null);
+        }
+      } catch (error) {
+        console.error('Error handling auth state change', error);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     });
 
     return () => {
