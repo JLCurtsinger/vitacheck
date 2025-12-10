@@ -3,6 +3,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { checkInteractions, checkAllCombinations, CombinationResult } from "@/lib/api/medication-service";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Enhanced cache for storing interaction results
 // This will persist during the session until the page is reloaded
@@ -11,6 +13,7 @@ const interactionCache = new Map<string, CombinationResult[]>();
 export function useInteractions(medications: string[]) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [interactions, setInteractions] = useState<CombinationResult[]>([]);
   const [hasAnyInteraction, setHasAnyInteraction] = useState(false);
@@ -105,6 +108,42 @@ export function useInteractions(medications: string[]) {
         setHasAnyInteraction(results.some(result => 
           result.severity === "moderate" || result.severity === "severe" || result.severity === "minor"
         ));
+        
+        // Log interaction check to database (non-blocking)
+        if (user && medications.length > 0) {
+          // Determine highest severity
+          const severityOrder = {
+            severe: 0,
+            moderate: 1,
+            minor: 2,
+            unknown: 3,
+            safe: 4,
+          };
+          
+          const highestSeverity = results.reduce((highest, result) => {
+            return severityOrder[result.severity] < severityOrder[highest]
+              ? result.severity
+              : highest;
+          }, results[0]?.severity || 'unknown');
+          
+          // Insert into interaction_checks table (non-blocking, ignore errors)
+          supabase
+            .from('interaction_checks')
+            .insert({
+              user_id: user.id,
+              medications: medications,
+              highest_severity: highestSeverity,
+              result_summary: null,
+            })
+            .then(({ error }) => {
+              if (error) {
+                console.error('Failed to log interaction check', error);
+              }
+            })
+            .catch((err) => {
+              console.error('Error logging interaction check', err);
+            });
+        }
         
         console.log(`[${newRequestId}] Interaction processing complete:`, {
           count: results.length,

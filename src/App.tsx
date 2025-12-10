@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import Check from "./pages/Check";
 import Results from "./pages/Results";
 import Experiences from "./pages/Experiences";
+import Dashboard from "./pages/Dashboard";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsAndConditions from "./pages/TermsAndConditions";
 import PasswordResetPage from "./pages/PasswordResetPage";
@@ -52,6 +53,7 @@ const App = () => {
             <Route path="/check" element={<ProtectedRoute><Check /></ProtectedRoute>} />
             <Route path="/results" element={<ProtectedRoute><Results /></ProtectedRoute>} />
             <Route path="/experiences" element={<ProtectedRoute><Experiences /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/privacy-policy" element={<ProtectedRoute><PrivacyPolicy /></ProtectedRoute>} />
             <Route path="/terms" element={<ProtectedRoute><TermsAndConditions /></ProtectedRoute>} />
             <Route path="/auth/reset" element={<PasswordResetPage />} />

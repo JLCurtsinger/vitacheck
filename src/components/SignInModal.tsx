@@ -27,13 +27,14 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
+    const fullName = mode === 'signup' ? (formData.get('full_name') as string) : undefined;
 
     try {
       if (mode === 'reset') {
         await resetPassword(email);
         setSuccessMessage("If an account exists for this email, a password reset link has been sent.");
       } else if (mode === 'signup') {
-        await signUp(email, password);
+        await signUp(email, password, fullName);
         // Only show success if no error was thrown
         setSuccessMessage("Check your email for the confirmation link!");
       } else {
@@ -96,6 +97,21 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                 aria-label="Email address"
               />
             </div>
+            {mode === 'signup' && (
+              <div className="space-y-2">
+                <Label htmlFor="full_name">Full name</Label>
+                <Input
+                  id="full_name"
+                  name="full_name"
+                  type="text"
+                  autoComplete="name"
+                  required
+                  className="mt-1"
+                  placeholder="John Doe"
+                  aria-label="Full name"
+                />
+              </div>
+            )}
             {mode !== 'reset' && (
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
