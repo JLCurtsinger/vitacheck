@@ -10,30 +10,48 @@ interface SignInModalProps {
   onClose: () => void;
 }
 
+type ModalMode = 'signin' | 'signup' | 'reset';
+
 export function SignInModal({ isOpen, onClose }: SignInModalProps) {
-  const [isSignUp, setIsSignUp] = useState(false);
-  const { signIn, signUp, isLoading, error: authError } = useAuth();
+  const [mode, setMode] = useState<ModalMode>('signin');
+  const { signIn, signUp, resetPassword, isLoading, error: authError } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
+    setSuccessMessage(null);
 
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
 
     try {
-      if (isSignUp) {
+      if (mode === 'reset') {
+        await resetPassword(email);
+        setSuccessMessage("If an account exists for this email, a password reset link has been sent.");
+      } else if (mode === 'signup') {
         await signUp(email, password);
-        setError("Check your email for the confirmation link!");
+        // Only show success if no error was thrown
+        setSuccessMessage("Check your email for the confirmation link!");
       } else {
         await signIn(email, password);
         onClose();
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+    } catch (err: any) {
+      // Check for duplicate email error
+      if (mode === 'signup' && err?.code === 'user_already_registered') {
+        setError("An account with this email already exists. Please sign in instead.");
+      } else if (mode === 'signup' && (
+        err?.message?.toLowerCase().includes('already been registered') ||
+        err?.message?.toLowerCase().includes('already registered')
+      )) {
+        setError("An account with this email already exists. Please sign in instead.");
+      } else {
+        setError(err?.message || "Something went wrong during sign up.");
+      }
     }
   };
 
@@ -42,6 +60,8 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
     if (isOpen && formRef.current) {
       formRef.current.reset();
       setError(null);
+      setSuccessMessage(null);
+      setMode('signin');
     }
   }, [isOpen]);
 
@@ -54,7 +74,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
       >
         <div className="bg-white rounded-lg shadow-xl p-6">
           <h2 className="text-2xl font-bold mb-6 text-center">
-            {isSignUp ? "Create an Account" : "Sign In"}
+            {mode === 'reset' ? "Reset Password" : mode === 'signup' ? "Create an Account" : "Sign In"}
           </h2>
           <form 
             ref={formRef}
@@ -76,21 +96,37 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                 aria-label="Email address"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="mt-1"
-                placeholder="••••••••"
-                aria-label="Password"
-              />
-            </div>
+            {mode !== 'reset' && (
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                  required
+                  className="mt-1"
+                  placeholder="••••••••"
+                  aria-label="Password"
+                />
+              </div>
+            )}
+            {mode === 'signin' && (
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => setMode('reset')}
+                  className="text-sm text-blue-600 hover:text-purple-700"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
             {(error || authError) && (
               <div className="text-red-500 text-sm">{error || authError}</div>
+            )}
+            {successMessage && (
+              <div className="text-green-600 text-sm">{successMessage}</div>
             )}
             <Button
               type="submit"
@@ -98,20 +134,30 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-90"
             >
               {isLoading 
-                ? (isSignUp ? "Creating account..." : "Signing in...") 
-                : (isSignUp ? "Create Account" : "Sign In")}
+                ? (mode === 'reset' ? "Sending reset link..." : mode === 'signup' ? "Creating account..." : "Signing in...") 
+                : (mode === 'reset' ? "Send Reset Link" : mode === 'signup' ? "Create Account" : "Sign In")}
             </Button>
 
             <div className="text-center text-sm">
-              <button
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-blue-600 hover:text-purple-700"
-              >
-                {isSignUp 
-                  ? "Already have an account? Sign in" 
-                  : "Don't have an account? Sign up"}
-              </button>
+              {mode === 'reset' ? (
+                <button
+                  type="button"
+                  onClick={() => setMode('signin')}
+                  className="text-blue-600 hover:text-purple-700"
+                >
+                  Back to sign in
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setMode(mode === 'signup' ? 'signin' : 'signup')}
+                  className="text-blue-600 hover:text-purple-700"
+                >
+                  {mode === 'signup' 
+                    ? "Already have an account? Sign in" 
+                    : "Don't have an account? Sign up"}
+                </button>
+              )}
             </div>
           </form>
         </div>

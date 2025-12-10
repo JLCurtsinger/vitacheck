@@ -13,6 +13,7 @@ import Results from "./pages/Results";
 import Experiences from "./pages/Experiences";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsAndConditions from "./pages/TermsAndConditions";
+import PasswordResetPage from "./pages/PasswordResetPage";
 import { trackPageView } from "./utils/analytics";
 
 const queryClient = new QueryClient();
@@ -53,6 +54,7 @@ const App = () => {
             <Route path="/experiences" element={<ProtectedRoute><Experiences /></ProtectedRoute>} />
             <Route path="/privacy-policy" element={<ProtectedRoute><PrivacyPolicy /></ProtectedRoute>} />
             <Route path="/terms" element={<ProtectedRoute><TermsAndConditions /></ProtectedRoute>} />
+            <Route path="/auth/reset" element={<PasswordResetPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AuthProvider>

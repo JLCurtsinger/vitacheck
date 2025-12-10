@@ -11,6 +11,8 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
   error: string | null;
 }
 
@@ -69,10 +71,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
       });
-      if (error) throw error;
+      if (error) {
+        // Preserve the Supabase error with code and message
+        setError(error.message);
+        throw error;
+      }
       // Show success message or redirect
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred during sign up');
+      // Re-throw the error so callers can inspect error.code and error.message
       throw err;
     } finally {
       setIsLoading(false);
@@ -94,6 +100,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const resetPassword = async (email: string) => {
+    try {
+      setError(null);
+      setIsLoading(true);
+      const redirectTo = import.meta.env.VITE_SITE_URL
+        ? `${import.meta.env.VITE_SITE_URL}/auth/reset`
+        : `${window.location.origin}/auth/reset`;
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo,
+      });
+      if (error) {
+        setError(error.message);
+        throw error;
+      }
+    } catch (err) {
+      // Re-throw the error so callers can inspect error.code and error.message
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    try {
+      setError(null);
+      setIsLoading(true);
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      if (error) {
+        setError(error.message);
+        throw error;
+      }
+      // On success, don't log out; just resolve
+    } catch (err) {
+      // Re-throw the error so callers can inspect error.message
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const value = {
     user,
     session,
@@ -102,6 +151,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signUp,
     signOut,
+    resetPassword,
+    updatePassword,
     error,
   };
 
