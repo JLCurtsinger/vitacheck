@@ -162,6 +162,7 @@ export function useInteractions(medications: string[]) {
           description: "Failed to check interactions. Please try again later."
         });
       } finally {
+        console.log(`[${newRequestId}] Interaction check completed, clearing loading state`);
         setLoading(false);
       }
     };

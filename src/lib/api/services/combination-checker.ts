@@ -93,9 +93,11 @@ export async function checkAllCombinations(medications: string[]): Promise<Combi
     }
     
     console.log(`✅ [checkAllCombinations] Completed interaction search for ${medications.length} medications. Result count: ${validResults.length}`);
+    console.log(`[checkAllCombinations] Always resolves - pipeline will never hang`);
     return validResults;
   } catch (error) {
     console.error("Error in checkAllCombinations:", error);
+    console.log(`[checkAllCombinations] Error caught, returning fallback results - pipeline will not hang`);
     // Create an appropriate fallback based on the number of medications
     if (medications.length === 1) {
       return [createFallbackCombinationResult([medications[0]], 'single')];

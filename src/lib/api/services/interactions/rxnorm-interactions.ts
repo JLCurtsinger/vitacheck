@@ -58,7 +58,9 @@ export async function checkRxNormInteractions(
   try {
     // Pass med1Id and med2Id as separate array elements, never concatenated
     const rxcuis = [med1Id, med2Id].filter(Boolean);
+    console.log(`[RxNorm Interactions] Checking interactions for ${med1Name}(${med1Id}) + ${med2Name}(${med2Id})`);
     const rxnormInteractions = await getDrugInteractions(rxcuis);
+    console.log(`[RxNorm Interactions] Received ${rxnormInteractions.length} interaction groups for ${med1Name} + ${med2Name}`);
     
     const { hasInteractions, description } = processRxNormInteractionData(rxnormInteractions);
     
@@ -101,7 +103,8 @@ export async function checkRxNormInteractions(
     // Default case - we don't have clear information
     return null;
   } catch (error) {
-    console.error('Error in RxNorm interaction check:', error);
+    console.error(`[RxNorm Interactions] Error checking interactions for ${med1Name} + ${med2Name}:`, error);
+    // Always return null (not throw) to prevent blocking the pipeline
     return null;
   }
 }

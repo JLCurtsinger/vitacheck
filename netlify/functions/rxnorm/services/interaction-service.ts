@@ -23,10 +23,21 @@ export async function mergeInteractionResults(results: any[], rxcuiArray: string
   );
   
   if (validResults.length === 0) {
+    console.log(`[RxNorm Function] No valid results from any RxCUI request for: ${rxcuiArray.join(', ')} - returning 200 with empty interactions`);
     if (isDebug) {
       console.log('⚠️ RxNorm: No valid results from any RxCUI request');
     }
-    return createErrorResponse(404, 'No valid interaction data found');
+    // Return 200 with empty interactions instead of 404 - this is a valid "no data" case
+    return {
+      statusCode: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        success: false,
+        error: 'No valid interaction data found',
+        interactionTypeGroup: [],
+        status: 'success'
+      })
+    };
   }
   
   // Parse the JSON responses
@@ -98,6 +109,7 @@ export async function mergeInteractionResults(results: any[], rxcuiArray: string
   }
   
   // Return a response with the same format as the original API
+  console.log(`[RxNorm Function] Returning interaction results: ${relevantInteractions.length} interactions found`);
   return {
     statusCode: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -112,6 +124,7 @@ export async function mergeInteractionResults(results: any[], rxcuiArray: string
  * Fetches interaction data for multiple RxCUIs
  */
 export async function fetchMultipleInteractions(resolvedRxcuis: string[]) {
+  console.log(`[RxNorm Function] Processing interactions operation for ${resolvedRxcuis.length} RxCUIs: ${resolvedRxcuis.join(', ')}`);
   if (isDebug) {
     console.log(`🔍 RxNorm: Handling multiple RxCUIs (${resolvedRxcuis.length}): ${resolvedRxcuis.join(', ')}`);
   }

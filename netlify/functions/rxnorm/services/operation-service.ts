@@ -52,7 +52,18 @@ export async function handleOperation(operation: string, params: any) {
         const fetchedRxcui = await fetchRxCUIByName(name);
         
         if (!fetchedRxcui) {
-          return createErrorResponse(404, 'Could not find RxCUI for the given medication name', name);
+          // Return 200 with error payload instead of 404 - this is a recoverable lookup failure
+          return {
+            statusCode: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              success: false,
+              error: 'Could not find RxCUI for the given medication name',
+              details: name,
+              interactionTypeGroup: [],
+              status: 'success'
+            })
+          };
         }
         
         resolvedRxcuis = [fetchedRxcui];
