@@ -8,18 +8,29 @@ const medicationLookupCache = new Map<string, MedicationLookupResult>();
 export async function processMedicationLookups(medications: string[]): Promise<Map<string, MedicationLookupResult>> {
   const medicationStatuses = new Map<string, MedicationLookupResult>();
   
-  for (const med of medications) {
+  // Build lookup promises for all medications (cached or not)
+  // This preserves the order of the original medications array
+  const lookupPromises = medications.map(async (med) => {
     // Check if this medication is already in the cache
     if (medicationLookupCache.has(med)) {
       console.log(`Using cached lookup data for: ${med}`);
-      medicationStatuses.set(med, medicationLookupCache.get(med)!);
+      return { med, result: medicationLookupCache.get(med)! };
     } else {
       // If not in cache, perform the lookup
+      console.log(`Starting parallel lookup for: ${med}`);
       const result = await lookupMedication(med);
-      // Store result in both the local map and the cache
-      medicationStatuses.set(med, result);
+      // Store result in cache
       medicationLookupCache.set(med, result);
+      return { med, result };
     }
+  });
+  
+  // Wait for all lookups to complete (cached lookups resolve immediately)
+  const lookupResults = await Promise.all(lookupPromises);
+  
+  // Add results to the map in the original medications array order
+  for (const { med, result } of lookupResults) {
+    medicationStatuses.set(med, result);
   }
   
   return medicationStatuses;

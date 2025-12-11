@@ -180,8 +180,13 @@ export async function processMedicationPair(
       return createFallbackInteractionResult(med1, med2);
     }
 
-    // Always query external APIs first
-    console.log(`⚙️ Querying all external APIs for ${med1} + ${med2}`);
+    // Query external APIs and database in parallel
+    console.log(`⚙️ Querying all external APIs and database in parallel for ${med1} + ${med2}`);
+    
+    const [apiResults, existingResult] = await Promise.all([
+      processApiInteractions(med1Status, med2Status, med1, med2),
+      getDatabaseInteraction(med1, med2)
+    ]);
     
     const {
       rxnormResult, 
@@ -190,7 +195,7 @@ export async function processMedicationPair(
       adverseEventsResult,
       aiAnalysisResult,
       sources 
-    } = await processApiInteractions(med1Status, med2Status, med1, med2);
+    } = apiResults;
     
     console.log(`API results for ${med1} + ${med2}:`, {
       hasRxNorm: !!rxnormResult,
@@ -200,9 +205,6 @@ export async function processMedicationPair(
       hasAiAnalysis: !!aiAnalysisResult,
       sourceCount: sources?.length || 0
     });
-
-    // Get existing database result for comparison
-    const existingResult = await getDatabaseInteraction(med1, med2);
     
     // Check if we got any meaningful API results
     const hasApiResults = sources?.length > 0 && sources.some(s => s?.name && s.name !== "No Data Available");
@@ -226,13 +228,20 @@ export async function processMedicationPair(
         aiValidated
       };
 
-      // Save to database if it's better than existing result
-      if (shouldUpdateInteraction(result, existingResult)) {
-        await saveInteractionToDatabase(med1, med2, result);
-      }
-
       // Cache the result
       cacheInteractionResult(med1, med2, result);
+      
+      // Save to database if it's better than existing result (fire-and-forget)
+      if (shouldUpdateInteraction(result, existingResult)) {
+        void (async () => {
+          try {
+            await saveInteractionToDatabase(med1, med2, result);
+          } catch (err) {
+            // Log but never throw - DB write is non-blocking
+            console.error(`[Non-blocking DB Write] Error saving interaction for ${med1} + ${med2}:`, err);
+          }
+        })();
+      }
       
       return result;
     }
