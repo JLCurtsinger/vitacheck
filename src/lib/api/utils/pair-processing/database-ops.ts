@@ -10,6 +10,48 @@ import { findOrCreateInteractionByNames } from '@/lib/api/db/interactions';
 import { supabase } from "@/integrations/supabase/client";
 
 /**
+ * Wraps a Supabase query promise with a timeout to prevent hanging
+ * @param promise The Supabase query promise
+ * @param operation Short description of the operation for logging
+ * @param timeoutMs Timeout in milliseconds (default: 8000)
+ * @returns The result if successful, or null if timeout/error
+ */
+async function withSupabaseTimeout<T>(
+  promise: Promise<T>,
+  operation: string,
+  timeoutMs: number = 8000
+): Promise<T | null> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  
+  try {
+    const timeoutPromise = new Promise<null>((resolve) => {
+      timeoutId = setTimeout(() => {
+        console.warn(`⏱️ [DB Timeout] ${operation} timed out after ${timeoutMs}ms`);
+        resolve(null);
+      }, timeoutMs);
+    });
+    
+    const result = await Promise.race([promise, timeoutPromise]);
+    
+    // Clear timeout if promise resolved/rejected first
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    
+    return result;
+  } catch (error) {
+    // Clear timeout on error
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    
+    // Log error and return null instead of rethrowing
+    console.error(`[DB Error] ${operation} failed:`, error);
+    return null;
+  }
+}
+
+/**
  * Saves interaction result to the database
  * 
  * @param med1 First medication name
@@ -23,10 +65,13 @@ export async function saveInteractionToDatabase(
 ): Promise<void> {
   try {
     // Create or find the interaction in the database
-    const dbInteraction = await findOrCreateInteractionByNames(med1, med2);
+    const dbInteraction = await withSupabaseTimeout(
+      findOrCreateInteractionByNames(med1, med2),
+      `find/create interaction for ${med1} + ${med2}`
+    );
     
     if (!dbInteraction) {
-      console.error(`Failed to save interaction between ${med1} and ${med2} to database`);
+      console.warn(`[DB Timeout/Error] Could not find/create interaction between ${med1} and ${med2} - skipping DB cache update`);
       return;
     }
     
@@ -34,17 +79,27 @@ export async function saveInteractionToDatabase(
     const sourceNames = result.sources.map(source => source.name);
     
     // Update the interaction with the processed data
-    const { error } = await supabase
-      .from('interactions')
-      .update({
-        interaction_detected: result.severity !== "safe" && result.severity !== "unknown",
-        severity: result.severity,
-        risk_score: result.confidenceScore,
-        confidence_level: result.confidenceScore,
-        sources: sourceNames,
-        last_checked: new Date().toISOString()
-      })
-      .eq('id', dbInteraction.id);
+    const updateResult = await withSupabaseTimeout(
+      supabase
+        .from('interactions')
+        .update({
+          interaction_detected: result.severity !== "safe" && result.severity !== "unknown",
+          severity: result.severity,
+          risk_score: result.confidenceScore,
+          confidence_level: result.confidenceScore,
+          sources: sourceNames,
+          last_checked: new Date().toISOString()
+        })
+        .eq('id', dbInteraction.id),
+      `update interaction for ${med1} + ${med2}`
+    );
+    
+    if (!updateResult) {
+      console.warn(`[DB Timeout/Error] Could not update interaction between ${med1} and ${med2} - skipping DB cache update`);
+      return;
+    }
+    
+    const { error } = updateResult;
     
     if (error) {
       console.error(`Error saving interaction between ${med1} and ${med2} to database:`, error);
@@ -77,10 +132,20 @@ export async function getDatabaseInteraction(
     console.log(`Checking database for interaction between ${med1} and ${med2}`);
     
     // Find the substance IDs
-    const { data: substances, error: substancesError } = await supabase
-      .from('substances')
-      .select('id')
-      .in('name', [med1.toLowerCase(), med2.toLowerCase()]);
+    const substancesResult = await withSupabaseTimeout(
+      supabase
+        .from('substances')
+        .select('id')
+        .in('name', [med1.toLowerCase(), med2.toLowerCase()]),
+      `get substances for ${med1} + ${med2}`
+    );
+      
+    if (!substancesResult) {
+      console.warn(`[DB Timeout/Error] Could not fetch substances for ${med1} and/or ${med2}`);
+      return null;
+    }
+    
+    const { data: substances, error: substancesError } = substancesResult;
       
     if (substancesError || !substances || substances.length < 2) {
       console.log(`No substances found for ${med1} and/or ${med2}`);
@@ -88,11 +153,21 @@ export async function getDatabaseInteraction(
     }
     
     // Find interaction between these substances
-    const { data: interactions, error: interactionsError } = await supabase
-      .from('interactions')
-      .select('id, severity, confidence_level, sources, last_checked')
-      .or(`substance_a_id.eq.${substances[0].id},substance_a_id.eq.${substances[1].id}`)
-      .or(`substance_b_id.eq.${substances[0].id},substance_b_id.eq.${substances[1].id}`);
+    const interactionsResult = await withSupabaseTimeout(
+      supabase
+        .from('interactions')
+        .select('id, severity, confidence_level, sources, last_checked')
+        .or(`substance_a_id.eq.${substances[0].id},substance_a_id.eq.${substances[1].id}`)
+        .or(`substance_b_id.eq.${substances[0].id},substance_b_id.eq.${substances[1].id}`),
+      `get interaction for ${med1} + ${med2}`
+    );
+      
+    if (!interactionsResult) {
+      console.warn(`[DB Timeout/Error] Could not fetch interaction for ${med1} + ${med2}`);
+      return null;
+    }
+    
+    const { data: interactions, error: interactionsError } = interactionsResult;
       
     if (interactionsError || !interactions || interactions.length === 0) {
       console.log(`No interaction found in database for ${med1} + ${med2}`);
