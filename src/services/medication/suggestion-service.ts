@@ -1,7 +1,6 @@
 
 import { MedicationSuggestion } from "./types";
 import { fetchRxTermsSuggestions } from "./api/rx-terms-api";
-import { fetchSuppAiSuggestions } from "./api/supp-ai-api";
 import { sortSuggestionsByRelevance, applyFuzzyFiltering } from "./utils";
 import { getCachedCombinedSuggestions, cacheCombinedSuggestions } from "./cache";
 import { getMedicationNamePair } from "./brand-to-generic";
@@ -35,43 +34,21 @@ export async function getMedicationSuggestions(query: string): Promise<Medicatio
   }
 
   try {
-    // Always call RxTerms (primary source)
-    const rxTermsPromise = fetchRxTermsSuggestions(query);
+    // Call RxTerms (primary source for autocomplete)
+    const rxResults: MedicationSuggestion[] = await fetchRxTermsSuggestions(query) ?? [];
     
-    // Optionally call SUPP.AI in parallel (only for queries >= 3 chars)
-    const suppAiPromise = query.length >= 3 
-      ? fetchSuppAiSuggestions(query)
-      : Promise.resolve([]);
+    console.log("SuggestionService: RxTerms returned", { count: rxResults.length, results: rxResults });
 
-    // Wait for both promises to settle (non-blocking)
-    const [rxTermsResult, suppAiResult] = await Promise.allSettled([
-      rxTermsPromise,
-      suppAiPromise
-    ]);
-
-    // Extract RxTerms results (primary source - always use if available)
-    let rxResults: MedicationSuggestion[] = [];
-    if (rxTermsResult.status === 'fulfilled') {
-      rxResults = rxTermsResult.value ?? [];
-      console.log("SuggestionService: RxTerms returned", { count: rxResults.length, results: rxResults });
-    } else {
-      console.error("SuggestionService: RxTerms suggestions failed", rxTermsResult.reason);
-    }
-
-    // Extract SUPP.AI results (optional - only merge if successful)
-    let suppAiResults: MedicationSuggestion[] = [];
-    if (suppAiResult.status === 'fulfilled') {
-      suppAiResults = suppAiResult.value ?? [];
-      console.log("SuggestionService: SUPP.AI returned", { count: suppAiResults.length, results: suppAiResults });
-    } else {
-      // Log warning but don't block - this is expected behavior for timeouts/errors
-      console.warn("SuggestionService: SUPP.AI suggestions unavailable (non-blocking)", suppAiResult.reason);
-    }
+    // SUPP.AI is disabled for autocomplete: treat as no suggestions.
+    // This keeps the merge/dedupe structure stable while ensuring only RxTerms results are used.
+    const suppAiResults: MedicationSuggestion[] = [];
 
     // Merge results: RxTerms first, then append non-duplicate SUPP.AI suggestions
+    // (SUPP.AI is empty, so this effectively just returns RxTerms results)
     const merged: MedicationSuggestion[] = [...rxResults];
     
     // Append SUPP.AI suggestions that aren't duplicates
+    // (This block is intentionally kept for structural consistency, but suppAiResults is always empty)
     for (const suppSuggestion of suppAiResults) {
       if (!isDuplicate(suppSuggestion, merged)) {
         merged.push(suppSuggestion);

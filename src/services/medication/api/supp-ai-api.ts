@@ -56,6 +56,10 @@ async function getSuppAiSuggestionsWithTimeout(query: string): Promise<SuppAiInt
 /**
  * Fetch supplement suggestions from SUPP.AI API
  * Uses a shorter timeout (2.5s) to ensure non-blocking behavior for autocomplete
+ * 
+ * NOTE: This function is currently not used by the autocomplete pipeline.
+ * SUPP.AI is disabled for typeahead suggestions to avoid slow, low-yield calls,
+ * but this helper is kept for potential future use.
  */
 export async function fetchSuppAiSuggestions(query: string): Promise<MedicationSuggestion[]> {
   try {
