@@ -2,15 +2,65 @@
 import { MedicationSuggestion } from "../types";
 import { getCachedSuggestions, cacheSuggestions } from "../cache";
 import { fuzzyMatch } from "../utils";
-import { getSupplementInteractions } from "@/lib/api/suppai";
+import { supabase } from "@/integrations/supabase/client";
+import { SuppAiInteraction } from "@/lib/api/suppai";
+
+// Shorter timeout for autocomplete suggestions (non-blocking)
+const SUGGESTION_TIMEOUT_MS = 2500; // 2.5 seconds
+
+/**
+ * Lightweight SUPP.AI invocation with short timeout for autocomplete suggestions
+ */
+async function getSuppAiSuggestionsWithTimeout(query: string): Promise<SuppAiInteraction[]> {
+  const operation = `SUPPAI suggestion lookup for "${query}"`;
+  console.log(`⏱️ [SUPPAI Suggestions] Starting ${operation} with ${SUGGESTION_TIMEOUT_MS}ms timeout`);
+
+  const invokePromise = supabase.functions.invoke('suppai', {
+    body: { query },
+  });
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`${operation} timed out after ${SUGGESTION_TIMEOUT_MS}ms`));
+    }, SUGGESTION_TIMEOUT_MS);
+  });
+
+  try {
+    const result = await Promise.race([invokePromise, timeoutPromise]) as {
+      data: any;
+      error: any;
+    };
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    const interactions = Array.isArray(result.data?.data?.interactions) 
+      ? result.data.data.interactions 
+      : Array.isArray(result.data?.interactions)
+      ? result.data.interactions
+      : [];
+
+    console.log(`✅ [SUPPAI Suggestions] Received ${interactions.length} interactions for ${query}`);
+    return interactions;
+  } catch (error: any) {
+    if (error?.message?.includes('timed out')) {
+      console.warn(`⏱️ [SUPPAI Suggestions] Timeout for "${query}" - returning empty results`);
+    } else {
+      console.warn(`⚠️ [SUPPAI Suggestions] Error for "${query}":`, error?.message || error);
+    }
+    return [];
+  }
+}
 
 /**
  * Fetch supplement suggestions from SUPP.AI API
+ * Uses a shorter timeout (2.5s) to ensure non-blocking behavior for autocomplete
  */
 export async function fetchSuppAiSuggestions(query: string): Promise<MedicationSuggestion[]> {
   try {
     // Skip API call for very short queries
-    if (query.length < 2) return [];
+    if (query.length < 3) return [];
 
     // Check cache first
     const cachedResults = getCachedSuggestions("suppai", query);
@@ -20,9 +70,8 @@ export async function fetchSuppAiSuggestions(query: string): Promise<MedicationS
 
     console.log('🔍 Fetching SUPP.AI suggestions for:', query);
     
-    // Use the timeout-protected getSupplementInteractions function
-    // This ensures we never hang if SUPP.AI is unreachable
-    const interactions = await getSupplementInteractions(query.trim());
+    // Use the lightweight timeout-protected function for suggestions
+    const interactions = await getSuppAiSuggestionsWithTimeout(query.trim());
     
     if (!interactions || interactions.length === 0) {
       return [];
@@ -30,12 +79,13 @@ export async function fetchSuppAiSuggestions(query: string): Promise<MedicationS
     
     // Extract supplement names from interactions data
     const supplements = new Set<string>();
+    const queryLower = query.toLowerCase();
     
     interactions.forEach((interaction) => {
-      if (interaction.drug1 && interaction.drug1.toLowerCase().includes(query.toLowerCase())) {
+      if (interaction.drug1 && interaction.drug1.toLowerCase().includes(queryLower)) {
         supplements.add(interaction.drug1);
       }
-      if (interaction.drug2 && interaction.drug2.toLowerCase().includes(query.toLowerCase())) {
+      if (interaction.drug2 && interaction.drug2.toLowerCase().includes(queryLower)) {
         supplements.add(interaction.drug2);
       }
     });
@@ -50,7 +100,7 @@ export async function fetchSuppAiSuggestions(query: string): Promise<MedicationS
     
     return suggestions;
   } catch (error) {
-    console.error('Error fetching SUPP.AI suggestions:', error);
+    console.warn('⚠️ Error fetching SUPP.AI suggestions (non-blocking):', error);
     return [];
   }
 }
