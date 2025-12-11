@@ -81,6 +81,8 @@ export function useInteractions(medications: string[]) {
         // Use the enhanced function that returns combination types
         const results = await checkAllCombinations(medications);
         
+        console.log(`[${newRequestId}] Interaction check completed`, { resultCount: results.length });
+        
         // Log the results to help debug confidence score issues
         console.log(`[${newRequestId}] Received interaction results:`, 
           results.map(r => ({

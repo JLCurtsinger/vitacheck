@@ -6,58 +6,81 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-export interface SuppAiResponse {
-  interactions?: Array<{
-    drug1: string;
-    drug2: string;
-    evidence_count: number;
-    label: string;
-  }>;
+export interface SuppAiInteraction {
+  drug1: string;
+  drug2: string;
+  evidence_count: number;
+  label: string;
 }
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // milliseconds
+export interface SuppAiResponse {
+  interactions?: SuppAiInteraction[];
+}
+
+const SUPPAI_TIMEOUT_MS = 10000; // 10 seconds
+
+/**
+ * Invokes the SUPP.AI Supabase Edge Function with a timeout wrapper.
+ * Prevents infinite hangs if the function is unreachable.
+ */
+async function invokeSuppAiWithTimeout(query: string): Promise<any> {
+  const operation = `SUPPAI lookup for "${query}"`;
+  console.log(`⏱️ [SUPPAI Client] Starting ${operation} with ${SUPPAI_TIMEOUT_MS}ms timeout`);
+
+  const invokePromise = supabase.functions.invoke('suppai', {
+    body: { query },
+  });
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`${operation} timed out after ${SUPPAI_TIMEOUT_MS}ms`));
+    }, SUPPAI_TIMEOUT_MS);
+  });
+
+  const result = await Promise.race([invokePromise, timeoutPromise]) as {
+    data: any;
+    error: any;
+  };
+
+  console.log(`[SUPPAI Client] Invoke completed for "${query}"`, { hasData: !!result.data, hasError: !!result.error });
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  return result.data;
+}
 
 /**
  * Fetches supplement interactions from the SUPP.AI API.
  * @param medication - The name of the medication/supplement to check
  * @returns Array of interaction data or empty array if none found
+ * 
+ * IMPORTANT: This function will never block the interaction pipeline.
+ * If SUPP.AI is unreachable or times out, it returns an empty array.
  */
-export async function getSupplementInteractions(medication: string) {
-  let attempts = 0;
-  
-  console.log(`🔍 [SUPPAI Client] Fetching interactions for: ${medication}`);
-  
-  while (attempts < MAX_RETRIES) {
-    try {
-      const { data, error } = await supabase.functions.invoke('suppai', {
-        body: { query: medication.trim() }
-      });
-      
-      if (error) {
-        console.error(`❌ [SUPPAI Client] API error:`, error);
-        throw error;
-      }
-      
-      console.log(`✅ [SUPPAI Client] Received data for ${medication}:`, 
-        data?.interactions ? `Found ${data.interactions.length} interactions` : 'No interactions found');
-      console.log(`⚙️ [SUPPAI Client] Raw response:`, data);
-      
-      return data?.interactions || [];
-      
-    } catch (error) {
-      attempts++;
-      console.error(`❌ [SUPPAI Client] Lookup attempt ${attempts} failed:`, error);
-      
-      if (attempts < MAX_RETRIES) {
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-        continue;
-      }
-      
-      console.error('❌ [SUPPAI Client] All lookup attempts failed for medication:', medication);
-      return [];
-    }
+export async function getSupplementInteractions(medication: string): Promise<SuppAiInteraction[]> {
+  const trimmed = medication.trim();
+  if (!trimmed) {
+    return [];
   }
-  
-  return [];
+
+  try {
+    console.log(`🔍 [SUPPAI Client] Fetching interactions for: ${trimmed}`);
+    const data = await invokeSuppAiWithTimeout(trimmed);
+
+    const interactions = Array.isArray(data?.interactions) ? data.interactions : [];
+    console.log(`✅ [SUPPAI Client] Received ${interactions.length} interactions for ${trimmed}`);
+
+    return interactions;
+  } catch (error: any) {
+    console.error(`❌ [SUPPAI Client] Failed to fetch interactions for ${trimmed}:`, {
+      message: error?.message,
+      name: error?.name,
+      stack: error?.stack,
+    });
+
+    // IMPORTANT: never block the interaction pipeline
+    return [];
+  }
 }

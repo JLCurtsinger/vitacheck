@@ -88,9 +88,11 @@ export async function checkAllCombinations(medications: string[]): Promise<Combi
     
     if (validResults.length === 0 && results.length > 0) {
       console.warn("All results were filtered out as invalid, returning original results with warning");
+      console.log(`✅ [checkAllCombinations] Completed interaction search for ${medications.length} medications. Result count: ${results.length}`);
       return results;
     }
     
+    console.log(`✅ [checkAllCombinations] Completed interaction search for ${medications.length} medications. Result count: ${validResults.length}`);
     return validResults;
   } catch (error) {
     console.error("Error in checkAllCombinations:", error);
