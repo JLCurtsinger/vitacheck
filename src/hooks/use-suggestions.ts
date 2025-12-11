@@ -70,6 +70,7 @@ export function useSuggestions(inputValue: string, showRecent: boolean = false) 
     
     try {
       const results = await getMedicationSuggestions(query);
+      console.log("useSuggestions: suggestions from service", { count: results?.length ?? 0, results });
       setSuggestions(results);
       setShowDropdown(true);
       

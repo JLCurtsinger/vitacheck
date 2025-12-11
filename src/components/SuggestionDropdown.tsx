@@ -20,6 +20,14 @@ export const SuggestionDropdown = forwardRef<HTMLDivElement, SuggestionDropdownP
   onSelectSuggestion,
   visible
 }, ref) => {
+  console.log("SuggestionDropdown: received props", { 
+    visible, 
+    suggestionsCount: suggestions?.length ?? 0, 
+    suggestions,
+    showRecents,
+    recentSearchesCount: recentSearches?.length ?? 0
+  });
+  
   if (!visible) return null;
 
   return (

@@ -14,93 +14,18 @@ const sessionSuggestionsCache = new Map<string, MedicationSuggestion[]>();
  * Fetch medication suggestions from multiple sources with fuzzy matching
  */
 export async function getMedicationSuggestions(query: string): Promise<MedicationSuggestion[]> {
-  if (!query || query.trim().length < 2) {
+  if (!query || query.length < 2) {
     return [];
   }
-  
-  // Apply spelling correction to the query
-  const correctedQuery = spellcheckMedication(query);
-  const queryToUse = correctedQuery !== query ? correctedQuery : query;
-  
-  if (correctedQuery !== query) {
-    console.log(`Corrected query from "${query}" to "${correctedQuery}"`);
-  }
-  
-  // Check session cache first (faster than localStorage cache)
-  if (sessionSuggestionsCache.has(queryToUse)) {
-    console.log(`Using session cache for query: ${queryToUse}`);
-    return sessionSuggestionsCache.get(queryToUse)!;
-  }
-  
+
   try {
-    // Attempt to fetch from local storage cache (if not in session cache)
-    const cachedResults = getCachedCombinedSuggestions(queryToUse);
-    if (cachedResults) {
-      // Store in session cache for faster future lookups
-      sessionSuggestionsCache.set(queryToUse, cachedResults);
-      return cachedResults;
-    }
-    
-    // Fetch suggestions concurrently from multiple sources
-    // Use Promise.allSettled to ensure one failure doesn't block the other
-    const [rxTermsSettlement, suppAiSettlement] = await Promise.allSettled([
-      fetchRxTermsSuggestions(queryToUse),
-      fetchSuppAiSuggestions(queryToUse)
-    ]);
-    
-    const rxTermsResults = rxTermsSettlement.status === 'fulfilled' 
-      ? rxTermsSettlement.value 
-      : [];
-    const suppAiResults = suppAiSettlement.status === 'fulfilled' 
-      ? suppAiSettlement.value 
-      : [];
-    
-    if (rxTermsSettlement.status === 'rejected') {
-      console.error('❌ RxTerms suggestions failed:', rxTermsSettlement.reason);
-    }
-    if (suppAiSettlement.status === 'rejected') {
-      console.error('❌ SUPP.AI suggestions failed:', suppAiSettlement.reason);
-    }
-    
-    // Combine results
-    let combinedResults = [...rxTermsResults];
-    
-    // Add SUPP.AI results, avoiding duplicates
-    suppAiResults.forEach(supp => {
-      if (!combinedResults.some(item => item.name.toLowerCase() === supp.name.toLowerCase())) {
-        combinedResults.push(supp);
-      }
-    });
-    
-    // Add brand/generic information to the suggestions
-    combinedResults = combinedResults.map(suggestion => {
-      const { displayName, genericName, isBrand } = getMedicationNamePair(suggestion.name);
-      
-      if (isBrand) {
-        return {
-          ...suggestion,
-          name: displayName,
-          genericName: genericName,
-          isBrand: true
-        };
-      }
-      
-      return suggestion;
-    });
-    
-    // Apply fuzzy filtering for all results that weren't direct API matches
-    const fuzzyFilteredResults = applyFuzzyFiltering(combinedResults, queryToUse);
-    
-    // Sort by relevance
-    const sortedResults = sortSuggestionsByRelevance(fuzzyFilteredResults, queryToUse);
-    
-    // Cache the combined results (both in localStorage and session)
-    cacheCombinedSuggestions(queryToUse, sortedResults);
-    sessionSuggestionsCache.set(queryToUse, sortedResults);
-    
-    return sortedResults;
+    console.log("SuggestionService: calling RxTerms only", { query });
+    const rxResults = await fetchRxTermsSuggestions(query);
+    console.log("SuggestionService: RxTerms returned", { count: rxResults?.length ?? 0, results: rxResults });
+
+    return rxResults ?? [];
   } catch (error) {
-    console.error('Error fetching medication suggestions:', error);
+    console.error("SuggestionService: RxTerms suggestions failed", error);
     return [];
   }
 }
